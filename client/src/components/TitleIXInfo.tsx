@@ -221,7 +221,6 @@ export default function TitleIXInfo({
                 >
                   <BadgeCheck className="w-4 h-4 mr-2" />
                   Verify This Policy
-                  <Badge variant="secondary" className="ml-2 text-xs">From $2</Badge>
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   <Sparkles className="w-3 h-3 inline mr-1" />
