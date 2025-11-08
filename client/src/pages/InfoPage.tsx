@@ -4,11 +4,16 @@ import UniversitySelector from "@/components/UniversitySelector";
 import TitleIXInfo from "@/components/TitleIXInfo";
 import { Card } from "@/components/ui/card";
 import { BookOpen } from "lucide-react";
+import { format } from "date-fns";
 
 interface University {
   id: string;
   name: string;
   state: string;
+  titleIXInfo: string;
+  titleIXUrl: string | null;
+  lastUpdated: string;
+  verifiedAt: string | null;
 }
 
 export default function InfoPage() {
@@ -63,8 +68,12 @@ export default function InfoPage() {
 
       {selectedUniversity ? (
         <TitleIXInfo
+          universityId={selectedUniversity.id}
           universityName={selectedUniversity.name}
-          lastUpdated="November 2025"
+          titleIXInfo={selectedUniversity.titleIXInfo}
+          titleIXUrl={selectedUniversity.titleIXUrl}
+          lastUpdated={format(new Date(selectedUniversity.lastUpdated), "MMMM d, yyyy")}
+          verifiedAt={selectedUniversity.verifiedAt}
         />
       ) : (
         <Card className="p-12">

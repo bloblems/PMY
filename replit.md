@@ -22,10 +22,57 @@ The application also provides educational information about Title IX consent req
 - University data stored in `server/university-data.ts` and seeded automatically on server startup
 
 ### Enhanced University Selection
-- Added **"My university isn't listed..."** option at the bottom of university selector
+- Added **"My university isn't listed..."** option at the bottom of university selector  
 - Option includes explanatory dialog informing users that ConsentGuard is currently available only to top US universities
-- Dialog encourages users to check back or express interest in expansion
+- Dialog includes mailto link for users to contact support and express interest
+- Toast notification confirms interest when dialog is dismissed
 - Search functionality allows filtering 300+ universities by name or state
+
+### Title IX Information Management System
+- Implemented comprehensive system for maintaining accurate, up-to-date Title IX information
+- **Last Updated** dates displayed prominently on Info page with verification status
+- **User Reporting**: "Report Issue" button allows users to flag outdated or incorrect information
+- **Admin Dashboard** (`/admin`):
+  - View and manage pending user reports
+  - Update Title IX information and official policy URLs
+  - Mark universities as verified after review
+  - Track verification status and update history
+  - **Note**: Admin endpoints currently have no authentication (acceptable for MVP demo, must add auth before production)
+- Database schema includes:
+  - `titleIXInfo`, `titleIXUrl`, `lastUpdated`, `verifiedAt` fields on universities table
+  - `universityReports` table for tracking user-submitted issues
+- API endpoints for reporting, updating, and verifying university information
+
+**Production Recommendations**:
+- Add authentication/authorization for all `/api/admin/*` endpoints
+- Track resolution metadata (who resolved, when, notes) for audit trail
+- Plan integration hooks for automated monitoring to avoid blocking request/response cycle
+
+### AI Automation Recommendations for Title IX Monitoring
+**Recommended Approach for Production:**
+1. **OpenAI/Anthropic Integration**: Use GPT-4 or Claude to periodically review university Title IX pages
+   - Set up monthly or quarterly automated checks
+   - Compare current policy text with stored versions to detect changes
+   - Flag significant changes for admin review
+   - Cost: ~$0.01-0.05 per university check
+
+2. **Web Scraping + Change Detection**:
+   - Use Playwright or Puppeteer to monitor university Title IX pages
+   - Implement hash-based change detection to identify updates
+   - Send automated alerts to admin dashboard when changes detected
+   - Store snapshots for comparison
+
+3. **Third-Party Services**:
+   - Consider services like Apify, Zapier, or Make.com for automated monitoring
+   - Set up webhooks to notify admin dashboard of detected changes
+   - Integrate with Slack/email for immediate alerts
+
+4. **Manual Review Workflow**:
+   - Quarterly admin review of high-priority universities (Ivy League, large state schools)
+   - Annual review of all 300+ universities
+   - User reports provide crowdsourced accuracy checking
+
+**Implementation Priority**: Start with user reporting + manual admin updates, then layer in automated monitoring as the app scales.
 
 ## User Preferences
 

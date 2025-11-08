@@ -9,6 +9,7 @@ import InfoPage from "@/pages/InfoPage";
 import RecordPage from "@/pages/RecordPage";
 import ContractPage from "@/pages/ContractPage";
 import FilesPage from "@/pages/FilesPage";
+import AdminPage from "@/pages/AdminPage";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/record" component={RecordPage} />
       <Route path="/contract" component={ContractPage} />
       <Route path="/files" component={FilesPage} />
+      <Route path="/admin" component={AdminPage} />
     </Switch>
   );
 }

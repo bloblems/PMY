@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -5,28 +6,142 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, BookOpen, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, BookOpen, Shield, Flag, ExternalLink, CheckCircle2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface TitleIXInfoProps {
+  universityId: string;
   universityName: string;
-  lastUpdated?: string;
+  titleIXInfo: string;
+  titleIXUrl: string | null;
+  lastUpdated: string;
+  verifiedAt: string | null;
 }
 
-export default function TitleIXInfo({ universityName, lastUpdated }: TitleIXInfoProps) {
+export default function TitleIXInfo({
+  universityId,
+  universityName,
+  titleIXInfo,
+  titleIXUrl,
+  lastUpdated,
+  verifiedAt,
+}: TitleIXInfoProps) {
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportType, setReportType] = useState<string>("");
+  const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubmitReport = async () => {
+    if (!reportType || !description.trim()) {
+      toast({
+        title: "Missing information",
+        description: "Please select a report type and provide a description.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await apiRequest("POST", "/api/reports", {
+        universityId,
+        reportType,
+        description: description.trim(),
+        status: "pending",
+      });
+
+      toast({
+        title: "Report submitted",
+        description: "Thank you for helping us keep this information accurate.",
+      });
+
+      setShowReportDialog(false);
+      setReportType("");
+      setDescription("");
+    } catch (error) {
+      toast({
+        title: "Failed to submit report",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-6">
-        <div className="flex items-start gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Shield className="h-5 w-5 text-primary" />
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg mb-1">Title IX at {universityName}</h3>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <p className="text-muted-foreground">
+                  Last updated: <span className="font-medium text-foreground">{lastUpdated}</span>
+                </p>
+                {verifiedAt && (
+                  <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="h-3 w-3" />
+                    <span className="text-xs">Verified</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg mb-1">Title IX at {universityName}</h3>
-            {lastUpdated && (
-              <p className="text-sm text-muted-foreground">Last updated: {lastUpdated}</p>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center pt-2 border-t">
+            {titleIXUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(titleIXUrl, "_blank")}
+                data-testid="button-view-official-policy"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View Official Policy
+              </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowReportDialog(true)}
+              data-testid="button-report-issue"
+            >
+              <Flag className="w-4 h-4 mr-2" />
+              Report Issue
+            </Button>
           </div>
         </div>
+      </Card>
+
+      <Card className="p-6">
+        <h4 className="font-semibold mb-3">Title IX Policy Information</h4>
+        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+          {titleIXInfo}
+        </p>
       </Card>
 
       <Accordion type="single" collapsible className="space-y-4">
@@ -96,6 +211,60 @@ export default function TitleIXInfo({ universityName, lastUpdated }: TitleIXInfo
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent data-testid="dialog-report-issue">
+          <DialogHeader>
+            <DialogTitle>Report Information Issue</DialogTitle>
+            <DialogDescription>
+              Help us maintain accurate Title IX information by reporting any outdated or incorrect details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="report-type">Issue Type</Label>
+              <Select value={reportType} onValueChange={setReportType}>
+                <SelectTrigger id="report-type" data-testid="select-report-type">
+                  <SelectValue placeholder="Select issue type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="outdated_info">Outdated Information</SelectItem>
+                  <SelectItem value="incorrect_url">Incorrect URL</SelectItem>
+                  <SelectItem value="missing_info">Missing Information</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Please describe the issue in detail..."
+                rows={4}
+                data-testid="input-description"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowReportDialog(false)}
+                data-testid="button-cancel-report"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitReport}
+                disabled={isSubmitting}
+                data-testid="button-submit-report"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Report"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

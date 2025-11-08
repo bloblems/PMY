@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Check, ChevronDown, AlertCircle } from "lucide-react";
+import { Check, ChevronDown, AlertCircle, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import {
   Command,
   CommandEmpty,
@@ -27,6 +28,10 @@ interface University {
   id: string;
   name: string;
   state: string;
+  titleIXInfo: string;
+  titleIXUrl: string | null;
+  lastUpdated: string;
+  verifiedAt: string | null;
 }
 
 interface UniversitySelectorProps {
@@ -42,10 +47,19 @@ export default function UniversitySelector({
 }: UniversitySelectorProps) {
   const [open, setOpen] = useState(false);
   const [showNotListedDialog, setShowNotListedDialog] = useState(false);
+  const { toast } = useToast();
 
   const handleNotListed = () => {
     setOpen(false);
     setShowNotListedDialog(true);
+  };
+
+  const handleDialogClose = () => {
+    setShowNotListedDialog(false);
+    toast({
+      title: "Thank you for your interest",
+      description: "We'll notify you when ConsentGuard expands to more universities.",
+    });
   };
 
   return (
@@ -125,12 +139,22 @@ export default function UniversitySelector({
               ConsentGuard is currently available only to students at the top universities in the United States.
             </p>
             <p>
-              We're working to expand access to more institutions. If your university isn't listed, please check back soon or contact us to express interest in bringing ConsentGuard to your campus.
+              We're working to expand access to more institutions. If your university isn't listed, please contact us to express interest in bringing ConsentGuard to your campus.
             </p>
           </DialogDescription>
         </DialogHeader>
-        <div className="flex justify-end">
-          <Button onClick={() => setShowNotListedDialog(false)} data-testid="button-close-dialog">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.href = "mailto:support@consentguard.app?subject=University%20Expansion%20Request";
+            }}
+            data-testid="button-contact-us"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Contact Us
+          </Button>
+          <Button onClick={handleDialogClose} data-testid="button-close-dialog">
             Understood
           </Button>
         </div>

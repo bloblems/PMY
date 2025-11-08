@@ -8,6 +8,9 @@ export const universities = pgTable("universities", {
   name: text("name").notNull(),
   state: text("state").notNull(),
   titleIXInfo: text("title_ix_info").notNull(),
+  titleIXUrl: text("title_ix_url"),
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(),
+  verifiedAt: timestamp("verified_at"),
 });
 
 export const consentRecordings = pgTable("consent_recordings", {
@@ -26,6 +29,16 @@ export const consentContracts = pgTable("consent_contracts", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const universityReports = pgTable("university_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  universityId: varchar("university_id").notNull(),
+  reportType: text("report_type").notNull(),
+  description: text("description").notNull(),
+  reportedAt: timestamp("reported_at").notNull().defaultNow(),
+  status: text("status").notNull().default("pending"),
+  resolvedAt: timestamp("resolved_at"),
+});
+
 export const insertUniversitySchema = createInsertSchema(universities).omit({
   id: true,
 });
@@ -40,6 +53,15 @@ export const insertConsentContractSchema = createInsertSchema(consentContracts).
   createdAt: true,
 });
 
+export const insertUniversityReportSchema = createInsertSchema(universityReports).omit({
+  id: true,
+  reportedAt: true,
+  resolvedAt: true,
+}).extend({
+  status: z.enum(["pending", "reviewing", "resolved"]).default("pending"),
+  reportType: z.enum(["outdated_info", "incorrect_url", "missing_info", "other"]),
+});
+
 export type InsertUniversity = z.infer<typeof insertUniversitySchema>;
 export type University = typeof universities.$inferSelect;
 
@@ -48,3 +70,6 @@ export type ConsentRecording = typeof consentRecordings.$inferSelect;
 
 export type InsertConsentContract = z.infer<typeof insertConsentContractSchema>;
 export type ConsentContract = typeof consentContracts.$inferSelect;
+
+export type InsertUniversityReport = z.infer<typeof insertUniversityReportSchema>;
+export type UniversityReport = typeof universityReports.$inferSelect;

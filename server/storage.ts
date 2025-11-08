@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract } from "@shared/schema";
+import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport } from "@shared/schema";
 import { universityData } from "./university-data";
 
 export interface IStorage {
@@ -7,6 +7,14 @@ export interface IStorage {
   getAllUniversities(): Promise<University[]>;
   getUniversity(id: string): Promise<University | undefined>;
   createUniversity(university: InsertUniversity): Promise<University>;
+  updateUniversityTitleIX(id: string, titleIXInfo: string, titleIXUrl?: string): Promise<University | undefined>;
+  verifyUniversity(id: string): Promise<University | undefined>;
+
+  // University report methods
+  createReport(report: InsertUniversityReport): Promise<UniversityReport>;
+  getAllReports(): Promise<UniversityReport[]>;
+  getPendingReports(): Promise<UniversityReport[]>;
+  resolveReport(id: string): Promise<UniversityReport | undefined>;
 
   // Recording methods
   getAllRecordings(): Promise<ConsentRecording[]>;
@@ -25,11 +33,13 @@ export class MemStorage implements IStorage {
   private universities: Map<string, University>;
   private recordings: Map<string, ConsentRecording>;
   private contracts: Map<string, ConsentContract>;
+  private reports: Map<string, UniversityReport>;
 
   constructor() {
     this.universities = new Map();
     this.recordings = new Map();
     this.contracts = new Map();
+    this.reports = new Map();
 
     // Seed with initial universities
     this.seedUniversities();
@@ -38,7 +48,16 @@ export class MemStorage implements IStorage {
   private seedUniversities() {
     universityData.forEach((uni) => {
       const id = randomUUID();
-      this.universities.set(id, { name: uni.name, state: uni.state, id });
+      const university: University = {
+        id,
+        name: uni.name,
+        state: uni.state,
+        titleIXInfo: "Title IX information will be populated soon. Please check your university's official website for the most current Title IX policies and procedures.",
+        titleIXUrl: null,
+        lastUpdated: new Date(),
+        verifiedAt: null,
+      };
+      this.universities.set(id, university);
     });
   }
 
@@ -52,9 +71,77 @@ export class MemStorage implements IStorage {
 
   async createUniversity(insertUniversity: InsertUniversity): Promise<University> {
     const id = randomUUID();
-    const university: University = { ...insertUniversity, id };
+    const university: University = {
+      ...insertUniversity,
+      id,
+      lastUpdated: new Date(),
+      verifiedAt: null,
+    };
     this.universities.set(id, university);
     return university;
+  }
+
+  async updateUniversityTitleIX(id: string, titleIXInfo: string, titleIXUrl?: string): Promise<University | undefined> {
+    const university = this.universities.get(id);
+    if (!university) return undefined;
+
+    const updated: University = {
+      ...university,
+      titleIXInfo,
+      titleIXUrl: titleIXUrl !== undefined ? titleIXUrl : university.titleIXUrl,
+      lastUpdated: new Date(),
+    };
+    this.universities.set(id, updated);
+    return updated;
+  }
+
+  async verifyUniversity(id: string): Promise<University | undefined> {
+    const university = this.universities.get(id);
+    if (!university) return undefined;
+
+    const verified: University = {
+      ...university,
+      verifiedAt: new Date(),
+    };
+    this.universities.set(id, verified);
+    return verified;
+  }
+
+  async createReport(insertReport: InsertUniversityReport): Promise<UniversityReport> {
+    const id = randomUUID();
+    const report: UniversityReport = {
+      ...insertReport,
+      id,
+      reportedAt: new Date(),
+      resolvedAt: null,
+    };
+    this.reports.set(id, report);
+    return report;
+  }
+
+  async getAllReports(): Promise<UniversityReport[]> {
+    return Array.from(this.reports.values()).sort((a, b) =>
+      b.reportedAt.getTime() - a.reportedAt.getTime()
+    );
+  }
+
+  async getPendingReports(): Promise<UniversityReport[]> {
+    return Array.from(this.reports.values())
+      .filter(r => r.status === "pending")
+      .sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime());
+  }
+
+  async resolveReport(id: string): Promise<UniversityReport | undefined> {
+    const report = this.reports.get(id);
+    if (!report) return undefined;
+
+    const resolved: UniversityReport = {
+      ...report,
+      status: "resolved",
+      resolvedAt: new Date(),
+    };
+    this.reports.set(id, resolved);
+    return resolved;
   }
 
   async getAllRecordings(): Promise<ConsentRecording[]> {

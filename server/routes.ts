@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertConsentRecordingSchema, insertConsentContractSchema } from "@shared/schema";
+import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema } from "@shared/schema";
 import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -119,6 +119,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete contract" });
+    }
+  });
+
+  // Report outdated university information
+  app.post("/api/reports", async (req, res) => {
+    try {
+      const parsed = insertUniversityReportSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid report data" });
+      }
+
+      const report = await storage.createReport(parsed.data);
+      res.json(report);
+    } catch (error) {
+      console.error("Error creating report:", error);
+      res.status(500).json({ error: "Failed to create report" });
+    }
+  });
+
+  // Get all reports (admin)
+  app.get("/api/admin/reports", async (_req, res) => {
+    try {
+      const reports = await storage.getAllReports();
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  // Get pending reports (admin)
+  app.get("/api/admin/reports/pending", async (_req, res) => {
+    try {
+      const reports = await storage.getPendingReports();
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending reports" });
+    }
+  });
+
+  // Update university Title IX information (admin)
+  app.patch("/api/admin/universities/:id/title-ix", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { titleIXInfo, titleIXUrl } = req.body;
+
+      if (!titleIXInfo) {
+        return res.status(400).json({ error: "titleIXInfo is required" });
+      }
+
+      const updated = await storage.updateUniversityTitleIX(id, titleIXInfo, titleIXUrl);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "University not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating university:", error);
+      res.status(500).json({ error: "Failed to update university" });
+    }
+  });
+
+  // Verify university information (admin)
+  app.patch("/api/admin/universities/:id/verify", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const verified = await storage.verifyUniversity(id);
+      
+      if (!verified) {
+        return res.status(404).json({ error: "University not found" });
+      }
+
+      res.json(verified);
+    } catch (error) {
+      console.error("Error verifying university:", error);
+      res.status(500).json({ error: "Failed to verify university" });
+    }
+  });
+
+  // Resolve a report (admin)
+  app.patch("/api/admin/reports/:id/resolve", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const resolved = await storage.resolveReport(id);
+      
+      if (!resolved) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      res.json(resolved);
+    } catch (error) {
+      console.error("Error resolving report:", error);
+      res.status(500).json({ error: "Failed to resolve report" });
     }
   });
 
