@@ -87,7 +87,7 @@ export default function FilesPage() {
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const handleDownload = (id: string) => {
+  const handleDownload = async (id: string) => {
     const file = files.find((f) => f.id === id);
     if (!file) return;
 
@@ -102,12 +102,69 @@ export default function FilesPage() {
         description: `Downloading ${file.name}`,
       });
     } else if (file.type === "contract") {
-      // For contracts, we could generate a PDF or download signatures
-      toast({
-        title: "Download started",
-        description: `Downloading ${file.name}`,
-      });
-      console.log("Download contract:", id);
+      try {
+        // Fetch the contract data
+        const response = await fetch(`/api/contracts/${id}`);
+        if (!response.ok) throw new Error("Failed to fetch contract");
+        
+        const contractData = await response.json();
+        
+        // Create a simple HTML representation of the contract
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Consent Contract - ${file.date}</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+    h1 { text-align: center; margin-bottom: 30px; }
+    .signatures { display: flex; gap: 40px; margin-top: 40px; }
+    .signature { flex: 1; }
+    .signature img { border: 2px solid #ccc; width: 100%; max-width: 300px; }
+    .signature-label { font-weight: bold; margin-bottom: 10px; }
+    .timestamp { text-align: center; margin-top: 20px; font-size: 14px; color: #666; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <pre>${contractData.contractText}</pre>
+  <div class="signatures">
+    <div class="signature">
+      <div class="signature-label">Signature 1:</div>
+      <img src="${contractData.signature1}" alt="Signature 1" />
+    </div>
+    <div class="signature">
+      <div class="signature-label">Signature 2:</div>
+      <img src="${contractData.signature2}" alt="Signature 2" />
+    </div>
+  </div>
+  <div class="timestamp">
+    Signed on ${new Date(contractData.createdAt).toLocaleString()}
+  </div>
+</body>
+</html>`;
+        
+        // Create blob and download
+        const blob = new Blob([htmlContent], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name.replace(".pdf", ".html");
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Download started",
+          description: `Downloading ${file.name}`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to download contract",
+          variant: "destructive",
+        });
+      }
     }
   };
 

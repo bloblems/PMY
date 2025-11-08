@@ -78,6 +78,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get a single contract
+  app.get("/api/contracts/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const contract = await storage.getContract(id);
+      
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      res.json(contract);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch contract" });
+    }
+  });
+
   // Create a new contract
   app.post("/api/contracts", async (req, res) => {
     try {
