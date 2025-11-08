@@ -8,7 +8,23 @@ import Stripe from "stripe";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const getStripeKey = () => {
+  const testingKey = process.env.TESTING_STRIPE_SECRET_KEY;
+  const prodKey = process.env.STRIPE_SECRET_KEY;
+  
+  if (process.env.NODE_ENV === 'test' || testingKey) {
+    const key = testingKey || prodKey!;
+    const keyPrefix = key.substring(0, 7);
+    console.log(`[Stripe] Using testing secret key (prefix: ${keyPrefix}...)`);
+    return key;
+  }
+  
+  const keyPrefix = prodKey!.substring(0, 7);
+  console.log(`[Stripe] Using production secret key (prefix: ${keyPrefix}...)`);
+  return prodKey!;
+};
+
+const stripe = new Stripe(getStripeKey(), {
   apiVersion: "2024-11-20.acacia",
 });
 
