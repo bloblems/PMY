@@ -69,18 +69,12 @@ export default function TitleIXInfo({
         setSummary(data.summary);
       } catch (error) {
         console.error("Failed to generate summary:", error);
-        
-        // Demo: If API fails for MIT, show example summary so user can see the feature working
-        if (universityName === "Massachusetts Institute of Technology") {
-          setSummary("MIT requires affirmative, informed, and voluntary consent for all sexual activity, which must be communicated through clear words or actions. Consent cannot be given by someone who is incapacitated due to alcohol, drugs, or other factors, and can be withdrawn at any time. All students must complete annual Title IX training and are encouraged to document consent when appropriate.");
-        } else {
-          setSummary(titleIXInfo);
-          toast({
-            title: "Summary unavailable",
-            description: "Displaying full policy information.",
-            variant: "default",
-          });
-        }
+        setSummary(titleIXInfo);
+        toast({
+          title: "Summary unavailable",
+          description: "Displaying full policy information.",
+          variant: "default",
+        });
       } finally {
         setIsLoadingSummary(false);
       }
