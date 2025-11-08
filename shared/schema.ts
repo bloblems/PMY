@@ -39,6 +39,19 @@ export const universityReports = pgTable("university_reports", {
   resolvedAt: timestamp("resolved_at"),
 });
 
+export const verificationPayments = pgTable("verification_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  universityId: varchar("university_id").notNull(),
+  stripeSessionId: text("stripe_session_id").notNull(),
+  stripePaymentStatus: text("stripe_payment_status").notNull().default("pending"),
+  amount: text("amount").notNull(),
+  verificationStatus: text("verification_status").notNull().default("pending"),
+  verificationResult: text("verification_result"),
+  gpuModel: text("gpu_model").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
 export const insertUniversitySchema = createInsertSchema(universities).omit({
   id: true,
 });
@@ -73,3 +86,16 @@ export type ConsentContract = typeof consentContracts.$inferSelect;
 
 export type InsertUniversityReport = z.infer<typeof insertUniversityReportSchema>;
 export type UniversityReport = typeof universityReports.$inferSelect;
+
+export const insertVerificationPaymentSchema = createInsertSchema(verificationPayments).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+}).extend({
+  stripePaymentStatus: z.enum(["pending", "paid", "failed"]).default("pending"),
+  verificationStatus: z.enum(["pending", "processing", "completed", "failed"]).default("pending"),
+  gpuModel: z.enum(["gpt-4", "gpt-4-turbo", "gpt-4o"]),
+});
+
+export type InsertVerificationPayment = z.infer<typeof insertVerificationPaymentSchema>;
+export type VerificationPayment = typeof verificationPayments.$inferSelect;
