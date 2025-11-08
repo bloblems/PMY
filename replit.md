@@ -25,7 +25,7 @@ The application also provides educational information about Title IX consent req
 - Database state persists across server restarts and redeployments
 
 ### University Database Expansion
-- Expanded university database from 10 to **300+ top US universities** from uniRank 2025 rankings
+- Expanded university database from 10 to **287 top US universities** from uniRank 2025 rankings
 - Universities include comprehensive coverage of:
   - All Ivy League schools
   - Top public universities (UC system, state flagships)
@@ -33,13 +33,14 @@ The application also provides educational information about Title IX consent req
   - Major state universities across all 50 states
   - Notable liberal arts colleges and service academies
 - University data stored in `server/university-data.ts` and seeded automatically on server startup
+- Universities displayed in alphabetical order in both Info page and Admin dashboard
 
 ### Enhanced University Selection
 - Added **"My university isn't listed..."** option at the bottom of university selector  
 - Option includes explanatory dialog informing users that ConsentGuard is currently available only to top US universities
 - Dialog includes mailto link for users to contact support and express interest
 - Toast notification confirms interest when dialog is dismissed
-- Search functionality allows filtering 300+ universities by name or state
+- Search functionality allows filtering 287 universities by name or state
 
 ### Title IX Information Management System
 - Implemented comprehensive system for maintaining accurate, up-to-date Title IX information
@@ -99,7 +100,7 @@ The application also provides educational information about Title IX consent req
 
 4. **Manual Review Workflow**:
    - Quarterly admin review of high-priority universities (Ivy League, large state schools)
-   - Annual review of all 300+ universities
+   - Annual review of all 287 universities
    - User reports provide crowdsourced accuracy checking
 
 **Implementation Priority**: Start with user reporting + manual admin updates, then layer in automated monitoring as the app scales.

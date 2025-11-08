@@ -17,9 +17,12 @@ interface University {
 }
 
 export default function InfoPage() {
-  const { data: universities = [], isLoading } = useQuery<University[]>({
+  const { data: rawUniversities = [], isLoading } = useQuery<University[]>({
     queryKey: ["/api/universities"],
   });
+
+  // Sort universities alphabetically by name
+  const universities = [...rawUniversities].sort((a, b) => a.name.localeCompare(b.name));
 
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
 
