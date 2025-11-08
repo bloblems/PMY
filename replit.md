@@ -55,4 +55,43 @@ Preferred communication style: Simple, everyday language.
 - `@hookform/resolvers`: Form validation resolver.
 
 ### AI/External Services
-- **OpenAI API**: For AI-powered Title IX policy summarization using GPT-4o-mini.
+- **OpenAI API**: For AI-powered Title IX policy summarization using GPT-4o-mini and verification using GPT-4/GPT-4o.
+- **Stripe**: Payment processing for user-paid verification services.
+
+## Recent Features
+
+### User-Paid Verification System (November 2025) 🎯 NEW
+**Feature**: Users can pay to verify Title IX policies using AI-powered analysis
+
+**Implementation**:
+- **Stripe Integration**: Secure payment processing for verification services  
+- **Three AI Model Tiers**:
+  - GPT-4: $5.00 - Most accurate, comprehensive analysis
+  - GPT-4 Turbo: $3.00 - Fast and thorough verification
+  - GPT-4o: $2.00 - Optimized for accuracy and speed (recommended)
+- **Verification Process**:
+  1. User selects university and AI model tier
+  2. Stripe checkout session created
+  3. Payment processed securely through Stripe
+  4. AI analyzes stored policy against official sources
+  5. If verified with high confidence, university gets verified badge
+  6. User receives detailed verification report
+- **Database Tracking**: `verificationPayments` table tracks all payments, verification status, and results
+- **Revenue Model**: Platform profits from verification fees as users pay to earn verified badges for their universities
+- **Auto-verification**: Successful verifications automatically mark university as verified
+
+**Technical Details**:
+- Frontend: Verification dialog in `TitleIXInfo.tsx` with pricing tiers and Stripe redirect
+- Backend: Stripe SDK, checkout session creation, webhook handling
+- API Endpoints:
+  - `POST /api/verify/create-checkout` - Create Stripe checkout session
+  - `POST /api/verify/webhook` - Handle Stripe payment confirmations
+  - `GET /api/verify/status/:sessionId` - Check verification progress
+- AI Analysis: GPT-4/GPT-4o analyzes policy text for accuracy, completeness, and professionalism
+- Async Processing: Verification runs in background after payment confirmation
+
+**Future Enhancements**:
+- Web scraping to compare with live university Title IX pages
+- Email notifications when verification completes
+- Verification history for users
+- Admin dashboard for verification analytics

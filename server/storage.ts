@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport } from "@shared/schema";
+import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
-import { universities, consentRecordings, consentContracts, universityReports } from "@shared/schema";
+import { universities, consentRecordings, consentContracts, universityReports, verificationPayments } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -18,6 +18,12 @@ export interface IStorage {
   getAllReports(): Promise<UniversityReport[]>;
   getPendingReports(): Promise<UniversityReport[]>;
   resolveReport(id: string): Promise<UniversityReport | undefined>;
+
+  // Verification payment methods
+  createVerificationPayment(payment: InsertVerificationPayment): Promise<VerificationPayment>;
+  getVerificationPayment(id: string): Promise<VerificationPayment | undefined>;
+  getVerificationPaymentBySessionId(sessionId: string): Promise<VerificationPayment | undefined>;
+  updateVerificationPaymentStatus(id: string, stripePaymentStatus: string, verificationStatus: string, verificationResult?: string): Promise<VerificationPayment | undefined>;
 
   // Recording methods
   getAllRecordings(): Promise<ConsentRecording[]>;
@@ -321,6 +327,50 @@ export class DbStorage implements IStorage {
 
   async deleteContract(id: string): Promise<void> {
     await db.delete(consentContracts).where(eq(consentContracts.id, id));
+  }
+
+  // Verification payment methods
+  async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
+    const result = await db.insert(verificationPayments).values(insertPayment).returning();
+    return result[0];
+  }
+
+  async getVerificationPayment(id: string): Promise<VerificationPayment | undefined> {
+    const result = await db.select().from(verificationPayments).where(eq(verificationPayments.id, id));
+    return result[0];
+  }
+
+  async getVerificationPaymentBySessionId(sessionId: string): Promise<VerificationPayment | undefined> {
+    const result = await db.select().from(verificationPayments).where(eq(verificationPayments.stripeSessionId, sessionId));
+    return result[0];
+  }
+
+  async updateVerificationPaymentStatus(
+    id: string,
+    stripePaymentStatus: string,
+    verificationStatus: string,
+    verificationResult?: string
+  ): Promise<VerificationPayment | undefined> {
+    const values: any = {
+      stripePaymentStatus,
+      verificationStatus,
+    };
+
+    if (verificationResult !== undefined) {
+      values.verificationResult = verificationResult;
+    }
+
+    if (verificationStatus === "completed" || verificationStatus === "failed") {
+      values.completedAt = new Date();
+    }
+
+    const result = await db
+      .update(verificationPayments)
+      .set(values)
+      .where(eq(verificationPayments.id, id))
+      .returning();
+
+    return result[0];
   }
 }
 

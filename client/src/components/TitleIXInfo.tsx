@@ -7,13 +7,14 @@ import {
 } from "@/components/ui/accordion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, BookOpen, Shield, Flag, ExternalLink, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, BookOpen, Shield, Flag, ExternalLink, CheckCircle2, ChevronDown, ChevronUp, BadgeCheck, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -26,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
 
 interface TitleIXInfoProps {
   universityId: string;
@@ -45,12 +47,15 @@ export default function TitleIXInfo({
   verifiedAt,
 }: TitleIXInfoProps) {
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showVerifyDialog, setShowVerifyDialog] = useState(false);
   const [reportType, setReportType] = useState<string>("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [summary, setSummary] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>("gpt-4o");
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -121,6 +126,43 @@ export default function TitleIXInfo({
     }
   };
 
+  const handleVerifyUniversity = async () => {
+    if (!selectedModel) {
+      toast({
+        title: "Select a model",
+        description: "Please choose a GPT model for verification.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingCheckout(true);
+    try {
+      const response = await apiRequest("POST", "/api/verify/create-checkout", {
+        universityId,
+        gpuModel: selectedModel,
+      });
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to create checkout",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+      setIsCreatingCheckout(false);
+    }
+  };
+
+  const modelPrices = {
+    "gpt-4": { price: "$5.00", description: "Most accurate, comprehensive analysis" },
+    "gpt-4-turbo": { price: "$3.00", description: "Fast and thorough verification" },
+    "gpt-4o": { price: "$2.00", description: "Optimized for accuracy and speed" },
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-6">
@@ -145,27 +187,48 @@ export default function TitleIXInfo({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center pt-2 border-t">
-            {titleIXUrl && (
+          <div className="flex flex-col gap-2 pt-2 border-t">
+            <div className="flex flex-wrap gap-2">
+              {titleIXUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(titleIXUrl, "_blank")}
+                  data-testid="button-view-official-policy"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View Official Policy
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(titleIXUrl, "_blank")}
-                data-testid="button-view-official-policy"
+                onClick={() => setShowReportDialog(true)}
+                data-testid="button-report-issue"
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                View Official Policy
+                <Flag className="w-4 h-4 mr-2" />
+                Report Issue
               </Button>
+            </div>
+            {!verifiedAt && (
+              <div className="pt-2 border-t">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setShowVerifyDialog(true)}
+                  className="w-full"
+                  data-testid="button-verify-policy"
+                >
+                  <BadgeCheck className="w-4 h-4 mr-2" />
+                  Verify This Policy
+                  <Badge variant="secondary" className="ml-2 text-xs">From $2</Badge>
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  <Sparkles className="w-3 h-3 inline mr-1" />
+                  AI-powered verification earns you a verified badge
+                </p>
+              </div>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowReportDialog(true)}
-              data-testid="button-report-issue"
-            >
-              <Flag className="w-4 h-4 mr-2" />
-              Report Issue
-            </Button>
           </div>
         </div>
       </Card>
@@ -347,6 +410,69 @@ export default function TitleIXInfo({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showVerifyDialog} onOpenChange={setShowVerifyDialog}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-verify-policy">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Verify Title IX Policy
+            </DialogTitle>
+            <DialogDescription>
+              AI-powered verification scans and compares this policy with official sources to earn a verified badge.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <Label>Choose AI Model</Label>
+              {(Object.keys(modelPrices) as Array<keyof typeof modelPrices>).map((model) => (
+                <div
+                  key={model}
+                  className={`border rounded-lg p-3 cursor-pointer hover-elevate ${
+                    selectedModel === model ? "border-primary bg-primary/5" : ""
+                  }`}
+                  onClick={() => setSelectedModel(model)}
+                  data-testid={`option-model-${model}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">{model}</div>
+                      <div className="text-xs text-muted-foreground">{modelPrices[model].description}</div>
+                    </div>
+                    <div className="font-bold text-lg">{modelPrices[model].price}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-muted p-3 rounded-lg text-xs space-y-1">
+              <p className="font-medium">What you get:</p>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• AI scrapes and analyzes official Title IX page</li>
+                <li>• Compares stored info with live university data</li>
+                <li>• Earns verified badge if accuracy confirmed</li>
+                <li>• Detailed verification report</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowVerifyDialog(false)}
+              disabled={isCreatingCheckout}
+              data-testid="button-cancel-verify"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleVerifyUniversity}
+              disabled={isCreatingCheckout || !selectedModel}
+              data-testid="button-proceed-payment"
+            >
+              {isCreatingCheckout ? "Creating checkout..." : "Proceed to Payment"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,11 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema } from "@shared/schema";
+import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema } from "@shared/schema";
 import multer from "multer";
 import OpenAI from "openai";
+import Stripe from "stripe";
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-11-20.acacia",
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all universities
@@ -226,7 +231,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing or invalid titleIXInfo" });
       }
 
-      // Check if OpenAI API key is configured
       if (!process.env.OPENAI_API_KEY) {
         return res.status(500).json({ error: "OpenAI API key not configured" });
       }
@@ -260,6 +264,215 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create Stripe checkout session for verification
+  app.post("/api/verify/create-checkout", async (req, res) => {
+    try {
+      const { universityId, gpuModel } = req.body;
+
+      if (!universityId || !gpuModel) {
+        return res.status(400).json({ error: "Missing universityId or gpuModel" });
+      }
+
+      const university = await storage.getUniversity(universityId);
+      if (!university) {
+        return res.status(404).json({ error: "University not found" });
+      }
+
+      const prices = {
+        "gpt-4": 500,
+        "gpt-4-turbo": 300,
+        "gpt-4o": 200,
+      };
+
+      const price = prices[gpuModel as keyof typeof prices];
+      if (!price) {
+        return res.status(400).json({ error: "Invalid GPU model" });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `Title IX Verification - ${university.name}`,
+                description: `AI-powered verification using ${gpuModel}`,
+              },
+              unit_amount: price,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/info?verification=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/info?verification=cancelled`,
+        metadata: {
+          universityId,
+          gpuModel,
+        },
+      });
+
+      const payment = await storage.createVerificationPayment({
+        universityId,
+        stripeSessionId: session.id,
+        amount: price.toString(),
+        gpuModel,
+        stripePaymentStatus: "pending",
+        verificationStatus: "pending",
+      });
+
+      res.json({ sessionId: session.id, url: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // Stripe webhook handler
+  app.post("/api/verify/webhook", async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+
+    if (!sig) {
+      return res.status(400).send("No signature");
+    }
+
+    let event: Stripe.Event;
+
+    try {
+      const rawBody = (req as any).rawBody;
+      
+      if (!rawBody) {
+        console.error("Webhook error: No raw body available");
+        return res.status(400).send("Webhook Error: No raw body");
+      }
+
+      event = stripe.webhooks.constructEvent(
+        rawBody,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET!
+      );
+    } catch (err) {
+      console.error("Webhook signature verification failed:", err);
+      return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const payment = await storage.getVerificationPaymentBySessionId(session.id);
+
+      if (payment) {
+        console.log(`Processing verification payment ${payment.id} for university ${payment.universityId}`);
+        
+        await storage.updateVerificationPaymentStatus(
+          payment.id,
+          "paid",
+          "processing"
+        );
+
+        processVerification(payment.id, payment.universityId, payment.gpuModel);
+      } else {
+        console.error(`Payment not found for session ${session.id}`);
+      }
+    }
+
+    res.json({ received: true });
+  });
+
+  // Get verification status
+  app.get("/api/verify/status/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const payment = await storage.getVerificationPaymentBySessionId(sessionId);
+
+      if (!payment) {
+        return res.status(404).json({ error: "Verification not found" });
+      }
+
+      res.json(payment);
+    } catch (error) {
+      console.error("Error getting verification status:", error);
+      res.status(500).json({ error: "Failed to get verification status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
+}
+
+async function processVerification(paymentId: string, universityId: string, gpuModel: string) {
+  try {
+    const university = await storage.getUniversity(universityId);
+    if (!university) {
+      await storage.updateVerificationPaymentStatus(paymentId, "paid", "failed", "University not found");
+      return;
+    }
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const completion = await openai.chat.completions.create({
+      model: gpuModel as any,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert Title IX compliance analyst. Your task is to verify the accuracy of Title IX policy information for universities. You will receive:
+1. University name and official Title IX URL
+2. The stored Title IX policy text
+
+Analyze whether the stored information appears accurate, comprehensive, and professional. Consider:
+- Does it cover key Title IX topics (prohibited conduct, consent, reporting, resources)?
+- Is it written in a professional, informative tone?
+- Does it appear to be legitimate policy information (not placeholder text)?
+- Is the URL format appropriate for a university Title IX office?
+
+Respond in JSON format:
+{
+  "verified": true/false,
+  "confidence": "high" | "medium" | "low",
+  "summary": "Brief explanation of your assessment (2-3 sentences)",
+  "recommendations": "Specific improvements needed, if any"
+}`
+        },
+        {
+          role: "user",
+          content: `University: ${university.name}
+Title IX URL: ${university.titleIXUrl || 'Not provided'}
+
+Stored Policy Information:
+${university.titleIXInfo}`
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 500,
+      response_format: { type: "json_object" }
+    });
+
+    const result = completion.choices[0]?.message?.content;
+    if (!result) {
+      await storage.updateVerificationPaymentStatus(paymentId, "paid", "failed", "No response from AI");
+      return;
+    }
+
+    const analysis = JSON.parse(result);
+
+    if (analysis.verified && analysis.confidence === "high") {
+      await storage.verifyUniversity(universityId);
+    }
+
+    await storage.updateVerificationPaymentStatus(
+      paymentId,
+      "paid",
+      "completed",
+      JSON.stringify(analysis)
+    );
+
+  } catch (error) {
+    console.error("Error processing verification:", error);
+    await storage.updateVerificationPaymentStatus(
+      paymentId,
+      "paid",
+      "failed",
+      `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
 }
