@@ -13,8 +13,20 @@ export const universities = pgTable("universities", {
   verifiedAt: timestamp("verified_at"),
 });
 
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  profilePictureUrl: text("profile_picture_url"),
+  passwordHash: text("password_hash").notNull(),
+  passwordSalt: text("password_salt").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastLoginAt: timestamp("last_login_at").notNull().defaultNow(),
+});
+
 export const consentRecordings = pgTable("consent_recordings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id"),
   filename: text("filename").notNull(),
   fileUrl: text("file_url").notNull(),
   duration: text("duration").notNull(),
@@ -23,6 +35,7 @@ export const consentRecordings = pgTable("consent_recordings", {
 
 export const consentContracts = pgTable("consent_contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id"),
   contractText: text("contract_text").notNull(),
   signature1: text("signature1").notNull(),
   signature2: text("signature2").notNull(),
@@ -41,6 +54,7 @@ export const universityReports = pgTable("university_reports", {
 
 export const verificationPayments = pgTable("verification_payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id"),
   universityId: varchar("university_id").notNull(),
   stripeSessionId: text("stripe_session_id").notNull(),
   stripePaymentStatus: text("stripe_payment_status").notNull().default("pending"),
@@ -99,3 +113,13 @@ export const insertVerificationPaymentSchema = createInsertSchema(verificationPa
 
 export type InsertVerificationPayment = z.infer<typeof insertVerificationPaymentSchema>;
 export type VerificationPayment = typeof verificationPayments.$inferSelect;
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  createdAt: true,
+  lastLoginAt: true,
+  passwordHash: true,
+  passwordSalt: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;

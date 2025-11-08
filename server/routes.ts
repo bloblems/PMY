@@ -5,6 +5,7 @@ import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniver
 import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
+import passport from "passport";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -29,6 +30,58 @@ const stripe = new Stripe(getStripeKey(), {
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes
+  app.post("/api/auth/signup", (req, res, next) => {
+    passport.authenticate("local-signup", (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ error: "Signup failed" });
+      }
+      if (!user) {
+        return res.status(400).json({ error: info?.message || "Signup failed" });
+      }
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          return res.status(500).json({ error: "Login after signup failed" });
+        }
+        return res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/auth/login", (req, res, next) => {
+    passport.authenticate("local-login", (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ error: "Login failed" });
+      }
+      if (!user) {
+        return res.status(401).json({ error: info?.message || "Invalid credentials" });
+      }
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          return res.status(500).json({ error: "Login failed" });
+        }
+        return res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      const user = req.user as any;
+      return res.json({ user: { id: user.id, email: user.email, name: user.name } });
+    }
+    res.status(401).json({ error: "Not authenticated" });
+  });
+
   // Get all universities
   app.get("/api/universities", async (_req, res) => {
     try {

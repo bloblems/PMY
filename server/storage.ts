@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment } from "@shared/schema";
+import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
-import { universities, consentRecordings, consentContracts, universityReports, verificationPayments } from "@shared/schema";
+import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -36,6 +36,12 @@ export interface IStorage {
   getContract(id: string): Promise<ConsentContract | undefined>;
   createContract(contract: InsertConsentContract): Promise<ConsentContract>;
   deleteContract(id: string): Promise<void>;
+
+  // User methods
+  getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User>;
+  updateUserLastLogin(id: string): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -370,6 +376,31 @@ export class DbStorage implements IStorage {
       .where(eq(verificationPayments.id, id))
       .returning();
 
+    return result[0];
+  }
+
+  // User methods
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email));
+    return result[0];
+  }
+
+  async createUser(insertUser: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User> {
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+
+  async updateUserLastLogin(id: string): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
     return result[0];
   }
 }
