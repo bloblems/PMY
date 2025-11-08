@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, BookOpen, Shield, Flag, ExternalLink, CheckCircle2 } from "lucide-react";
+import { AlertCircle, BookOpen, Shield, Flag, ExternalLink, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +48,40 @@ export default function TitleIXInfo({
   const [reportType, setReportType] = useState<string>("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [summary, setSummary] = useState<string>("");
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const generateSummary = async () => {
+      if (!titleIXInfo || titleIXInfo.includes("will be populated soon")) {
+        setSummary(titleIXInfo);
+        return;
+      }
+
+      setIsLoadingSummary(true);
+      try {
+        const response = await apiRequest("POST", "/api/summarize-policy", {
+          titleIXInfo,
+        });
+        const data = await response.json();
+        setSummary(data.summary);
+      } catch (error) {
+        console.error("Failed to generate summary:", error);
+        setSummary(titleIXInfo);
+        toast({
+          title: "Summary unavailable",
+          description: "Displaying full policy information.",
+          variant: "default",
+        });
+      } finally {
+        setIsLoadingSummary(false);
+      }
+    };
+
+    generateSummary();
+  }, [titleIXInfo, toast]);
 
   const handleSubmitReport = async () => {
     if (!reportType || !description.trim()) {
@@ -139,9 +172,39 @@ export default function TitleIXInfo({
 
       <Card className="p-6">
         <h4 className="font-semibold mb-3">Title IX Policy Information</h4>
-        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-          {titleIXInfo}
-        </p>
+        {isLoadingSummary ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span>Generating summary...</span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              {isExpanded ? titleIXInfo : summary}
+            </p>
+            {summary && summary !== titleIXInfo && !titleIXInfo.includes("will be populated soon") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-primary hover:text-primary"
+                data-testid="button-toggle-expand"
+              >
+                {isExpanded ? (
+                  <>
+                    <ChevronUp className="w-4 h-4 mr-1" />
+                    Show Less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 mr-1" />
+                    Read More
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </Card>
 
       <Accordion type="single" collapsible className="space-y-4">

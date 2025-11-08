@@ -48,6 +48,23 @@ The application also provides educational information about Title IX consent req
 - Track resolution metadata (who resolved, when, notes) for audit trail
 - Plan integration hooks for automated monitoring to avoid blocking request/response cycle
 
+### AI-Powered Policy Summaries (November 2025)
+- **OpenAI Integration**: GPT-4o-mini generates concise 2-3 sentence summaries of Title IX policies
+- **Smart Display**: Users see AI summaries by default with "Read More" to expand to full policy
+- **Automatic Generation**: Summaries generated on-demand when users view university information
+- **Graceful Fallback**: If AI summarization fails, displays full text with user-friendly notification
+- **Implementation**:
+  - Backend endpoint: `POST /api/summarize-policy`
+  - OpenAI API key stored securely in Replit Secrets
+  - Temperature 0.3 for consistent, focused summaries
+  - Max tokens: 200 for concise output
+  - Loading spinner during generation
+  - Toggle functionality only appears when summary differs from full text
+- **Future Enhancements**:
+  - Cache summaries per university to reduce API calls
+  - Differentiate rate limit errors (429) from other failures
+  - Add telemetry for monitoring summarization success rates
+
 ### AI Automation Recommendations for Title IX Monitoring
 **Recommended Approach for Production:**
 1. **OpenAI/Anthropic Integration**: Use GPT-4 or Claude to periodically review university Title IX pages

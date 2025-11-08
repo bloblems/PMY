@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema } from "@shared/schema";
 import multer from "multer";
+import OpenAI from "openai";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -213,6 +214,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error resolving report:", error);
       res.status(500).json({ error: "Failed to resolve report" });
+    }
+  });
+
+  // Generate AI summary of Title IX policy
+  app.post("/api/summarize-policy", async (req, res) => {
+    try {
+      const { titleIXInfo } = req.body;
+
+      if (!titleIXInfo || typeof titleIXInfo !== 'string') {
+        return res.status(400).json({ error: "Missing or invalid titleIXInfo" });
+      }
+
+      // Check if OpenAI API key is configured
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OpenAI API key not configured" });
+      }
+
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant that summarizes Title IX consent policies for college students. Create concise, clear summaries that highlight the most important points about consent requirements, reporting procedures, and student rights. Keep summaries to 2-3 sentences maximum."
+          },
+          {
+            role: "user",
+            content: `Please summarize the following Title IX policy information:\n\n${titleIXInfo}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+      });
+
+      const summary = completion.choices[0]?.message?.content || "Summary unavailable";
+
+      res.json({ summary });
+    } catch (error) {
+      console.error("Error generating summary:", error);
+      res.status(500).json({ error: "Failed to generate summary" });
     }
   });
 

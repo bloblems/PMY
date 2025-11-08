@@ -73,6 +73,7 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const university: University = {
       ...insertUniversity,
+      titleIXUrl: insertUniversity.titleIXUrl ?? null,
       id,
       lastUpdated: new Date(),
       verifiedAt: null,
