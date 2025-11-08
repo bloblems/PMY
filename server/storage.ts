@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract } from "@shared/schema";
+import { universityData } from "./university-data";
 
 export interface IStorage {
   // University methods
@@ -35,22 +36,9 @@ export class MemStorage implements IStorage {
   }
 
   private seedUniversities() {
-    const universities = [
-      { name: "Harvard University", state: "Massachusetts", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "Stanford University", state: "California", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "Yale University", state: "Connecticut", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "Princeton University", state: "New Jersey", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "Columbia University", state: "New York", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "MIT", state: "Massachusetts", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "University of Pennsylvania", state: "Pennsylvania", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "Duke University", state: "North Carolina", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "Northwestern University", state: "Illinois", titleIXInfo: "Standard Title IX guidelines apply" },
-      { name: "Cornell University", state: "New York", titleIXInfo: "Standard Title IX guidelines apply" },
-    ];
-
-    universities.forEach((uni) => {
+    universityData.forEach((uni) => {
       const id = randomUUID();
-      this.universities.set(id, { ...uni, id });
+      this.universities.set(id, { name: uni.name, state: uni.state, id });
     });
   }
 
