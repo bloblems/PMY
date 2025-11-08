@@ -91,6 +91,36 @@ The application also provides educational information about Title IX consent req
 
 **Implementation Priority**: Start with user reporting + manual admin updates, then layer in automated monitoring as the app scales.
 
+### Populating Remaining Universities with OpenAI (Current Status)
+**Database Status**: 287 universities total, 16 verified with comprehensive Title IX information
+
+**Approach for Populating Remaining 271 Universities**:
+1. **Web Fetching + OpenAI Extraction**: 
+   - Use web fetch tool to retrieve official Title IX pages for each university
+   - Feed HTML content to GPT-4 to extract:
+     - Official Title IX office URL
+     - Concise 150-200 word policy summary covering consent requirements, reporting procedures, and key resources
+   - Validate extracted information for quality and completeness
+   
+2. **Batch Processing Strategy**:
+   - Process universities in batches of 10-20 to manage API costs
+   - Prioritize by student enrollment (largest schools first)
+   - Store intermediate results to enable resumable processing
+   - Estimated cost: $15-30 for all 271 universities using GPT-4o-mini
+
+3. **Quality Assurance**:
+   - Manual spot-checks on 5-10% of AI-generated summaries
+   - Flag summaries under 100 words or over 250 words for review
+   - Cross-reference official URLs to ensure accuracy
+   - Mark AI-populated universities as "unverified" initially
+
+4. **Gradual Verification**:
+   - Admin reviews and marks universities as "verified" after confirming accuracy
+   - User reports help identify inaccuracies in AI-generated content
+   - Prioritize verification for high-traffic universities based on usage analytics
+
+**Implementation Note**: This approach leverages existing OpenAI integration and maintains data quality through layered verification while dramatically reducing manual research burden.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -135,9 +165,14 @@ Preferred communication style: Simple, everyday language.
 **Data Layer**
 - **Drizzle ORM** for type-safe database operations
 - Schema-first approach with Zod validation integration
-- PostgreSQL database via **Neon serverless** with WebSocket support
-- In-memory storage layer (`MemStorage` class) for development/fallback with interface-based abstraction (`IStorage`)
-- University data seeded from `server/university-data.ts` (300+ institutions)
+- PostgreSQL database via **Neon serverless** with WebSocket support for persistent data storage
+- Database storage layer (`DbStorage` class) provides all CRUD operations with interface-based abstraction (`IStorage`)
+- University data seeded from `server/university-data.ts` (287 institutions)
+- **16 verified universities** with comprehensive Title IX information and official policy URLs:
+  - All 8 Ivy League schools (Harvard, Yale, Princeton, Columbia, UPenn, Cornell, Brown, Dartmouth)
+  - Top technical/private schools (MIT, Stanford, Duke, University of Chicago)
+  - Leading public universities (UC Berkeley, UCLA, University of Michigan, University of Washington)
+- Automatic database seeding via `server/seed-database.ts` on server startup if tables are empty
 
 **Database Schema**
 - `universities`: Institution information with Title IX guidelines
