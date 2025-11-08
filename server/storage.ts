@@ -1,6 +1,9 @@
 import { randomUUID } from "crypto";
 import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport } from "@shared/schema";
 import { universityData } from "./university-data";
+import { db } from "./db";
+import { universities, consentRecordings, consentContracts, universityReports } from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // University methods
@@ -206,4 +209,119 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DbStorage implements IStorage {
+  // University methods
+  async getAllUniversities(): Promise<University[]> {
+    return await db.select().from(universities);
+  }
+
+  async getUniversity(id: string): Promise<University | undefined> {
+    const result = await db.select().from(universities).where(eq(universities.id, id));
+    return result[0];
+  }
+
+  async createUniversity(insertUniversity: InsertUniversity): Promise<University> {
+    const result = await db.insert(universities).values(insertUniversity).returning();
+    return result[0];
+  }
+
+  async updateUniversityTitleIX(id: string, titleIXInfo: string, titleIXUrl?: string): Promise<University | undefined> {
+    const values: any = {
+      titleIXInfo,
+      lastUpdated: new Date(),
+    };
+    
+    if (titleIXUrl !== undefined) {
+      values.titleIXUrl = titleIXUrl;
+    }
+
+    const result = await db
+      .update(universities)
+      .set(values)
+      .where(eq(universities.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async verifyUniversity(id: string): Promise<University | undefined> {
+    const result = await db
+      .update(universities)
+      .set({ verifiedAt: new Date() })
+      .where(eq(universities.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  // University report methods
+  async createReport(insertReport: InsertUniversityReport): Promise<UniversityReport> {
+    const result = await db.insert(universityReports).values(insertReport).returning();
+    return result[0];
+  }
+
+  async getAllReports(): Promise<UniversityReport[]> {
+    return await db.select().from(universityReports).orderBy(desc(universityReports.reportedAt));
+  }
+
+  async getPendingReports(): Promise<UniversityReport[]> {
+    return await db
+      .select()
+      .from(universityReports)
+      .where(eq(universityReports.status, "pending"))
+      .orderBy(desc(universityReports.reportedAt));
+  }
+
+  async resolveReport(id: string): Promise<UniversityReport | undefined> {
+    const result = await db
+      .update(universityReports)
+      .set({
+        status: "resolved",
+        resolvedAt: new Date(),
+      })
+      .where(eq(universityReports.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  // Recording methods
+  async getAllRecordings(): Promise<ConsentRecording[]> {
+    return await db.select().from(consentRecordings).orderBy(desc(consentRecordings.createdAt));
+  }
+
+  async getRecording(id: string): Promise<ConsentRecording | undefined> {
+    const result = await db.select().from(consentRecordings).where(eq(consentRecordings.id, id));
+    return result[0];
+  }
+
+  async createRecording(insertRecording: InsertConsentRecording): Promise<ConsentRecording> {
+    const result = await db.insert(consentRecordings).values(insertRecording).returning();
+    return result[0];
+  }
+
+  async deleteRecording(id: string): Promise<void> {
+    await db.delete(consentRecordings).where(eq(consentRecordings.id, id));
+  }
+
+  // Contract methods
+  async getAllContracts(): Promise<ConsentContract[]> {
+    return await db.select().from(consentContracts).orderBy(desc(consentContracts.createdAt));
+  }
+
+  async getContract(id: string): Promise<ConsentContract | undefined> {
+    const result = await db.select().from(consentContracts).where(eq(consentContracts.id, id));
+    return result[0];
+  }
+
+  async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {
+    const result = await db.insert(consentContracts).values(insertContract).returning();
+    return result[0];
+  }
+
+  async deleteContract(id: string): Promise<void> {
+    await db.delete(consentContracts).where(eq(consentContracts.id, id));
+  }
+}
+
+export const storage = new DbStorage();
