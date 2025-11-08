@@ -176,41 +176,62 @@ export default function TitleIXInfo({
         </div>
       </Card>
 
-      <Card className="p-6">
-        <h4 className="font-semibold mb-3">Title IX Policy Information</h4>
-        {isLoadingSummary ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span>Generating summary...</span>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-              {isExpanded ? titleIXInfo : summary}
-            </p>
-            {summary && summary !== titleIXInfo && !titleIXInfo.includes("will be populated soon") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-primary hover:text-primary"
-                data-testid="button-toggle-expand"
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 mr-1" />
-                    Show Less
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-4 h-4 mr-1" />
-                    Read More
-                  </>
-                )}
-              </Button>
+      <Card className="p-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-sm">Policy Summary</h4>
+            {!titleIXInfo.includes("will be populated soon") && (
+              <span className="text-xs text-muted-foreground">AI-generated</span>
             )}
           </div>
-        )}
+          {isLoadingSummary ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs">Generating...</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                {isExpanded ? titleIXInfo : summary}
+              </p>
+              <div className="flex gap-2">
+                {summary && summary !== titleIXInfo && !titleIXInfo.includes("will be populated soon") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="text-primary hover:text-primary h-7 text-xs"
+                    data-testid="button-toggle-expand"
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp className="w-3 h-3 mr-1" />
+                        Less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-3 h-3 mr-1" />
+                        More
+                      </>
+                    )}
+                  </Button>
+                )}
+                {titleIXUrl && !isExpanded && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(titleIXUrl, "_blank")}
+                    className="h-7 text-xs"
+                    data-testid="button-view-full-policy"
+                  >
+                    <ExternalLink className="w-3 h-3 mr-1" />
+                    Full Policy
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
 
       <Accordion type="single" collapsible className="space-y-4">
