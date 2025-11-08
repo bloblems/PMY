@@ -1,24 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import UniversitySelector from "@/components/UniversitySelector";
 import TitleIXInfo from "@/components/TitleIXInfo";
 import { Card } from "@/components/ui/card";
 import { BookOpen } from "lucide-react";
 
-const mockUniversities = [
-  { id: "1", name: "Harvard University", state: "Massachusetts" },
-  { id: "2", name: "Stanford University", state: "California" },
-  { id: "3", name: "Yale University", state: "Connecticut" },
-  { id: "4", name: "Princeton University", state: "New Jersey" },
-  { id: "5", name: "Columbia University", state: "New York" },
-  { id: "6", name: "MIT", state: "Massachusetts" },
-  { id: "7", name: "University of Pennsylvania", state: "Pennsylvania" },
-  { id: "8", name: "Duke University", state: "North Carolina" },
-  { id: "9", name: "Northwestern University", state: "Illinois" },
-  { id: "10", name: "Cornell University", state: "New York" },
-];
+interface University {
+  id: string;
+  name: string;
+  state: string;
+}
 
 export default function InfoPage() {
-  const [selectedUniversity, setSelectedUniversity] = useState(mockUniversities[0]);
+  const { data: universities = [], isLoading } = useQuery<University[]>({
+    queryKey: ["/api/universities"],
+  });
+
+  const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
+
+  // Auto-select first university when data loads
+  useEffect(() => {
+    if (universities.length > 0 && !selectedUniversity) {
+      setSelectedUniversity(universities[0]);
+    }
+  }, [universities, selectedUniversity]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Title IX Information</h1>
+          <p className="text-muted-foreground">
+            Understand consent requirements for your institution
+          </p>
+        </div>
+        <Card className="p-12">
+          <div className="text-center space-y-2">
+            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <BookOpen className="h-6 w-6 text-muted-foreground animate-pulse" />
+            </div>
+            <p className="text-sm text-muted-foreground">Loading universities...</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -30,7 +56,7 @@ export default function InfoPage() {
       </div>
 
       <UniversitySelector
-        universities={mockUniversities}
+        universities={universities}
         selectedUniversity={selectedUniversity}
         onSelect={setSelectedUniversity}
       />

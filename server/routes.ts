@@ -3,10 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertConsentRecordingSchema, insertConsentContractSchema } from "@shared/schema";
 import multer from "multer";
-import { Client } from "@replit/object-storage";
 
 const upload = multer({ storage: multer.memoryStorage() });
-const objectStorage = new Client();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all universities
@@ -42,10 +40,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      // Upload to object storage
-      const storagePath = `.private/recordings/${Date.now()}-${filename}`;
-      await objectStorage.uploadFromBytes(storagePath, req.file.buffer);
-      const fileUrl = storagePath;
+      // For now, store as data URL (will be replaced with object storage later)
+      const fileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
       // Save to storage
       const recording = await storage.createRecording({

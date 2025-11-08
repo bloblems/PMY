@@ -20,7 +20,7 @@ export default function BottomNav() {
           
           return (
             <Link key={tab.id} href={tab.path}>
-              <a
+              <button
                 className="flex flex-col items-center justify-center gap-1 px-4 py-2 min-w-[60px] hover-elevate active-elevate-2 rounded-lg transition-colors"
                 data-testid={`nav-${tab.id}`}
               >
@@ -36,7 +36,7 @@ export default function BottomNav() {
                 >
                   {tab.label}
                 </span>
-              </a>
+              </button>
             </Link>
           );
         })}

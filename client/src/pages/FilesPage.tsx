@@ -1,50 +1,125 @@
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FileList from "@/components/FileList";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
-const mockFiles = [
-  {
-    id: "1",
-    name: "consent-11-08-2025.webm",
-    type: "audio" as const,
-    date: "Nov 8, 2025",
-    duration: "2:34",
-  },
-  {
-    id: "2",
-    name: "consent-contract-11-07-2025.pdf",
-    type: "contract" as const,
-    date: "Nov 7, 2025",
-  },
-  {
-    id: "3",
-    name: "consent-11-05-2025.webm",
-    type: "audio" as const,
-    date: "Nov 5, 2025",
-    duration: "1:45",
-  },
-];
+interface Recording {
+  id: string;
+  filename: string;
+  fileUrl: string;
+  duration: string;
+  createdAt: string;
+}
+
+interface Contract {
+  id: string;
+  contractText: string;
+  signature1: string;
+  signature2: string;
+  createdAt: string;
+}
 
 export default function FilesPage() {
-  const [files, setFiles] = useState(mockFiles);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: recordings = [] } = useQuery<Recording[]>({
+    queryKey: ["/api/recordings"],
+  });
+
+  const { data: contracts = [] } = useQuery<Contract[]>({
+    queryKey: ["/api/contracts"],
+  });
+
+  const deleteRecordingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/recordings/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recordings"] });
+      toast({
+        title: "File deleted",
+        description: "Recording has been removed",
+      });
+    },
+  });
+
+  const deleteContractMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/contracts/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      toast({
+        title: "File deleted",
+        description: "Contract has been removed",
+      });
+    },
+  });
+
+  // Combine and format files
+  const files = [
+    ...recordings.map((r) => ({
+      id: r.id,
+      name: r.filename,
+      type: "audio" as const,
+      date: new Date(r.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      duration: r.duration,
+      fileUrl: r.fileUrl,
+    })),
+    ...contracts.map((c) => ({
+      id: c.id,
+      name: `contract-${new Date(c.createdAt).toLocaleDateString().replace(/\//g, "-")}.pdf`,
+      type: "contract" as const,
+      date: new Date(c.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      signature1: c.signature1,
+      signature2: c.signature2,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleDownload = (id: string) => {
     const file = files.find((f) => f.id === id);
-    toast({
-      title: "Download started",
-      description: `Downloading ${file?.name}`,
-    });
-    console.log("Download file:", id);
+    if (!file) return;
+
+    if (file.type === "audio" && "fileUrl" in file) {
+      // Download audio file
+      const a = document.createElement("a");
+      a.href = file.fileUrl;
+      a.download = file.name;
+      a.click();
+      toast({
+        title: "Download started",
+        description: `Downloading ${file.name}`,
+      });
+    } else if (file.type === "contract") {
+      // For contracts, we could generate a PDF or download signatures
+      toast({
+        title: "Download started",
+        description: `Downloading ${file.name}`,
+      });
+      console.log("Download contract:", id);
+    }
   };
 
   const handleDelete = (id: string) => {
     const file = files.find((f) => f.id === id);
-    setFiles(files.filter((f) => f.id !== id));
-    toast({
-      title: "File deleted",
-      description: `${file?.name} has been removed`,
-    });
+    if (!file) return;
+
+    if (file.type === "audio") {
+      deleteRecordingMutation.mutate(id);
+    } else {
+      deleteContractMutation.mutate(id);
+    }
   };
 
   return (

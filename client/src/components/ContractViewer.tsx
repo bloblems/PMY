@@ -5,6 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import SignatureCanvas from "react-signature-canvas";
 import { Download, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 const CONTRACT_TEXT = `MUTUAL CONSENT AGREEMENT
 
@@ -35,6 +37,34 @@ export default function ContractViewer() {
   const sig1Ref = useRef<SignatureCanvas>(null);
   const sig2Ref = useRef<SignatureCanvas>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: { contractText: string; signature1: string; signature2: string }) => {
+      const response = await apiRequest("POST", "/api/contracts", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      toast({
+        title: "Contract saved",
+        description: "The signed contract has been saved securely.",
+      });
+      // Reset form
+      setShowSignature(false);
+      setSignature1Complete(false);
+      setSignature2Complete(false);
+      sig1Ref.current?.clear();
+      sig2Ref.current?.clear();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save contract. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const clearSignature1 = () => {
     sig1Ref.current?.clear();
@@ -59,11 +89,16 @@ export default function ContractViewer() {
   };
 
   const saveContract = () => {
-    toast({
-      title: "Contract saved",
-      description: "The signed contract has been saved securely.",
-    });
-    console.log("Contract saved with signatures");
+    if (sig1Ref.current && sig2Ref.current) {
+      const signature1 = sig1Ref.current.toDataURL();
+      const signature2 = sig2Ref.current.toDataURL();
+
+      saveMutation.mutate({
+        contractText: CONTRACT_TEXT,
+        signature1,
+        signature2,
+      });
+    }
   };
 
   if (!showSignature) {
@@ -159,12 +194,12 @@ export default function ContractViewer() {
         </Button>
         <Button
           onClick={saveContract}
-          disabled={!signature1Complete || !signature2Complete}
+          disabled={!signature1Complete || !signature2Complete || saveMutation.isPending}
           className="flex-1"
           data-testid="button-save-contract"
         >
           <Download className="h-4 w-4 mr-2" />
-          Complete & Save
+          {saveMutation.isPending ? "Saving..." : "Complete & Save"}
         </Button>
       </div>
     </div>

@@ -5,12 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 type RecordingState = "idle" | "recording" | "paused" | "stopped";
 
 export default function AudioRecorder() {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [filename, setFilename] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -18,6 +21,42 @@ export default function AudioRecorder() {
   const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const uploadMutation = useMutation({
+    mutationFn: async ({ blob, filename, duration }: { blob: Blob; filename: string; duration: string }) => {
+      const formData = new FormData();
+      formData.append("audio", blob, filename);
+      formData.append("filename", filename);
+      formData.append("duration", duration);
+
+      const response = await fetch("/api/recordings", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload recording");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recordings"] });
+      toast({
+        title: "Recording saved",
+        description: "Your consent recording has been saved securely.",
+      });
+      deleteRecording();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save recording. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   useEffect(() => {
     return () => {
@@ -45,6 +84,7 @@ export default function AudioRecorder() {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioURL(url);
         stream.getTracks().forEach((track) => track.stop());
@@ -98,6 +138,13 @@ export default function AudioRecorder() {
     }
   };
 
+  const saveRecording = () => {
+    if (audioBlob && filename) {
+      const duration = formatTime(recordingTime);
+      uploadMutation.mutate({ blob: audioBlob, filename, duration });
+    }
+  };
+
   const downloadRecording = () => {
     if (audioURL) {
       const a = document.createElement("a");
@@ -106,7 +153,7 @@ export default function AudioRecorder() {
       a.click();
       toast({
         title: "Download started",
-        description: "Your recording has been saved.",
+        description: "Your recording has been downloaded.",
       });
     }
   };
@@ -116,6 +163,7 @@ export default function AudioRecorder() {
       URL.revokeObjectURL(audioURL);
     }
     setAudioURL(null);
+    setAudioBlob(null);
     setRecordingState("idle");
     setRecordingTime(0);
     setFilename("");
@@ -261,24 +309,35 @@ export default function AudioRecorder() {
               Play
             </Button>
             <Button
+              variant="outline"
               onClick={downloadRecording}
               className="flex-1"
-              data-testid="button-download-recording"
+              data-testid="button-download-local"
             >
               <Download className="h-4 w-4 mr-2" />
-              Save
+              Download
             </Button>
           </div>
 
-          <Button
-            variant="outline"
-            onClick={deleteRecording}
-            className="w-full"
-            data-testid="button-delete-recording"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Discard
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={saveRecording}
+              disabled={uploadMutation.isPending}
+              className="flex-1"
+              data-testid="button-save-recording"
+            >
+              {uploadMutation.isPending ? "Saving..." : "Save to Files"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={deleteRecording}
+              className="flex-1"
+              data-testid="button-delete-recording"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Discard
+            </Button>
+          </div>
         </Card>
       )}
     </div>
