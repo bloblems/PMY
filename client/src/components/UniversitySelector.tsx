@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -8,12 +8,20 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface University {
   id: string;
@@ -33,8 +41,15 @@ export default function UniversitySelector({
   onSelect,
 }: UniversitySelectorProps) {
   const [open, setOpen] = useState(false);
+  const [showNotListedDialog, setShowNotListedDialog] = useState(false);
+
+  const handleNotListed = () => {
+    setOpen(false);
+    setShowNotListedDialog(true);
+  };
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
@@ -84,9 +99,43 @@ export default function UniversitySelector({
                 </CommandItem>
               ))}
             </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem
+                value="my-university-isnt-listed"
+                onSelect={handleNotListed}
+                data-testid="option-not-listed"
+                className="text-muted-foreground"
+              >
+                <AlertCircle className="mr-2 h-4 w-4" />
+                <span>My university isn't listed...</span>
+              </CommandItem>
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
+
+    <Dialog open={showNotListedDialog} onOpenChange={setShowNotListedDialog}>
+      <DialogContent data-testid="dialog-not-listed">
+        <DialogHeader>
+          <DialogTitle>University Not Listed</DialogTitle>
+          <DialogDescription className="space-y-3 pt-2">
+            <p>
+              ConsentGuard is currently available only to students at the top universities in the United States.
+            </p>
+            <p>
+              We're working to expand access to more institutions. If your university isn't listed, please check back soon or contact us to express interest in bringing ConsentGuard to your campus.
+            </p>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end">
+          <Button onClick={() => setShowNotListedDialog(false)} data-testid="button-close-dialog">
+            Understood
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
