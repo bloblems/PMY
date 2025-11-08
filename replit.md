@@ -9,6 +9,24 @@ ConsentGuard is a mobile-first web application designed to help document consent
 
 The application also provides educational information about Title IX consent requirements specific to different universities. Built with a focus on trust, clarity, and legal validity, the design follows Apple's Human Interface Guidelines combined with professional legal-tech application patterns.
 
+## Recent Changes (November 2025)
+
+### University Database Expansion
+- Expanded university database from 10 to **300+ top US universities** from uniRank 2025 rankings
+- Universities include comprehensive coverage of:
+  - All Ivy League schools
+  - Top public universities (UC system, state flagships)
+  - Leading private universities and technical schools (MIT, Caltech, Georgia Tech)
+  - Major state universities across all 50 states
+  - Notable liberal arts colleges and service academies
+- University data stored in `server/university-data.ts` and seeded automatically on server startup
+
+### Enhanced University Selection
+- Added **"My university isn't listed..."** option at the bottom of university selector
+- Option includes explanatory dialog informing users that ConsentGuard is currently available only to top US universities
+- Dialog encourages users to check back or express interest in expansion
+- Search functionality allows filtering 300+ universities by name or state
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -35,6 +53,8 @@ Preferred communication style: Simple, everyday language.
 - Signature capture using `react-signature-canvas` for digital contract signing
 - Audio recording interface with media recorder API integration
 - Form validation using `react-hook-form` with `zod` schemas
+- University selector with search functionality supporting 300+ institutions
+- "My university isn't listed" dialog for unsupported institutions
 
 ### Backend Architecture
 
@@ -53,6 +73,7 @@ Preferred communication style: Simple, everyday language.
 - Schema-first approach with Zod validation integration
 - PostgreSQL database via **Neon serverless** with WebSocket support
 - In-memory storage layer (`MemStorage` class) for development/fallback with interface-based abstraction (`IStorage`)
+- University data seeded from `server/university-data.ts` (300+ institutions)
 
 **Database Schema**
 - `universities`: Institution information with Title IX guidelines
