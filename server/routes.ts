@@ -321,8 +321,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         ],
         mode: "payment",
-        success_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/info?verification=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/info?verification=cancelled`,
+        success_url: `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}/info?verification=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}/info?verification=cancelled`,
         metadata: {
           universityId,
           gpuModel,
