@@ -11,6 +11,19 @@ The application also provides educational information about Title IX consent req
 
 ## Recent Changes (November 2025)
 
+### Database Migration to Persistent Storage (November 2025)
+- **Migrated from in-memory storage (MemStorage) to persistent database storage (DbStorage)**
+- All CRUD operations now use PostgreSQL database via Drizzle ORM
+- Database automatically seeded with 287 universities on first run
+- **16 verified universities** with comprehensive Title IX information:
+  - All 8 Ivy League schools (Harvard, Yale, Princeton, Columbia, UPenn, Cornell, Brown, Dartmouth)
+  - Top technical/private schools (MIT, Stanford, Duke, University of Chicago)
+  - Leading public universities (UC Berkeley, UCLA, University of Michigan, University of Washington)
+- Seed script is idempotent - checks for existing data before seeding to preserve verified universities
+- Admin interface now shows all universities sorted alphabetically for easy management
+- Verified universities display checkmark icons in admin dashboard
+- Database state persists across server restarts and redeployments
+
 ### University Database Expansion
 - Expanded university database from 10 to **300+ top US universities** from uniRank 2025 rankings
 - Universities include comprehensive coverage of:

@@ -50,9 +50,12 @@ export default function AdminPage() {
     queryKey: ["/api/admin/reports/pending"],
   });
 
-  const { data: universities = [] } = useQuery<University[]>({
+  const { data: rawUniversities = [] } = useQuery<University[]>({
     queryKey: ["/api/universities"],
   });
+
+  // Sort universities alphabetically by name
+  const universities = [...rawUniversities].sort((a, b) => a.name.localeCompare(b.name));
 
   const resolveMutation = useMutation({
     mutationFn: async (reportId: string) => {
@@ -209,7 +212,7 @@ export default function AdminPage() {
           {universities.filter(u => u.verifiedAt).length} of {universities.length} universities verified
         </p>
         <div className="grid gap-2 max-h-96 overflow-y-auto">
-          {universities.slice(0, 10).map((uni) => (
+          {universities.map((uni) => (
             <div
               key={uni.id}
               className="flex items-center justify-between p-3 border rounded-lg hover-elevate"
