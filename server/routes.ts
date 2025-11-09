@@ -197,6 +197,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New consent creation endpoints with enhanced fields
+  app.post("/api/consent-contracts", async (req, res) => {
+    try {
+      const parsed = insertConsentContractSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        console.error("Validation error:", parsed.error);
+        return res.status(400).json({ error: "Invalid contract data", details: parsed.error });
+      }
+
+      const contract = await storage.createContract(parsed.data);
+      res.json(contract);
+    } catch (error) {
+      console.error("Error creating consent contract:", error);
+      res.status(500).json({ error: "Failed to create contract" });
+    }
+  });
+
+  app.post("/api/consent-recordings", upload.single("audio"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      const { universityId, encounterType, parties, duration } = req.body;
+
+      if (!duration) {
+        return res.status(400).json({ error: "Missing required field: duration" });
+      }
+
+      // Parse parties JSON string
+      const parsedParties = parties ? JSON.parse(parties) : [];
+
+      // Store as data URL
+      const fileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+      const filename = `consent-${Date.now()}.webm`;
+
+      // Save to storage with enhanced fields
+      const recording = await storage.createRecording({
+        universityId: universityId || undefined,
+        encounterType: encounterType || undefined,
+        parties: parsedParties,
+        filename,
+        fileUrl,
+        duration,
+      });
+
+      res.json(recording);
+    } catch (error) {
+      console.error("Error uploading consent recording:", error);
+      res.status(500).json({ error: "Failed to upload recording" });
+    }
+  });
+
+  app.post("/api/consent-photos", upload.single("photo"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No photo file provided" });
+      }
+
+      const { universityId, encounterType, parties } = req.body;
+
+      // Parse parties JSON string
+      const parsedParties = parties ? JSON.parse(parties) : [];
+
+      // Store photo as data URL
+      const photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+
+      // Create a contract with the photo
+      const contract = await storage.createContract({
+        universityId: universityId || undefined,
+        encounterType: encounterType || undefined,
+        parties: parsedParties,
+        method: "photo",
+        contractText: `Photo consent uploaded on ${new Date().toLocaleDateString()} for ${encounterType || "encounter"}`,
+        signature1: "Photo upload by party 1",
+        signature2: "Mutual consent shown in photo",
+        photoUrl,
+      });
+
+      res.json(contract);
+    } catch (error) {
+      console.error("Error uploading consent photo:", error);
+      res.status(500).json({ error: "Failed to upload photo" });
+    }
+  });
+
   // Report outdated university information
   app.post("/api/reports", async (req, res) => {
     try {
