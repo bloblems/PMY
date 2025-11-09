@@ -84,7 +84,7 @@ Preferred communication style: Simple, everyday language.
 **Status**: Backend complete, frontend UI (login/signup forms, user dashboard) pending
 
 ### UI Redesign: Consent Flow Centerpiece (November 2025) 🎯 NEW
-**Feature**: Streamlined UI with prominent "Press for Yes" consent button
+**Feature**: Streamlined UI with prominent "Press for Yes" consent button and icon navigation
 
 **Changes**:
 - **Centerpiece Button**: "Press for Yes" card positioned between university selector and Title IX info panel
@@ -94,17 +94,26 @@ Preferred communication style: Simple, everyday language.
   - Centered text with clear call-to-action
   - Interactive hover and active states
   - Mobile-optimized design
-- **Navigation Simplification**: Removed bottom navigation bar (Record/Contract/Files buttons)
-  - Streamlines user experience to focus on consent documentation flow
-  - Reduces UI clutter on mobile devices
-  - Main content no longer needs bottom padding
+- **Icon Navigation Bar**: iOS-style bottom tab bar with icons + labels, visible on all pages
+  - **Tab 1**: "IX" icon + "Info" label - Title IX information page (home)
+  - **Tab 2**: Folder icon + "Files" label - Saved consent documents
+  - **Tab 3**: Sparkles icon + "Custom" label - Custom templates (AI-powered generative flow)
+  - **Tab 4**: Share icon + "Share" label - Sharing functionality
+  - Active state indicated by bold font-weight (per design guidelines)
+  - Icons centered above labels in each tab
+  - Fixed to bottom with 64px height
 
 **Technical Details**:
-- Location: `client/src/pages/InfoPage.tsx` - card component between UniversitySelector and TitleIXInfo
-- Removed: `BottomNav` component from `client/src/App.tsx`
-- Test ID: `data-testid="button-press-for-yes"` for automated testing
+- Centerpiece: `client/src/pages/InfoPage.tsx` - card component between UniversitySelector and TitleIXInfo
+- Navigation: `client/src/components/IconBottomNav.tsx` - icon-only bottom bar
+- New pages: `CustomPage.tsx` and `SharePage.tsx` (placeholder UX for future features)
+- Test IDs: `button-press-for-yes`, `nav-title-ix`, `nav-files`, `nav-custom`, `nav-share`
+- Updated subtitle: "Generate the consent required by your institution."
 
-**Future**: Button will navigate to consent flow UX when clicked
+**Future**: 
+- "Press for Yes" button will navigate to consent flow UX
+- Custom templates page will feature AI-powered template generation
+- Share page will enable secure document sharing
 
 ### User-Paid Verification System (November 2025)
 **Feature**: Users can pay to verify Title IX policies using AI-powered analysis

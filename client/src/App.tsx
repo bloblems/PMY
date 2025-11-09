@@ -3,12 +3,15 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import IconBottomNav from "@/components/IconBottomNav";
 import ThemeToggle from "@/components/ThemeToggle";
 import InfoPage from "@/pages/InfoPage";
 import RecordPage from "@/pages/RecordPage";
 import ContractPage from "@/pages/ContractPage";
 import FilesPage from "@/pages/FilesPage";
 import AdminPage from "@/pages/AdminPage";
+import CustomPage from "@/pages/CustomPage";
+import SharePage from "@/pages/SharePage";
 
 function Router() {
   return (
@@ -17,6 +20,8 @@ function Router() {
       <Route path="/record" component={RecordPage} />
       <Route path="/contract" component={ContractPage} />
       <Route path="/files" component={FilesPage} />
+      <Route path="/custom" component={CustomPage} />
+      <Route path="/share" component={SharePage} />
       <Route path="/admin" component={AdminPage} />
     </Switch>
   );
@@ -34,11 +39,13 @@ function App() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 pb-20 overflow-auto">
             <div className="max-w-md mx-auto px-6 py-8">
               <Router />
             </div>
           </main>
+
+          <IconBottomNav />
         </div>
         <Toaster />
       </TooltipProvider>
