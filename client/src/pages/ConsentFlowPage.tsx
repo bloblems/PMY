@@ -19,11 +19,9 @@ const encounterTypes = [
   { id: "date", label: "Date", icon: Coffee },
   { id: "social", label: "Social Gathering", icon: Users },
   { id: "conversation", label: "Private Conversation", icon: MessageCircle },
-  { id: "movie", label: "Movie Night", icon: Film },
-  { id: "music", label: "Music/Concert", icon: Music },
-  { id: "dinner", label: "Dinner/Meal", icon: Utensils },
-  { id: "other", label: "Other", icon: Users },
 ];
+
+const otherEncounterType = { id: "other", label: "Other", icon: Users };
 
 const recordingMethods = [
   { 
@@ -202,6 +200,20 @@ export default function ConsentFlowPage() {
               );
             })}
           </div>
+          <Card
+            className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
+              state.encounterType === otherEncounterType.id
+                ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                : ""
+            }`}
+            onClick={() => updateState({ encounterType: otherEncounterType.id })}
+            data-testid={`option-encounter-${otherEncounterType.id}`}
+          >
+            <div className="flex items-center justify-center gap-3">
+              <otherEncounterType.icon className={`h-6 w-6 ${state.encounterType === otherEncounterType.id ? "text-green-600 dark:text-green-400" : ""}`} />
+              <span className="text-sm font-medium">{otherEncounterType.label}</span>
+            </div>
+          </Card>
         </div>
       )}
 
