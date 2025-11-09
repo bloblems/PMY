@@ -27,7 +27,7 @@ export default function FileList({ files, onDownload, onDelete }: FileListProps)
           </div>
           <h3 className="font-semibold">No saved files</h3>
           <p className="text-sm text-muted-foreground">
-            Your recordings and contracts will appear here
+            Your records and contracts will appear here
           </p>
         </div>
       </Card>
