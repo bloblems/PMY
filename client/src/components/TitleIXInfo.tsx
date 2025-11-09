@@ -216,7 +216,7 @@ export default function TitleIXInfo({
                   variant="outline"
                   size="sm"
                   onClick={() => setShowVerifyDialog(true)}
-                  className="w-full"
+                  className="w-full border-green-600 dark:border-green-400 text-green-600 dark:text-green-400"
                   data-testid="button-verify-policy"
                 >
                   <BadgeCheck className="w-4 h-4 mr-2" />
