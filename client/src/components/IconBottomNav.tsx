@@ -5,7 +5,7 @@ export default function IconBottomNav() {
   const [location, setLocation] = useLocation();
 
   const navItems = [
-    { path: "/", icon: "IX", label: "Info", testId: "nav-title-ix" },
+    { path: "/", icon: "IX", label: "Create", testId: "nav-title-ix" },
     { path: "/files", icon: FolderOpen, label: "Files", testId: "nav-files" },
     { path: "/custom", icon: Sparkles, label: "Custom", testId: "nav-custom" },
     { path: "/share", icon: Share2, label: "Share", testId: "nav-share" },
