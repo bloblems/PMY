@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import UniversitySelector from "@/components/UniversitySelector";
 import TitleIXInfo from "@/components/TitleIXInfo";
 import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BookOpen } from "lucide-react";
 import { format } from "date-fns";
 
@@ -31,6 +32,27 @@ export default function InfoPage() {
   const [isHolding, setIsHolding] = useState(false);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdStartRef = useRef<number | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Check for success message from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const successType = params.get('success');
+    
+    if (successType === 'login') {
+      setSuccessMessage("You've successfully logged in.");
+      // Clear the URL parameter
+      window.history.replaceState({}, '', '/');
+      // Auto-hide after 4 seconds
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } else if (successType === 'signup') {
+      setSuccessMessage("Your account has been created.");
+      // Clear the URL parameter
+      window.history.replaceState({}, '', '/');
+      // Auto-hide after 4 seconds
+      setTimeout(() => setSuccessMessage(null), 4000);
+    }
+  }, []);
 
   const HOLD_DURATION = 3000; // 3 seconds
   const RETREAT_DURATION = 300; // 300ms for quick retreat
@@ -139,6 +161,13 @@ export default function InfoPage() {
           Generate the consent required by your institution.
         </p>
       </div>
+
+      {successMessage && (
+        <Alert className="border-green-600/20 bg-green-600/10 dark:border-green-400/20 dark:bg-green-400/10" data-testid="alert-success">
+          <AlertDescription className="text-green-900 dark:text-green-100">{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
       <UniversitySelector
         universities={universities}
         selectedUniversity={selectedUniversity}
