@@ -7,7 +7,7 @@ export default function CustomPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Custom Templates</h1>
         <p className="text-muted-foreground">
-          Create consent documents with customizable templates
+          Create consent contracts from customizable templates
         </p>
       </div>
 
