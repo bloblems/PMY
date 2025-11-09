@@ -25,8 +25,9 @@ export default function AuthPage() {
       const response = await apiRequest("POST", endpoint, data);
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    onSuccess: (data) => {
+      // Set the user data directly instead of invalidating/refetching
+      queryClient.setQueryData(["/api/auth/me"], data);
       toast({
         title: mode === "login" ? "Welcome back!" : "Account created!",
         description: mode === "login" ? "You've successfully logged in." : "Your account has been created.",
