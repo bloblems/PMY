@@ -19,7 +19,7 @@ export default function CustomPage() {
           <div className="space-y-2">
             <h3 className="text-xl font-semibold">Custom Templates Coming Soon</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Generate consent documentation using AI-powered templates tailored to your specific needs, 
+              Generate consent contracts and docs using AI-powered templates tailored to your specific needs, 
               independent of any particular institution.
             </p>
           </div>
