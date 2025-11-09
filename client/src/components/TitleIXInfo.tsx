@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, BookOpen, GraduationCap, Flag, ExternalLink, CheckCircle2, ChevronDown, ChevronUp, BadgeCheck, Sparkles } from "lucide-react";
+import { AlertCircle, BookOpen, School, Flag, ExternalLink, CheckCircle2, ChevronDown, ChevronUp, BadgeCheck, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -169,7 +169,7 @@ export default function TitleIXInfo({
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
-              <GraduationCap className="h-5 w-5 text-primary" />
+              <School className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-lg mb-1">Title IX at {universityName}</h3>
@@ -317,7 +317,7 @@ export default function TitleIXInfo({
         <AccordionItem value="requirements" className="border rounded-lg px-4 bg-card" data-testid="accordion-requirements">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-3">
-              <GraduationCap className="h-4 w-4 text-primary" />
+              <School className="h-4 w-4 text-primary" />
               <span className="font-semibold">Key Requirements</span>
             </div>
           </AccordionTrigger>
