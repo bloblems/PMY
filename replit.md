@@ -84,36 +84,51 @@ Preferred communication style: Simple, everyday language.
 **Status**: Backend complete, frontend UI (login/signup forms, user dashboard) pending
 
 ### UI Redesign: Consent Flow Centerpiece (November 2025) 🎯 NEW
-**Feature**: Streamlined UI with prominent "Press for Yes" consent button and icon navigation
+**Feature**: Streamlined UI with prominent "Press for Yes" consent button, icon navigation, and settings menu
 
 **Changes**:
+- **App Branding**: Changed from "ConsentGuard" to "PMY" throughout application
 - **Centerpiece Button**: "Press for Yes" card positioned between university selector and Title IX info panel
   - Dark panel background matching other cards
   - Green outline (border-2) matching verification badge color (green-600/green-400)
   - Green heading text with same shade as verification badge
-  - Centered text with clear call-to-action
+  - Subtitle: "Begin consent contract"
   - Interactive hover and active states
   - Mobile-optimized design
 - **Icon Navigation Bar**: iOS-style bottom tab bar with icons + labels, visible on all pages
-  - **Tab 1**: "IX" icon + "Info" label - Title IX information page (home)
-  - **Tab 2**: Folder icon + "Files" label - Saved consent documents
-  - **Tab 3**: Sparkles icon + "Custom" label - Custom templates (AI-powered generative flow)
+  - **Tab 1**: "IX" icon + "Create" label - Title IX consent creation page (home)
+  - **Tab 2**: Folder icon + "Contracts" label - Saved consent contracts and records
+  - **Tab 3**: Sparkles icon + "Custom" label - Custom contract templates (AI-powered)
   - **Tab 4**: Share icon + "Share" label - Sharing functionality
   - Active state indicated by green color (green-600/green-400) matching verification badge
   - Icons centered above labels in each tab
   - Fixed to bottom with 64px height
+- **Settings Menu**: Gear icon dropdown in header replacing standalone theme toggle
+  - Account information access
+  - Billing management
+  - Light/Dark mode toggle
+  - Log out option
+  - Component: `client/src/components/SettingsMenu.tsx`
+
+**Text Updates**:
+- Page titles and subtitles updated to use "contracts" terminology
+- Files page: "Saved Files and Contracts" / "Manage your records"
+- Custom page: "Custom Contract Templates" / "Create consent contracts from customizable templates"
+- Verification text: "Better contracts and adds a verified badge."
 
 **Technical Details**:
 - Centerpiece: `client/src/pages/InfoPage.tsx` - card component between UniversitySelector and TitleIXInfo
-- Navigation: `client/src/components/IconBottomNav.tsx` - icon-only bottom bar
+- Navigation: `client/src/components/IconBottomNav.tsx` - icon navigation bottom bar
+- Settings: `client/src/components/SettingsMenu.tsx` - dropdown with account, billing, theme toggle, logout
 - New pages: `CustomPage.tsx` and `SharePage.tsx` (placeholder UX for future features)
-- Test IDs: `button-press-for-yes`, `nav-title-ix`, `nav-files`, `nav-custom`, `nav-share`
+- Test IDs: `button-press-for-yes`, `nav-title-ix`, `nav-files`, `nav-custom`, `nav-share`, `button-settings-menu`
 - Updated subtitle: "Generate the consent required by your institution."
 
 **Future**: 
 - "Press for Yes" button will navigate to consent flow UX
 - Custom templates page will feature AI-powered template generation
 - Share page will enable secure document sharing
+- Settings menu will connect to actual account/billing pages
 
 ### User-Paid Verification System (November 2025)
 **Feature**: Users can pay to verify Title IX policies using AI-powered analysis
