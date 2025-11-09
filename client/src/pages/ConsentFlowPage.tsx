@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase } from "lucide-react";
 
 interface ConsentFlowState {
   universityId: string;
@@ -20,6 +20,8 @@ const encounterTypes = [
   { id: "date", label: "Date", icon: Coffee },
   { id: "social", label: "Social Gathering", icon: Users },
   { id: "conversation", label: "Private Conversation", icon: MessageCircle },
+  { id: "medical", label: "Medical", icon: Stethoscope },
+  { id: "professional", label: "Professional", icon: Briefcase },
 ];
 
 const otherEncounterType = { id: "other", label: "Other", icon: Users };
