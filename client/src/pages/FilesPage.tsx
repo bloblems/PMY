@@ -9,6 +9,9 @@ interface Recording {
   fileUrl: string;
   duration: string;
   createdAt: string;
+  universityId?: string;
+  encounterType?: string;
+  parties?: string[];
 }
 
 interface Contract {
@@ -17,6 +20,11 @@ interface Contract {
   signature1: string;
   signature2: string;
   createdAt: string;
+  universityId?: string;
+  encounterType?: string;
+  parties?: string[];
+  method?: string;
+  photoUrl?: string;
 }
 
 export default function FilesPage() {
@@ -72,10 +80,14 @@ export default function FilesPage() {
       }),
       duration: r.duration,
       fileUrl: r.fileUrl,
+      encounterType: r.encounterType,
+      parties: r.parties,
     })),
     ...contracts.map((c) => ({
       id: c.id,
-      name: `contract-${new Date(c.createdAt).toLocaleDateString().replace(/\//g, "-")}.pdf`,
+      name: c.method === "photo" 
+        ? `photo-consent-${new Date(c.createdAt).toLocaleDateString().replace(/\//g, "-")}`
+        : `contract-${new Date(c.createdAt).toLocaleDateString().replace(/\//g, "-")}.pdf`,
       type: "contract" as const,
       date: new Date(c.createdAt).toLocaleDateString("en-US", {
         month: "short",
@@ -84,6 +96,10 @@ export default function FilesPage() {
       }),
       signature1: c.signature1,
       signature2: c.signature2,
+      encounterType: c.encounterType,
+      parties: c.parties,
+      method: c.method,
+      photoUrl: c.photoUrl,
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -109,6 +125,14 @@ export default function FilesPage() {
         
         const contractData = await response.json();
         
+        // Build encounter details section
+        const encounterDetails = contractData.encounterType || contractData.parties?.length > 0 ? `
+  <div class="encounter-details">
+    ${contractData.encounterType ? `<p><strong>Encounter Type:</strong> ${contractData.encounterType}</p>` : ''}
+    ${contractData.parties?.length > 0 ? `<p><strong>Parties Involved:</strong> ${contractData.parties.join(', ')}</p>` : ''}
+    ${contractData.method ? `<p><strong>Method:</strong> ${contractData.method}</p>` : ''}
+  </div>` : '';
+
         // Create a simple HTML representation of the contract
         const htmlContent = `
 <!DOCTYPE html>
@@ -119,16 +143,26 @@ export default function FilesPage() {
   <style>
     body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
     h1 { text-align: center; margin-bottom: 30px; }
+    .encounter-details { background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+    .encounter-details p { margin: 5px 0; }
     .signatures { display: flex; gap: 40px; margin-top: 40px; }
     .signature { flex: 1; }
     .signature img { border: 2px solid #ccc; width: 100%; max-width: 300px; }
     .signature-label { font-weight: bold; margin-bottom: 10px; }
+    .photo { text-align: center; margin-top: 30px; }
+    .photo img { max-width: 100%; border: 2px solid #ccc; }
     .timestamp { text-align: center; margin-top: 20px; font-size: 14px; color: #666; }
     pre { white-space: pre-wrap; }
   </style>
 </head>
 <body>
+  ${encounterDetails}
   <pre>${contractData.contractText}</pre>
+  ${contractData.photoUrl ? `
+  <div class="photo">
+    <div class="signature-label">Consent Photo:</div>
+    <img src="${contractData.photoUrl}" alt="Consent Photo" />
+  </div>` : `
   <div class="signatures">
     <div class="signature">
       <div class="signature-label">Signature 1:</div>
@@ -138,7 +172,7 @@ export default function FilesPage() {
       <div class="signature-label">Signature 2:</div>
       <img src="${contractData.signature2}" alt="Signature 2" />
     </div>
-  </div>
+  </div>`}
   <div class="timestamp">
     Signed on ${new Date(contractData.createdAt).toLocaleString()}
   </div>

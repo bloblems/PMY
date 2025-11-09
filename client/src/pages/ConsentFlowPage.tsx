@@ -48,17 +48,34 @@ const recordingMethods = [
 
 export default function ConsentFlowPage() {
   const [, navigate] = useLocation();
-  const [step, setStep] = useState(1);
+  
+  // Initialize state and step from URL parameters
   const [state, setState] = useState<ConsentFlowState>(() => {
     const params = new URLSearchParams(window.location.search);
+    const urlEncounterType = params.get("encounterType") || "";
+    const urlParties = params.get("parties");
+    const urlMethod = params.get("method") as "signature" | "voice" | "photo" | null;
+    
+    const parsedParties = urlParties ? JSON.parse(urlParties) : [""];
+    
     return {
       universityId: params.get("universityId") || "",
       universityName: params.get("universityName") || "",
-      encounterType: "",
-      parties: [""],
-      method: null,
+      encounterType: urlEncounterType,
+      parties: parsedParties,
+      method: urlMethod,
     };
   });
+
+  // Determine initial step based on state
+  const getInitialStep = () => {
+    if (state.method) return 3;
+    if (state.parties.some(p => p.trim() !== "")) return 2;
+    if (state.encounterType) return 2;
+    return 1;
+  };
+
+  const [step, setStep] = useState(getInitialStep());
 
   const updateState = (updates: Partial<ConsentFlowState>) => {
     setState(prev => ({ ...prev, ...updates }));

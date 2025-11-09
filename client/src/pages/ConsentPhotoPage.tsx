@@ -90,7 +90,16 @@ export default function ConsentPhotoPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate("/consent/flow?" + new URLSearchParams({ universityId, universityName }).toString())}
+          onClick={() => {
+            const params = new URLSearchParams({ 
+              universityId, 
+              universityName,
+              method: "photo",
+              ...(encounterType && { encounterType }),
+              ...(parties.length > 0 && { parties: JSON.stringify(parties) }),
+            });
+            navigate("/consent/flow?" + params.toString());
+          }}
           data-testid="button-back"
         >
           <ChevronLeft className="h-5 w-5" />
