@@ -213,7 +213,7 @@ export default function TitleIXInfo({
             {!verifiedAt && (
               <div className="pt-2 border-t">
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowVerifyDialog(true)}
                   className="w-full"
