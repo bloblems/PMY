@@ -69,6 +69,15 @@ export default function InfoPage() {
         onSelect={setSelectedUniversity}
       />
 
+      {selectedUniversity && (
+        <Card className="p-8 bg-red-600 dark:bg-red-700 border-red-700 dark:border-red-800 hover-elevate active-elevate-2 cursor-pointer transition-transform" data-testid="button-press-for-yes">
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold text-white">Press for Yes</h2>
+            <p className="text-red-50 text-sm">Begin consent documentation</p>
+          </div>
+        </Card>
+      )}
+
       {selectedUniversity ? (
         <TitleIXInfo
           universityId={selectedUniversity.id}

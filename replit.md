@@ -60,7 +60,51 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Features
 
-### User-Paid Verification System (November 2025) 🎯 NEW
+### User Authentication System (November 2025) 🎯 NEW
+**Feature**: Secure user accounts to track consent documents and verification purchases
+
+**Implementation**:
+- **Database Schema**: `users` table with email, name, profile picture, password hash/salt, timestamps
+- **Password Security**: PBKDF2 hashing with 10,000 iterations and 64-byte SHA-512 salts stored in database
+- **Session Management**: Express-session with secure HTTP-only cookies (7-day expiration)
+- **Passport.js Integration**: Local strategy for email/password authentication
+- **User Tracking**: Foreign key `userId` fields added to `consentRecordings`, `consentContracts`, and `verificationPayments` tables
+- **API Endpoints**:
+  - `POST /api/auth/signup` - User registration with email validation
+  - `POST /api/auth/login` - User login with credential verification
+  - `POST /api/auth/logout` - User logout and session destruction
+  - `GET /api/auth/me` - Get current user information
+- **Security**: SESSION_SECRET environment variable required in production (fails fast if missing)
+
+**Technical Details**:
+- Backend: `server/auth.ts` with Passport strategies, `server/storage.ts` with user CRUD methods
+- Authentication middleware: `isAuthenticated` function to protect routes
+- Database persistence: Password hashes stored securely, survives server restarts
+
+**Status**: Backend complete, frontend UI (login/signup forms, user dashboard) pending
+
+### UI Redesign: Consent Flow Centerpiece (November 2025) 🎯 NEW
+**Feature**: Streamlined UI with prominent "Press for Yes" consent button
+
+**Changes**:
+- **Centerpiece Button**: Red "Press for Yes" card positioned between university selector and Title IX info panel
+  - Bold red background (red-600 in light mode, red-700 in dark mode)
+  - Centered text with clear call-to-action
+  - Interactive hover and active states
+  - Mobile-optimized design
+- **Navigation Simplification**: Removed bottom navigation bar (Record/Contract/Files buttons)
+  - Streamlines user experience to focus on consent documentation flow
+  - Reduces UI clutter on mobile devices
+  - Main content no longer needs bottom padding
+
+**Technical Details**:
+- Location: `client/src/pages/InfoPage.tsx` - card component between UniversitySelector and TitleIXInfo
+- Removed: `BottomNav` component from `client/src/App.tsx`
+- Test ID: `data-testid="button-press-for-yes"` for automated testing
+
+**Future**: Button will navigate to consent flow UX when clicked
+
+### User-Paid Verification System (November 2025)
 **Feature**: Users can pay to verify Title IX policies using AI-powered analysis
 
 **Implementation**:

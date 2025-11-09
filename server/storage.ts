@@ -49,12 +49,16 @@ export class MemStorage implements IStorage {
   private recordings: Map<string, ConsentRecording>;
   private contracts: Map<string, ConsentContract>;
   private reports: Map<string, UniversityReport>;
+  private users: Map<string, User>;
+  private verificationPayments: Map<string, VerificationPayment>;
 
   constructor() {
     this.universities = new Map();
     this.recordings = new Map();
     this.contracts = new Map();
     this.reports = new Map();
+    this.users = new Map();
+    this.verificationPayments = new Map();
 
     // Seed with initial universities
     this.seedUniversities();
@@ -185,6 +189,7 @@ export class MemStorage implements IStorage {
     const recording: ConsentRecording = {
       ...insertRecording,
       id,
+      userId: insertRecording.userId ?? null,
       createdAt: new Date(),
     };
     this.recordings.set(id, recording);
@@ -210,6 +215,7 @@ export class MemStorage implements IStorage {
     const contract: ConsentContract = {
       ...insertContract,
       id,
+      userId: insertContract.userId ?? null,
       createdAt: new Date(),
     };
     this.contracts.set(id, contract);
@@ -218,6 +224,75 @@ export class MemStorage implements IStorage {
 
   async deleteContract(id: string): Promise<void> {
     this.contracts.delete(id);
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.email === email);
+  }
+
+  async createUser(insertUser: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User> {
+    const user: User = {
+      ...insertUser,
+      name: insertUser.name ?? null,
+      profilePictureUrl: insertUser.profilePictureUrl ?? null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    };
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  async updateUserLastLogin(id: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (user) {
+      user.lastLoginAt = new Date();
+      this.users.set(id, user);
+    }
+    return user;
+  }
+
+  async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
+    const id = randomUUID();
+    const payment: VerificationPayment = {
+      ...insertPayment,
+      id,
+      userId: insertPayment.userId ?? null,
+      verificationResult: insertPayment.verificationResult ?? null,
+      completedAt: null,
+      createdAt: new Date(),
+    };
+    this.verificationPayments.set(id, payment);
+    return payment;
+  }
+
+  async getVerificationPayment(id: string): Promise<VerificationPayment | undefined> {
+    return this.verificationPayments.get(id);
+  }
+
+  async getVerificationPaymentBySessionId(sessionId: string): Promise<VerificationPayment | undefined> {
+    return Array.from(this.verificationPayments.values()).find(p => p.stripeSessionId === sessionId);
+  }
+
+  async updateVerificationPaymentStatus(
+    id: string,
+    stripePaymentStatus: string,
+    verificationStatus: string,
+    verificationResult?: string
+  ): Promise<VerificationPayment | undefined> {
+    const payment = this.verificationPayments.get(id);
+    if (payment) {
+      payment.stripePaymentStatus = stripePaymentStatus;
+      payment.verificationStatus = verificationStatus;
+      if (verificationResult !== undefined) {
+        payment.verificationResult = verificationResult;
+      }
+      this.verificationPayments.set(id, payment);
+    }
+    return payment;
   }
 }
 
