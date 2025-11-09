@@ -5,9 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import PMYLogo from "@/components/PMYLogo";
+import { AlertCircle } from "lucide-react";
 
 type AuthMode = "login" | "signup";
 
@@ -18,6 +20,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const authMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; name?: string }) => {
@@ -26,6 +29,9 @@ export default function AuthPage() {
       return await response.json();
     },
     onSuccess: (data) => {
+      // Clear any error messages
+      setErrorMessage(null);
+      
       // Set the user data directly instead of invalidating/refetching
       queryClient.setQueryData(["/api/auth/me"], data);
       toast({
@@ -36,45 +42,37 @@ export default function AuthPage() {
     },
     onError: (error: any) => {
       // Parse the error message from the backend
-      let errorMessage = "Please check your credentials and try again.";
+      let parsedErrorMessage = "Please check your credentials and try again.";
       
       try {
         // Error format from apiRequest is: "400: {"error":"Email already exists"}"
         const match = error.message?.match(/\{.*\}/);
         if (match) {
           const errorData = JSON.parse(match[0]);
-          errorMessage = errorData.error || errorMessage;
+          parsedErrorMessage = errorData.error || parsedErrorMessage;
         }
       } catch (e) {
         // If parsing fails, use default message
       }
 
-      toast({
-        title: mode === "login" ? "Login failed" : "Signup failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // Display error inline instead of toast
+      setErrorMessage(parsedErrorMessage);
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Clear previous errors
+    setErrorMessage(null);
+    
     if (!email || !password) {
-      toast({
-        title: "Missing information",
-        description: "Please enter your email and password.",
-        variant: "destructive",
-      });
+      setErrorMessage("Please enter your email and password.");
       return;
     }
 
     if (mode === "signup" && !name) {
-      toast({
-        title: "Missing information",
-        description: "Please enter your name.",
-        variant: "destructive",
-      });
+      setErrorMessage("Please enter your name.");
       return;
     }
 
@@ -90,6 +88,7 @@ export default function AuthPage() {
     setEmail("");
     setPassword("");
     setName("");
+    setErrorMessage(null);
   };
 
   return (
@@ -108,6 +107,13 @@ export default function AuthPage() {
               : "Get started with Title IX consent documentation"}
           </p>
         </div>
+
+        {errorMessage && (
+          <Alert variant="destructive" data-testid="alert-error">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
 
         <Card className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
