@@ -224,7 +224,7 @@ export default function TitleIXInfo({
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   <Sparkles className="w-3 h-3 inline mr-1" />
-                  AI-powered verification earns you a verified badge
+                  Better contracts and adds a verified badge.
                 </p>
               </div>
             )}
