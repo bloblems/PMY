@@ -1,205 +1,38 @@
 # PMY - Title IX Consent Documentation App
 
 ## Overview
-PMY is a mobile-first web application designed to document consent in accordance with Title IX requirements. It offers audio recording for verbal agreements and digital contracts for signed consent. The application also provides educational information about Title IX consent requirements, customized by university. Built with a focus on trust, clarity, and legal validity, PMY aims to provide a secure and legally sound platform for consent documentation, adhering to Apple's Human Interface Guidelines and professional legal-tech patterns. The project's ambition is to become a leading solution for Title IX compliance and consent education within academic institutions.
+PMY is a mobile-first web application for documenting consent in accordance with Title IX requirements. It provides four consent documentation methods: digital signature contracts, audio recording for verbal agreements, photo/selfie capture, and biometric authentication using Touch ID/Face ID/Windows Hello. The app also provides educational information about Title IX consent, customized by university. The application aims to be a secure, legally sound platform adhering to Apple's Human Interface Guidelines and legal-tech patterns, with the ambition to become a leading solution for Title IX compliance and education in academic institutions.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Frameworks**: React 18 with TypeScript, Vite for tooling, Wouter for routing, TanStack Query for server state.
-- **UI Components**: shadcn/ui built on Radix UI, Tailwind CSS for styling with custom design tokens, Class Variance Authority for type-safe variants.
-- **Design**: Apple HIG principles, mobile-first, single-column layout (max-width: 448px), light/dark mode.
-- **Key Features**: Bottom navigation, signature capture (`react-signature-canvas`), audio recording (Media Recorder API), form validation (`react-hook-form` with `zod`), university selector with search and "My university isn't listed" option.
+### UI/UX Decisions
+The application follows Apple Human Interface Guidelines with a mobile-first, single-column layout (max-width: 448px), supporting both light and dark modes. It uses a system font stack, structured heading hierarchy, and Tailwind CSS for styling with custom design tokens. Key UI elements include a bottom navigation bar, card-based layouts, accordions, and toast notifications. The central "Press for Yes" button initiates the consent flow.
 
-### Backend Architecture
-- **Server**: Express.js with TypeScript on Node.js, Multer for file uploads.
-- **API**: RESTful endpoints (`/api/*`) for CRUD operations on universities, recordings, and contracts, supporting multipart form data.
-- **Data Layer**: Drizzle ORM for type-safe PostgreSQL operations via Neon serverless. Uses a `DbStorage` class with an `IStorage` interface.
-- **Database Seeding**: Automatically seeds 287 top US universities (including 16 manually verified with comprehensive Title IX info) from `server/university-data.ts` on startup if tables are empty.
-- **Database Schema**: `universities` (Title IX info, verification status, `lastUpdated`), `consentRecordings`, `consentContracts`, `universityReports` (for user-submitted issues).
-- **Title IX Management**: Comprehensive system for managing university Title IX information, including user reporting, admin dashboard for updates and verification, and API endpoints for reporting, updating, and verifying.
-- **AI Integration**: OpenAI GPT-4o-mini generates 150-200 word summaries of Title IX policies for 271 universities, with smart display and graceful fallback. Summaries are professional and cover key aspects like prohibited conduct, consent requirements, reporting procedures, and support resources.
+### Technical Implementations
+The frontend is built with React 18 and TypeScript, using Vite, Wouter for routing, and TanStack Query for server state. UI components are derived from shadcn/ui (Radix UI) and Tailwind CSS. Form validation is handled with `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, handling RESTful API endpoints and file uploads via Multer. Drizzle ORM provides type-safe PostgreSQL operations with Neon serverless.
 
-### Design System
-- **Typography**: System font stack, structured heading hierarchy, Tailwind spacing.
-- **Color**: CSS custom properties with HSL, semantic tokens, light/dark mode support.
-- **Components**: Card-based layouts, hover/active state elevations, accordions, toast notifications.
+### Feature Specifications
+- **Consent Documentation**: Supports digital signature capture (`react-signature-canvas`), audio recording (Media Recorder API), and biometric authentication (WebAuthn for Touch ID/Face ID/Windows Hello) for consent. A multi-step wizard guides users through defining encounter types and parties involved.
+- **Title IX Information**: Provides educational content about Title IX requirements, customized per university. It includes a comprehensive system for managing, updating, and verifying university Title IX policies. OpenAI GPT-4o-mini is used to summarize Title IX policies for universities.
+- **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
+- **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
+- **Paid Verification**: Users can pay via Stripe to have university Title IX policies verified using advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o).
+
+### System Design Choices
+- **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
+- **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
+- **State Management**: Frontend uses TanStack Query for server state and URL parameters for maintaining state across multi-step consent flows.
+- **Security**: Implements secure password hashing, session management, and WebAuthn for biometric authentication, ensuring privacy by keeping biometric data on-device.
 
 ## External Dependencies
 
-### Core Libraries
-- `@neondatabase/serverless`: PostgreSQL connectivity for serverless.
-- `drizzle-orm`: Type-safe ORM.
-- `@tanstack/react-query`: Server state management.
-- `react-signature-canvas`: Digital signature capture.
-- `multer`: File uploads.
-- `tsx`: TypeScript execution for development.
-- `esbuild`: Fast server-side bundling.
-- `ws`: WebSocket library for Neon.
-
-### UI Component Libraries
-- `@radix-ui/*`: Accessible UI primitives.
-- `tailwindcss`: Utility-first CSS.
-- `class-variance-authority`: Type-safe variant styling.
-- `cmdk`: Command menu component.
-
-### Development & Type Safety
-- `@replit/object-storage`: Replit file storage interface.
-- `@replit/vite-plugin-*`: Replit Vite plugins.
-- `wouter`: Minimalist React router.
-- `nanoid`: Compact unique ID generation.
-- `zod`: Schema validation.
-- `@hookform/resolvers`: Form validation resolver.
-
-### AI/External Services
-- **OpenAI API**: For AI-powered Title IX policy summarization using GPT-4o-mini and verification using GPT-4/GPT-4o.
-- **Stripe**: Payment processing for user-paid verification services.
-
-## Recent Features
-
-### User Authentication System (November 2025) 🎯 NEW
-**Feature**: Secure user accounts to track consent documents and verification purchases
-
-**Implementation**:
-- **Database Schema**: `users` table with email, name, profile picture, password hash/salt, timestamps
-- **Password Security**: PBKDF2 hashing with 10,000 iterations and 64-byte SHA-512 salts stored in database
-- **Session Management**: Express-session with secure HTTP-only cookies (7-day expiration)
-- **Passport.js Integration**: Local strategy for email/password authentication
-- **User Tracking**: Foreign key `userId` fields added to `consentRecordings`, `consentContracts`, and `verificationPayments` tables
-- **API Endpoints**:
-  - `POST /api/auth/signup` - User registration with email validation
-  - `POST /api/auth/login` - User login with credential verification
-  - `POST /api/auth/logout` - User logout and session destruction
-  - `GET /api/auth/me` - Get current user information
-- **Security**: SESSION_SECRET environment variable required in production (fails fast if missing)
-
-**Technical Details**:
-- Backend: `server/auth.ts` with Passport strategies, `server/storage.ts` with user CRUD methods
-- Authentication middleware: `isAuthenticated` function to protect routes
-- Database persistence: Password hashes stored securely, survives server restarts
-
-**Status**: Backend complete, frontend UI (login/signup forms, user dashboard) pending
-
-### UI Redesign: Consent Flow Centerpiece (November 2025) 🎯 NEW
-**Feature**: Streamlined UI with prominent "Press for Yes" consent button, icon navigation, and settings menu
-
-**Changes**:
-- **App Branding**: Changed from "ConsentGuard" to "PMY" throughout application
-- **Centerpiece Button**: "Press for Yes" card positioned between university selector and Title IX info panel
-  - Dark panel background matching other cards
-  - Green outline (border-2) matching verification badge color (green-600/green-400)
-  - Green heading text with same shade as verification badge
-  - Subtitle: "Begin consent contract"
-  - Interactive hover and active states
-  - Mobile-optimized design
-- **Icon Navigation Bar**: iOS-style bottom tab bar with icons + labels, visible on all pages
-  - **Tab 1**: "IX" icon + "Create" label - Title IX consent creation page (home)
-  - **Tab 2**: Folder icon + "Contracts" label - Saved consent contracts and records
-  - **Tab 3**: Sparkles icon + "Custom" label - Custom contract templates (AI-powered)
-  - **Tab 4**: Share icon + "Share" label - Sharing functionality
-  - Active state indicated by green color (green-600/green-400) matching verification badge
-  - Icons centered above labels in each tab
-  - Fixed to bottom with 64px height
-- **Settings Menu**: Gear icon dropdown in header replacing standalone theme toggle
-  - Account information access
-  - Billing management
-  - Light/Dark mode toggle
-  - Log out option
-  - Component: `client/src/components/SettingsMenu.tsx`
-
-**Text Updates**:
-- Page titles and subtitles updated to use "contracts" terminology
-- Files page: "Saved Files and Contracts" / "Manage your records"
-- Custom page: "Custom Contract Templates" / "Create consent contracts from customizable templates"
-- Verification text: "Better contracts and adds a verified badge."
-
-**Technical Details**:
-- Centerpiece: `client/src/pages/InfoPage.tsx` - card component between UniversitySelector and TitleIXInfo
-- Navigation: `client/src/components/IconBottomNav.tsx` - icon navigation bottom bar
-- Settings: `client/src/components/SettingsMenu.tsx` - dropdown with account, billing, theme toggle, logout
-- New pages: `CustomPage.tsx` and `SharePage.tsx` (placeholder UX for future features)
-- Test IDs: `button-press-for-yes`, `nav-title-ix`, `nav-files`, `nav-custom`, `nav-share`, `button-settings-menu`
-- Updated subtitle: "Generate the consent required by your institution."
-
-**Status**: ✅ "Press for Yes" button functional, navigates to consent flow
-
-### Multi-Step Consent Creation Flow (November 2025) 🎯 NEW
-**Feature**: Complete 3-step consent documentation flow with Title IX policy integration
-
-**Implementation**:
-- **ConsentFlowPage**: 3-step wizard for creating consent documents
-  - **Step 1 - Encounter Type**: Select from 8 encounter types (intimate, date, social, conversation, movie, music, dinner, other)
-  - **Step 2 - Parties Involved**: Enter names of all participants with dynamic party addition
-  - **Step 3 - Recording Method**: Choose signature contract, voice recording, or dual selfie
-- **State Management**: All flow data passed via URL parameters for bi-directional navigation preservation
-- **Method-Specific Pages**:
-  - **ConsentSignaturePage**: Digital signature capture with react-signature-canvas, incorporates Title IX policy language from selected university into contract text
-  - **ConsentVoicePage**: Audio recording using MediaRecorder API
-  - **ConsentPhotoPage**: Photo upload for dual-selfie consent documentation
-- **Enhanced Database Schema**: universityId, encounterType, parties (text array), method fields added to consent records
-- **Backend API Routes**:
-  - `POST /api/consent-contracts` - Create signature contract with enhanced metadata
-  - `POST /api/consent-recordings` - Upload voice recording with encounter context
-  - `POST /api/consent-photos` - Upload consent photo
-  - `GET /api/universities/:id` - Fetch individual university with Title IX policy
-- **FilesPage Enhancement**: Displays encounter type, parties, and method; downloads include encounter details in HTML
-
-**Title IX Integration**: Contract text automatically incorporates relevant Title IX policy language from the selected institution's database, ensuring legal compliance and educational value.
-
-**Technical Details**:
-- URL-based state management preserves encounterType, parties, and method across navigation
-- `useMemo` ensures contract text updates reactively when university data loads
-- Back navigation returns users to correct step with all selections intact
-- Green accent color (green-600/green-400) for success states, active selections, verification badges
-
-**User Flow**:
-1. Select university on home page → Click "Press for Yes"
-2. Choose encounter type (e.g., "Intimate Encounter")
-3. Enter participant names (Party 1, Party 2, etc.)
-4. Select consent method (contract signature, voice, or photo)
-5. Complete method-specific consent capture
-6. Contract/recording saved to FilesPage with full metadata
-
-**Future**: 
-- Custom templates page will feature AI-powered template generation
-- Share page will enable secure document sharing
-- Settings menu will connect to actual account/billing pages
-
-### User-Paid Verification System (November 2025)
-**Feature**: Users can pay to verify Title IX policies using AI-powered analysis
-
-**Implementation**:
-- **Stripe Integration**: Secure payment processing for verification services  
-- **Three AI Model Tiers**:
-  - GPT-4: $5.00 - Most accurate, comprehensive analysis
-  - GPT-4 Turbo: $3.00 - Fast and thorough verification
-  - GPT-4o: $2.00 - Optimized for accuracy and speed (recommended)
-- **Verification Process**:
-  1. User selects university and AI model tier
-  2. Stripe checkout session created
-  3. Payment processed securely through Stripe
-  4. AI analyzes stored policy against official sources
-  5. If verified with high confidence, university gets verified badge
-  6. User receives detailed verification report
-- **Database Tracking**: `verificationPayments` table tracks all payments, verification status, and results
-- **Revenue Model**: Platform profits from verification fees as users pay to earn verified badges for their universities
-- **Auto-verification**: Successful verifications automatically mark university as verified
-
-**Technical Details**:
-- Frontend: Verification dialog in `TitleIXInfo.tsx` with pricing tiers and Stripe redirect
-- Backend: Stripe SDK, checkout session creation, webhook handling
-- API Endpoints:
-  - `POST /api/verify/create-checkout` - Create Stripe checkout session
-  - `POST /api/verify/webhook` - Handle Stripe payment confirmations
-  - `GET /api/verify/status/:sessionId` - Check verification progress
-- AI Analysis: GPT-4/GPT-4o analyzes policy text for accuracy, completeness, and professionalism
-- Async Processing: Verification runs in background after payment confirmation
-
-**Future Enhancements**:
-- Web scraping to compare with live university Title IX pages
-- Email notifications when verification completes
-- Verification history for users
-- Admin dashboard for verification analytics
+- **Database**: `@neondatabase/serverless` (PostgreSQL), `drizzle-orm`
+- **Frontend Frameworks/Libraries**: `react`, `wouter`, `@tanstack/react-query`, `react-hook-form`, `zod`, `react-signature-canvas`
+- **UI Libraries**: `@radix-ui/*`, `tailwindcss`, `shadcn/ui`, `class-variance-authority`, `cmdk`
+- **Backend Frameworks/Libraries**: `express`, `multer`, `tsx`, `esbuild`, `@simplewebauthn/server`, `ws`
+- **AI Services**: `OpenAI API` (GPT-4o-mini, GPT-4, GPT-4o)
+- **Payment Processing**: `Stripe`
+- **Authentication**: `passport`, `express-session`, `@simplewebauthn/browser`
