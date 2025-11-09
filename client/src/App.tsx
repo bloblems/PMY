@@ -10,6 +10,7 @@ import FilesPage from "@/pages/FilesPage";
 import AdminPage from "@/pages/AdminPage";
 import CustomPage from "@/pages/CustomPage";
 import SharePage from "@/pages/SharePage";
+import ConsentFlowPage from "@/pages/ConsentFlowPage";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/custom" component={CustomPage} />
       <Route path="/share" component={SharePage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/consent/flow" component={ConsentFlowPage} />
     </Switch>
   );
 }

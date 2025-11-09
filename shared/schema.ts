@@ -27,6 +27,9 @@ export const users = pgTable("users", {
 export const consentRecordings = pgTable("consent_recordings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: text("user_id"),
+  universityId: varchar("university_id"),
+  encounterType: text("encounter_type"),
+  parties: text("parties").array(),
   filename: text("filename").notNull(),
   fileUrl: text("file_url").notNull(),
   duration: text("duration").notNull(),
@@ -36,9 +39,14 @@ export const consentRecordings = pgTable("consent_recordings", {
 export const consentContracts = pgTable("consent_contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: text("user_id"),
+  universityId: varchar("university_id"),
+  encounterType: text("encounter_type"),
+  parties: text("parties").array(),
+  method: text("method"),
   contractText: text("contract_text").notNull(),
   signature1: text("signature1").notNull(),
   signature2: text("signature2").notNull(),
+  photoUrl: text("photo_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -73,11 +81,18 @@ export const insertUniversitySchema = createInsertSchema(universities).omit({
 export const insertConsentRecordingSchema = createInsertSchema(consentRecordings).omit({
   id: true,
   createdAt: true,
+}).extend({
+  encounterType: z.string().optional(),
+  parties: z.array(z.string()).optional(),
 });
 
 export const insertConsentContractSchema = createInsertSchema(consentContracts).omit({
   id: true,
   createdAt: true,
+}).extend({
+  encounterType: z.string().optional(),
+  parties: z.array(z.string()).optional(),
+  method: z.enum(["signature", "voice", "photo"]).optional(),
 });
 
 export const insertUniversityReportSchema = createInsertSchema(universityReports).omit({

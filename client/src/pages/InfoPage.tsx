@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import UniversitySelector from "@/components/UniversitySelector";
 import TitleIXInfo from "@/components/TitleIXInfo";
 import { Card } from "@/components/ui/card";
@@ -17,6 +18,7 @@ interface University {
 }
 
 export default function InfoPage() {
+  const [, navigate] = useLocation();
   const { data: rawUniversities = [], isLoading } = useQuery<University[]>({
     queryKey: ["/api/universities"],
   });
@@ -25,6 +27,16 @@ export default function InfoPage() {
   const universities = [...rawUniversities].sort((a, b) => a.name.localeCompare(b.name));
 
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
+
+  const handlePressForYes = () => {
+    if (selectedUniversity) {
+      const params = new URLSearchParams({
+        universityId: selectedUniversity.id,
+        universityName: selectedUniversity.name,
+      });
+      navigate(`/consent/flow?${params.toString()}`);
+    }
+  };
 
   // Auto-select first university when data loads
   useEffect(() => {
@@ -68,7 +80,11 @@ export default function InfoPage() {
         onSelect={setSelectedUniversity}
       />
       {selectedUniversity && (
-        <Card className="p-8 border-2 border-green-600 dark:border-green-400 hover-elevate active-elevate-2 cursor-pointer transition-transform" data-testid="button-press-for-yes">
+        <Card 
+          className="p-8 border-2 border-green-600 dark:border-green-400 hover-elevate active-elevate-2 cursor-pointer transition-transform" 
+          onClick={handlePressForYes}
+          data-testid="button-press-for-yes"
+        >
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">Press for Yes</h2>
             <p className="text-muted-foreground text-sm">Begin consent contract</p>
