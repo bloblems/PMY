@@ -26,7 +26,7 @@ const getStripeKey = () => {
 };
 
 const stripe = new Stripe(getStripeKey(), {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-10-29.clover",
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -298,6 +298,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading consent photo:", error);
       res.status(500).json({ error: "Failed to upload photo" });
+    }
+  });
+
+  app.post("/api/consent-biometric", async (req, res) => {
+    try {
+      const { universityId, encounterType, parties, method, credentialId, credentialData, authenticatedAt } = req.body;
+
+      // Parse parties if it's a string
+      const parsedParties = typeof parties === 'string' ? JSON.parse(parties) : parties;
+
+      // Create a contract with biometric data
+      const contract = await storage.createContract({
+        universityId: universityId || undefined,
+        encounterType: encounterType || undefined,
+        parties: parsedParties,
+        method: "biometric",
+        contractText: `Biometric consent authenticated on ${new Date(authenticatedAt).toLocaleDateString()} using Touch ID/Face ID for ${encounterType || "encounter"}`,
+        credentialId,
+        credentialData,
+        authenticatedAt,
+      });
+
+      res.json(contract);
+    } catch (error) {
+      console.error("Error creating biometric consent:", error);
+      res.status(500).json({ error: "Failed to create biometric consent" });
     }
   });
 

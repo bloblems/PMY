@@ -43,10 +43,13 @@ export const consentContracts = pgTable("consent_contracts", {
   encounterType: text("encounter_type"),
   parties: text("parties").array(),
   method: text("method"),
-  contractText: text("contract_text").notNull(),
-  signature1: text("signature1").notNull(),
-  signature2: text("signature2").notNull(),
+  contractText: text("contract_text"),
+  signature1: text("signature1"),
+  signature2: text("signature2"),
   photoUrl: text("photo_url"),
+  credentialId: text("credential_id"),
+  credentialData: text("credential_data"),
+  authenticatedAt: timestamp("authenticated_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -92,7 +95,14 @@ export const insertConsentContractSchema = createInsertSchema(consentContracts).
 }).extend({
   encounterType: z.string().optional(),
   parties: z.array(z.string()).optional(),
-  method: z.enum(["signature", "voice", "photo"]).optional(),
+  method: z.enum(["signature", "voice", "photo", "biometric"]).optional(),
+  contractText: z.string().optional(),
+  signature1: z.string().optional(),
+  signature2: z.string().optional(),
+  photoUrl: z.string().optional(),
+  credentialId: z.string().optional(),
+  credentialData: z.string().optional(),
+  authenticatedAt: z.string().optional(),
 });
 
 export const insertUniversityReportSchema = createInsertSchema(universityReports).omit({

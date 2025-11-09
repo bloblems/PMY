@@ -14,6 +14,7 @@ import ConsentFlowPage from "@/pages/ConsentFlowPage";
 import ConsentSignaturePage from "@/pages/ConsentSignaturePage";
 import ConsentVoicePage from "@/pages/ConsentVoicePage";
 import ConsentPhotoPage from "@/pages/ConsentPhotoPage";
+import ConsentBiometricPage from "@/pages/ConsentBiometricPage";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/consent/signature" component={ConsentSignaturePage} />
       <Route path="/consent/voice" component={ConsentVoicePage} />
       <Route path="/consent/photo" component={ConsentPhotoPage} />
+      <Route path="/consent/biometric" component={ConsentBiometricPage} />
     </Switch>
   );
 }

@@ -4,14 +4,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint } from "lucide-react";
 
 interface ConsentFlowState {
   universityId: string;
   universityName: string;
   encounterType: string;
   parties: string[];
-  method: "signature" | "voice" | "photo" | null;
+  method: "signature" | "voice" | "photo" | "biometric" | null;
 }
 
 const encounterTypes = [
@@ -44,6 +44,12 @@ const recordingMethods = [
     icon: Camera,
     description: "Upload a photo showing mutual agreement"
   },
+  { 
+    id: "biometric" as const, 
+    label: "Authenticate with TouchID/FaceID", 
+    icon: Fingerprint,
+    description: "Cryptographic proof using device biometrics"
+  },
 ];
 
 export default function ConsentFlowPage() {
@@ -54,7 +60,7 @@ export default function ConsentFlowPage() {
     const params = new URLSearchParams(window.location.search);
     const urlEncounterType = params.get("encounterType") || "";
     const urlParties = params.get("parties");
-    const urlMethod = params.get("method") as "signature" | "voice" | "photo" | null;
+    const urlMethod = params.get("method") as "signature" | "voice" | "photo" | "biometric" | null;
     
     const parsedParties = urlParties ? JSON.parse(urlParties) : [""];
     
@@ -121,6 +127,8 @@ export default function ConsentFlowPage() {
         navigate(`/consent/voice?${params.toString()}`);
       } else if (state.method === "photo") {
         navigate(`/consent/photo?${params.toString()}`);
+      } else if (state.method === "biometric") {
+        navigate(`/consent/biometric?${params.toString()}`);
       }
     }
   };
