@@ -32,7 +32,7 @@ const intimateActOptions = [
   "Kissing",
   "Oral Contact",
   "Manual Stimulation",
-  "Use of Barrier Protection",
+  "Oral Intercourse",
   "Penetrative Intercourse",
   "Photography/Video Recording",
   "Other Acts (Specify in Contract)",
