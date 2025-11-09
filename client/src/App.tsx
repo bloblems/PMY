@@ -30,7 +30,7 @@ function App() {
         <div className="flex flex-col min-h-screen bg-background">
           <header className="sticky top-0 z-40 bg-card border-b border-card-border">
             <div className="max-w-md mx-auto px-6 h-14 flex items-center justify-between">
-              <h1 className="text-lg font-semibold">ConsentGuard</h1>
+              <h1 className="text-lg font-semibold">PMY</h1>
               <ThemeToggle />
             </div>
           </header>

@@ -1,7 +1,7 @@
-# ConsentGuard - Title IX Consent Documentation App
+# PMY - Title IX Consent Documentation App
 
 ## Overview
-ConsentGuard is a mobile-first web application designed to document consent in accordance with Title IX requirements. It offers audio recording for verbal agreements and digital contracts for signed consent. The application also provides educational information about Title IX consent requirements, customized by university. Built with a focus on trust, clarity, and legal validity, ConsentGuard aims to provide a secure and legally sound platform for consent documentation, adhering to Apple's Human Interface Guidelines and professional legal-tech patterns. The project's ambition is to become a leading solution for Title IX compliance and consent education within academic institutions.
+PMY is a mobile-first web application designed to document consent in accordance with Title IX requirements. It offers audio recording for verbal agreements and digital contracts for signed consent. The application also provides educational information about Title IX consent requirements, customized by university. Built with a focus on trust, clarity, and legal validity, PMY aims to provide a secure and legally sound platform for consent documentation, adhering to Apple's Human Interface Guidelines and professional legal-tech patterns. The project's ambition is to become a leading solution for Title IX compliance and consent education within academic institutions.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

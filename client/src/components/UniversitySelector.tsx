@@ -58,7 +58,7 @@ export default function UniversitySelector({
     setShowNotListedDialog(false);
     toast({
       title: "Thank you for your interest",
-      description: "We'll notify you when ConsentGuard expands to more universities.",
+      description: "We'll notify you when PMY expands to more universities.",
     });
   };
 
@@ -136,10 +136,10 @@ export default function UniversitySelector({
           <DialogTitle>University Not Listed</DialogTitle>
           <DialogDescription className="space-y-3 pt-2">
             <p>
-              ConsentGuard is currently available only to students at the top universities in the United States.
+              PMY is currently available only to students at the top universities in the United States.
             </p>
             <p>
-              We're working to expand access to more institutions. If your university isn't listed, please contact us to express interest in bringing ConsentGuard to your campus.
+              We're working to expand access to more institutions. If your university isn't listed, please contact us to express interest in bringing PMY to your campus.
             </p>
           </DialogDescription>
         </DialogHeader>
