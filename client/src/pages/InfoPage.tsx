@@ -57,18 +57,16 @@ export default function InfoPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Title IX Information</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Create Title IX Consent</h1>
         <p className="text-muted-foreground">
           Generate the consent required by your institution.
         </p>
       </div>
-
       <UniversitySelector
         universities={universities}
         selectedUniversity={selectedUniversity}
         onSelect={setSelectedUniversity}
       />
-
       {selectedUniversity && (
         <Card className="p-8 border-2 border-green-600 dark:border-green-400 hover-elevate active-elevate-2 cursor-pointer transition-transform" data-testid="button-press-for-yes">
           <div className="text-center space-y-2">
@@ -77,7 +75,6 @@ export default function InfoPage() {
           </div>
         </Card>
       )}
-
       {selectedUniversity ? (
         <TitleIXInfo
           universityId={selectedUniversity.id}
