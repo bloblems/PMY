@@ -39,7 +39,7 @@ export default function InfoPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Title IX Information</h1>
           <p className="text-muted-foreground">
-            Understand consent requirements for your institution
+            Generate the consent required by your institution.
           </p>
         </div>
         <Card className="p-12">
@@ -59,7 +59,7 @@ export default function InfoPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Title IX Information</h1>
         <p className="text-muted-foreground">
-          Understand consent requirements for your institution
+          Generate the consent required by your institution.
         </p>
       </div>
 
