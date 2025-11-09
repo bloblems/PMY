@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,11 @@ const recordingMethods = [
 export default function ConsentFlowPage() {
   const [, navigate] = useLocation();
   
+  // Fetch current user data
+  const { data: userData } = useQuery<{ user: { id: string; email: string; name: string | null } }>({
+    queryKey: ["/api/auth/me"],
+  });
+  
   // Initialize state and step from URL parameters
   const [state, setState] = useState<ConsentFlowState>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -70,6 +76,13 @@ export default function ConsentFlowPage() {
       method: urlMethod,
     };
   });
+
+  // Pre-fill first participant with logged-in user's name
+  useEffect(() => {
+    if (userData?.user?.name && state.parties.length === 1 && state.parties[0] === "") {
+      updateState({ parties: [userData.user.name, ""] });
+    }
+  }, [userData]);
 
   // Determine initial step based on state
   const getInitialStep = () => {
@@ -230,7 +243,7 @@ export default function ConsentFlowPage() {
               <div key={index} className="flex gap-2">
                 <div className="flex-1">
                   <Input
-                    placeholder={`Participant ${index + 1} name`}
+                    placeholder={index === 0 ? "Your name (Participant 1)" : `Participant ${index + 1} name`}
                     value={party}
                     onChange={(e) => updateParty(index, e.target.value)}
                     data-testid={`input-party-${index}`}
