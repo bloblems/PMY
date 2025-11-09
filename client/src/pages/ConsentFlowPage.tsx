@@ -66,7 +66,7 @@ export default function ConsentFlowPage() {
     const urlParties = params.get("parties");
     const urlMethod = params.get("method") as "signature" | "voice" | "photo" | "biometric" | null;
     
-    const parsedParties = urlParties ? JSON.parse(urlParties) : [""];
+    const parsedParties = urlParties ? JSON.parse(urlParties) : ["", ""];
     
     return {
       universityId: params.get("universityId") || "",
@@ -77,10 +77,12 @@ export default function ConsentFlowPage() {
     };
   });
 
-  // Pre-fill first participant with logged-in user's name
+  // Pre-fill first participant with logged-in user's name when available
   useEffect(() => {
-    if (userData?.user?.name && state.parties.length === 1 && state.parties[0] === "") {
-      updateState({ parties: [userData.user.name, ""] });
+    if (userData?.user?.name && state.parties[0] === "") {
+      const newParties = [...state.parties];
+      newParties[0] = userData.user.name;
+      updateState({ parties: newParties });
     }
   }, [userData]);
 
