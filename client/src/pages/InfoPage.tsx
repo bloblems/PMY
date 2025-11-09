@@ -158,7 +158,7 @@ export default function InfoPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Create Title IX Consent</h1>
         <p className="text-muted-foreground">
-          Generate the consent required by your institution.
+          Select your institution to generate consent contract.
         </p>
       </div>
 
