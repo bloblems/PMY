@@ -32,7 +32,7 @@ export default function InfoPage() {
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdStartRef = useRef<number | null>(null);
 
-  const HOLD_DURATION = 3000; // 3 seconds
+  const HOLD_DURATION = 2000; // 2 seconds
   const RETREAT_DURATION = 300; // 300ms for quick retreat
 
   const handlePressForYes = () => {
@@ -170,7 +170,7 @@ export default function InfoPage() {
             <p className="text-muted-foreground text-sm">
               {holdProgress > 0 && holdProgress < 100 
                 ? "Keep holding to continue" 
-                : "Hold for 3 seconds to begin"}
+                : "Hold for 2 seconds to begin"}
             </p>
           </div>
         </Card>
