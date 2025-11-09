@@ -28,8 +28,8 @@ const encounterTypes = [
 const otherEncounterType = { id: "other", label: "Other", icon: Users };
 
 const intimateActOptions = [
-  "Kissing",
   "Touching/Caressing",
+  "Kissing",
   "Oral Contact",
   "Manual Stimulation",
   "Penetrative Intercourse",
