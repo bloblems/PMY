@@ -169,7 +169,7 @@ export default function InfoPage() {
             </h2>
             <p className="text-muted-foreground text-sm">
               {holdProgress > 0 && holdProgress < 100 
-                ? "Keep holding to continue" 
+                ? "Hold for 3 seconds to begin" 
                 : "Hold for 2 seconds to begin"}
             </p>
           </div>
