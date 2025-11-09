@@ -31,7 +31,7 @@ const intimateActOptions = [
   "Touching/Caressing",
   "Kissing",
   "Manual Stimulation",
-  "Oral Contact",
+  "Oral Stimulation",
   "Oral Intercourse",
   "Penetrative Intercourse",
   "Photography/Video Recording",
