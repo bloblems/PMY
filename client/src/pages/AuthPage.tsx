@@ -35,9 +35,23 @@ export default function AuthPage() {
       navigate("/");
     },
     onError: (error: any) => {
+      // Parse the error message from the backend
+      let errorMessage = "Please check your credentials and try again.";
+      
+      try {
+        // Error format from apiRequest is: "400: {"error":"Email already exists"}"
+        const match = error.message?.match(/\{.*\}/);
+        if (match) {
+          const errorData = JSON.parse(match[0]);
+          errorMessage = errorData.error || errorMessage;
+        }
+      } catch (e) {
+        // If parsing fails, use default message
+      }
+
       toast({
         title: mode === "login" ? "Login failed" : "Signup failed",
-        description: error.message || "Please check your credentials and try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
