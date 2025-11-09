@@ -1,4 +1,4 @@
-import { Settings, User, CreditCard, Moon, Sun, LogOut } from "lucide-react";
+import { Settings, User, CreditCard, Moon, Sun, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,9 +9,36 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsMenu() {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  
+  // Fetch current user
+  const { data: userData } = useQuery<{ user: { id: string; email: string; name: string | null } } | null>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/auth/logout", {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({
+        title: "Logged out",
+        description: "You've been successfully logged out.",
+      });
+      navigate("/auth");
+    },
+  });
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -41,30 +68,61 @@ export default function SettingsMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Settings</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem data-testid="menu-item-account">
-          <User className="mr-2 h-4 w-4" />
-          <span>Account</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem data-testid="menu-item-billing">
-          <CreditCard className="mr-2 h-4 w-4" />
-          <span>Billing</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={toggleTheme} data-testid="menu-item-theme-toggle">
-          {theme === "light" ? (
-            <Moon className="mr-2 h-4 w-4" />
-          ) : (
-            <Sun className="mr-2 h-4 w-4" />
-          )}
-          <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem data-testid="menu-item-logout">
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Log Out</span>
-        </DropdownMenuItem>
+        {userData?.user ? (
+          <>
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium">{userData.user.name || "User"}</p>
+                <p className="text-xs text-muted-foreground truncate">{userData.user.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem data-testid="menu-item-account">
+              <User className="mr-2 h-4 w-4" />
+              <span>Account</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem data-testid="menu-item-billing">
+              <CreditCard className="mr-2 h-4 w-4" />
+              <span>Billing</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={toggleTheme} data-testid="menu-item-theme-toggle">
+              {theme === "light" ? (
+                <Moon className="mr-2 h-4 w-4" />
+              ) : (
+                <Sun className="mr-2 h-4 w-4" />
+              )}
+              <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => logoutMutation.mutate()} 
+              disabled={logoutMutation.isPending}
+              data-testid="menu-item-logout"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log Out</span>
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <>
+            <DropdownMenuLabel>Settings</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/auth")} data-testid="menu-item-login">
+              <LogIn className="mr-2 h-4 w-4" />
+              <span>Log In</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={toggleTheme} data-testid="menu-item-theme-toggle">
+              {theme === "light" ? (
+                <Moon className="mr-2 h-4 w-4" />
+              ) : (
+                <Sun className="mr-2 h-4 w-4" />
+              )}
+              <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
