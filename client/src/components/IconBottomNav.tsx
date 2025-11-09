@@ -22,18 +22,23 @@ export default function IconBottomNav() {
             <button
               key={item.path}
               onClick={() => setLocation(item.path)}
-              className="flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-0 hover-elevate active-elevate-2"
+              className={`flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-0 hover-elevate active-elevate-2 ${
+                isActive
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-muted-foreground"
+              }`}
               data-testid={item.testId}
               aria-label={item.label}
+              aria-current={isActive ? "page" : undefined}
             >
               {typeof Icon === "string" ? (
-                <span className={`text-lg ${isActive ? "font-bold" : "font-normal"}`}>
+                <span className="text-lg">
                   {Icon}
                 </span>
               ) : (
                 <Icon className="h-5 w-5" />
               )}
-              <span className={`text-xs ${isActive ? "font-bold" : "font-normal"}`}>
+              <span className="text-xs">
                 {item.label}
               </span>
             </button>

@@ -6,8 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import IconBottomNav from "@/components/IconBottomNav";
 import ThemeToggle from "@/components/ThemeToggle";
 import InfoPage from "@/pages/InfoPage";
-import RecordPage from "@/pages/RecordPage";
-import ContractPage from "@/pages/ContractPage";
 import FilesPage from "@/pages/FilesPage";
 import AdminPage from "@/pages/AdminPage";
 import CustomPage from "@/pages/CustomPage";
@@ -17,8 +15,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={InfoPage} />
-      <Route path="/record" component={RecordPage} />
-      <Route path="/contract" component={ContractPage} />
       <Route path="/files" component={FilesPage} />
       <Route path="/custom" component={CustomPage} />
       <Route path="/share" component={SharePage} />

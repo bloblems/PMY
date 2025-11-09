@@ -99,7 +99,7 @@ Preferred communication style: Simple, everyday language.
   - **Tab 2**: Folder icon + "Files" label - Saved consent documents
   - **Tab 3**: Sparkles icon + "Custom" label - Custom templates (AI-powered generative flow)
   - **Tab 4**: Share icon + "Share" label - Sharing functionality
-  - Active state indicated by bold font-weight (per design guidelines)
+  - Active state indicated by green color (green-600/green-400) matching verification badge
   - Icons centered above labels in each tab
   - Fixed to bottom with 64px height
 
