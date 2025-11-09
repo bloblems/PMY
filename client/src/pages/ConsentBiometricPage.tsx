@@ -3,9 +3,10 @@ import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Fingerprint, Check, AlertCircle } from "lucide-react";
+import { ChevronLeft, Fingerprint, Check, AlertCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { startRegistration } from "@simplewebauthn/browser";
 
 export default function ConsentBiometricPage() {
   const [, navigate] = useLocation();
@@ -17,26 +18,9 @@ export default function ConsentBiometricPage() {
   const encounterType = params.get("encounterType") || "";
   const parties = JSON.parse(params.get("parties") || "[]") as string[];
 
-  const [status, setStatus] = useState<"idle" | "authenticating" | "authenticated">("idle");
-  const [credentialData, setCredentialData] = useState<any>(null);
+  const [status, setStatus] = useState<"idle" | "authenticating" | "verifying" | "verified">("idle");
+  const [verifiedCredential, setVerifiedCredential] = useState<any>(null);
   const [browserSupported, setBrowserSupported] = useState(true);
-
-  // Helper functions for WebAuthn
-  const bufferToBase64url = (buffer: ArrayBuffer) => {
-    const bytes = new Uint8Array(buffer);
-    let str = '';
-    bytes.forEach(b => str += String.fromCharCode(b));
-    return btoa(str)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-  };
-
-  const generateRandomChallenge = () => {
-    const randomBytes = new Uint8Array(32);
-    crypto.getRandomValues(randomBytes);
-    return randomBytes.buffer;
-  };
 
   const handleBiometricAuth = async () => {
     // Check browser support
@@ -53,60 +37,54 @@ export default function ConsentBiometricPage() {
     setStatus("authenticating");
 
     try {
-      const challenge = generateRandomChallenge();
-      const userIdBytes = new Uint8Array(32);
-      crypto.getRandomValues(userIdBytes);
+      // Step 1: Request challenge from server
+      const challengeResponse = await fetch("/api/webauthn/challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName: parties[0] || "User",
+        }),
+      });
 
-      // Create WebAuthn credential
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge: challenge,
-          rp: {
-            name: "PMY Consent",
-            id: window.location.hostname,
-          },
-          user: {
-            id: userIdBytes,
-            name: parties[0] || "User",
-            displayName: parties[0] || "User",
-          },
-          pubKeyCredParams: [
-            { type: "public-key", alg: -7 },  // ES256
-            { type: "public-key", alg: -257 } // RS256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform", // Touch ID/Face ID
-            userVerification: "required",
-            requireResidentKey: false,
-          },
-          timeout: 60000,
-          attestation: "none"
-        }
-      }) as PublicKeyCredential;
-
-      if (!credential) {
-        throw new Error("Failed to create credential");
+      if (!challengeResponse.ok) {
+        throw new Error("Failed to get authentication challenge");
       }
 
-      // Extract credential data
-      const response = credential.response as AuthenticatorAttestationResponse;
-      const credentialJSON = {
-        id: credential.id,
-        rawId: bufferToBase64url(credential.rawId),
-        type: credential.type,
-        response: {
-          clientDataJSON: bufferToBase64url(response.clientDataJSON),
-          attestationObject: bufferToBase64url(response.attestationObject),
-        },
-        timestamp: new Date().toISOString(),
-      };
+      const { sessionId, options } = await challengeResponse.json();
 
-      setCredentialData(credentialJSON);
-      setStatus("authenticated");
+      // Step 2: Perform WebAuthn ceremony with server challenge
+      const attestationResponse = await startRegistration(options);
+
+      setStatus("verifying");
+
+      // Step 3: Send attestation to server for verification
+      const verificationResponse = await fetch("/api/webauthn/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          attestationResponse,
+        }),
+      });
+
+      if (!verificationResponse.ok) {
+        const error = await verificationResponse.json();
+        throw new Error(error.error || "Verification failed");
+      }
+
+      const verificationResult = await verificationResponse.json();
+
+      if (!verificationResult.verified) {
+        throw new Error("Biometric verification failed");
+      }
+
+      // Step 4: Store verified credential data
+      setVerifiedCredential(verificationResult);
+      setStatus("verified");
 
       toast({
-        title: "Authentication Successful",
-        description: "Biometric authentication completed successfully!",
+        title: "Verification Successful",
+        description: "Your biometric authentication has been cryptographically verified by the server.",
       });
 
     } catch (error: any) {
@@ -127,8 +105,8 @@ export default function ConsentBiometricPage() {
       } else {
         console.error("WebAuthn error:", error);
         toast({
-          title: "Authentication Failed",
-          description: error.message || "Failed to complete biometric authentication.",
+          title: "Verification Failed",
+          description: error.message || "Failed to verify biometric authentication.",
           variant: "destructive",
         });
       }
@@ -137,8 +115,8 @@ export default function ConsentBiometricPage() {
 
   const createConsentMutation = useMutation({
     mutationFn: async () => {
-      if (!credentialData) {
-        throw new Error("No biometric authentication data");
+      if (!verifiedCredential) {
+        throw new Error("No verified biometric data");
       }
 
       const response = await fetch("/api/consent-biometric", {
@@ -148,10 +126,11 @@ export default function ConsentBiometricPage() {
           universityId,
           encounterType,
           parties,
-          method: "biometric",
-          credentialId: credentialData.id,
-          credentialData: JSON.stringify(credentialData),
-          authenticatedAt: credentialData.timestamp,
+          credentialId: verifiedCredential.credentialId,
+          credentialPublicKey: verifiedCredential.publicKey,
+          credentialCounter: verifiedCredential.counter?.toString(),
+          credentialDeviceType: verifiedCredential.credentialDeviceType,
+          credentialBackedUp: verifiedCredential.credentialBackedUp?.toString(),
         }),
       });
 
@@ -165,7 +144,7 @@ export default function ConsentBiometricPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/consent-contracts"] });
       toast({
         title: "Consent Recorded",
-        description: "Your biometric consent has been saved successfully.",
+        description: "Your cryptographically verified biometric consent has been saved successfully.",
       });
       navigate("/files");
     },
@@ -208,12 +187,12 @@ export default function ConsentBiometricPage() {
         <div className="space-y-4 text-center">
           <div className="flex justify-center">
             <div className={`rounded-full p-4 ${
-              status === "authenticated" 
+              status === "verified" 
                 ? "bg-green-600/10 dark:bg-green-400/10" 
                 : "bg-primary/10"
             }`}>
-              {status === "authenticated" ? (
-                <Check className="h-12 w-12 text-green-600 dark:text-green-400" />
+              {status === "verified" ? (
+                <Shield className="h-12 w-12 text-green-600 dark:text-green-400" />
               ) : (
                 <Fingerprint className="h-12 w-12 text-primary" />
               )}
@@ -222,12 +201,19 @@ export default function ConsentBiometricPage() {
 
           <div>
             <h2 className="text-lg font-semibold mb-2">
-              {status === "authenticated" ? "Authentication Complete" : "Authenticate with Touch ID or Face ID"}
+              {status === "verified" ? "Verification Complete" : 
+               status === "verifying" ? "Verifying..." :
+               status === "authenticating" ? "Authenticating..." :
+               "Authenticate with Touch ID or Face ID"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {status === "authenticated" 
-                ? "Your identity has been cryptographically verified. Click below to save your consent."
-                : "This will create a cryptographic proof of your consent using your device's biometric authentication (Touch ID, Face ID, or other biometric sensors)."}
+              {status === "verified" 
+                ? "Your identity has been cryptographically verified by the server. Click below to save your consent."
+                : status === "verifying"
+                ? "The server is verifying your biometric authentication..."
+                : status === "authenticating"
+                ? "Complete the biometric authentication on your device..."
+                : "This creates a cryptographically secure proof of consent using your device's biometric sensor and server verification."}
             </p>
           </div>
 
@@ -246,12 +232,13 @@ export default function ConsentBiometricPage() {
           )}
 
           <div className="bg-muted p-4 rounded-lg text-xs text-left space-y-2">
-            <p className="font-medium">How it works:</p>
+            <p className="font-medium">Secure WebAuthn Flow:</p>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>Your device's biometric sensor creates a unique cryptographic signature</li>
-              <li>Your fingerprint/face data never leaves your device</li>
-              <li>Only a mathematical proof is stored as evidence of your consent</li>
-              <li>This provides stronger legal evidence than a written signature</li>
+              <li>Server generates cryptographic challenge</li>
+              <li>Your device creates unique credential with Touch ID/Face ID</li>
+              <li>Server verifies the attestation cryptographically</li>
+              <li>Verified public key is stored as proof of consent</li>
+              <li>Your biometric data never leaves your device</li>
             </ul>
           </div>
 
@@ -267,7 +254,7 @@ export default function ConsentBiometricPage() {
             </Button>
           )}
 
-          {status === "authenticating" && (
+          {(status === "authenticating" || status === "verifying") && (
             <Button
               disabled
               className="w-full"
@@ -275,12 +262,14 @@ export default function ConsentBiometricPage() {
             >
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-background border-t-transparent" />
-                <span>Waiting for authentication...</span>
+                <span>
+                  {status === "authenticating" ? "Waiting for authentication..." : "Verifying with server..."}
+                </span>
               </div>
             </Button>
           )}
 
-          {status === "authenticated" && (
+          {status === "verified" && (
             <Button
               onClick={() => createConsentMutation.mutate()}
               disabled={createConsentMutation.isPending}
@@ -296,7 +285,7 @@ export default function ConsentBiometricPage() {
               ) : (
                 <>
                   <Check className="w-5 h-5 mr-2" />
-                  Save Consent
+                  Save Verified Consent
                 </>
               )}
             </Button>

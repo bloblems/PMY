@@ -48,8 +48,12 @@ export const consentContracts = pgTable("consent_contracts", {
   signature2: text("signature2"),
   photoUrl: text("photo_url"),
   credentialId: text("credential_id"),
-  credentialData: text("credential_data"),
+  credentialPublicKey: text("credential_public_key"),
+  credentialCounter: text("credential_counter"),
+  credentialDeviceType: text("credential_device_type"),
+  credentialBackedUp: text("credential_backed_up"),
   authenticatedAt: timestamp("authenticated_at"),
+  verifiedAt: timestamp("verified_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -101,8 +105,12 @@ export const insertConsentContractSchema = createInsertSchema(consentContracts).
   signature2: z.string().optional(),
   photoUrl: z.string().optional(),
   credentialId: z.string().optional(),
-  credentialData: z.string().optional(),
+  credentialPublicKey: z.string().optional(),
+  credentialCounter: z.string().optional(),
+  credentialDeviceType: z.string().optional(),
+  credentialBackedUp: z.string().optional(),
   authenticatedAt: z.string().optional(),
+  verifiedAt: z.string().optional(),
 });
 
 export const insertUniversityReportSchema = createInsertSchema(universityReports).omit({

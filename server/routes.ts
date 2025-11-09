@@ -6,6 +6,7 @@ import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import passport from "passport";
+import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -80,6 +81,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({ user: { id: user.id, email: user.email, name: user.name } });
     }
     res.status(401).json({ error: "Not authenticated" });
+  });
+
+  // WebAuthn endpoints for secure biometric authentication
+  app.post("/api/webauthn/challenge", async (req, res) => {
+    try {
+      const { userName } = req.body;
+      const origin = `${req.protocol}://${req.get('host')}`;
+      
+      if (!userName) {
+        return res.status(400).json({ error: "userName is required" });
+      }
+
+      // Generate unique session ID
+      const sessionId = generateSessionId();
+      
+      // Generate challenge options
+      const options = await generateChallenge(sessionId, userName, origin);
+      
+      res.json({ sessionId, options });
+    } catch (error) {
+      console.error("Error generating WebAuthn challenge:", error);
+      res.status(500).json({ error: "Failed to generate challenge" });
+    }
+  });
+
+  app.post("/api/webauthn/verify", async (req, res) => {
+    try {
+      const { sessionId, attestationResponse } = req.body;
+      const origin = `${req.protocol}://${req.get('host')}`;
+      
+      if (!sessionId || !attestationResponse) {
+        return res.status(400).json({ error: "sessionId and attestationResponse are required" });
+      }
+
+      // Verify the attestation
+      const verification = await verifyAttestation(sessionId, attestationResponse, origin);
+      
+      if (!verification.verified) {
+        return res.status(400).json({ error: "Verification failed" });
+      }
+
+      // Extract credential data from registrationInfo.credential
+      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+      
+      if (!credential) {
+        return res.status(500).json({ error: "Missing credential data in verification result" });
+      }
+      
+      res.json({
+        verified: true,
+        credentialId: Buffer.from(credential.id).toString('base64'),
+        publicKey: Buffer.from(credential.publicKey).toString('base64'),
+        counter: credential.counter,
+        credentialDeviceType,
+        credentialBackedUp,
+      });
+    } catch (error: any) {
+      console.error("Error verifying WebAuthn attestation:", error);
+      res.status(400).json({ error: error.message || "Verification failed" });
+    }
   });
 
   // Get all universities
@@ -303,22 +364,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/consent-biometric", async (req, res) => {
     try {
-      const { universityId, encounterType, parties, method, credentialId, credentialData, authenticatedAt } = req.body;
+      const { 
+        universityId, 
+        encounterType, 
+        parties, 
+        credentialId, 
+        credentialPublicKey,
+        credentialCounter,
+        credentialDeviceType,
+        credentialBackedUp,
+      } = req.body;
+
+      // Validate required biometric fields
+      if (!credentialId || !credentialPublicKey || !credentialCounter) {
+        return res.status(400).json({ 
+          error: "Missing required biometric fields: credentialId, credentialPublicKey, credentialCounter" 
+        });
+      }
 
       // Parse parties if it's a string
       const parsedParties = typeof parties === 'string' ? JSON.parse(parties) : parties;
+      
+      const now = new Date();
 
-      // Create a contract with biometric data
-      const contract = await storage.createContract({
+      // Validate the full contract data using schema
+      const contractData = {
         universityId: universityId || undefined,
         encounterType: encounterType || undefined,
         parties: parsedParties,
         method: "biometric",
-        contractText: `Biometric consent authenticated on ${new Date(authenticatedAt).toLocaleDateString()} using Touch ID/Face ID for ${encounterType || "encounter"}`,
+        contractText: `Biometric consent authenticated on ${now.toLocaleDateString()} using Touch ID/Face ID for ${encounterType || "encounter"}. Cryptographically verified using WebAuthn.`,
         credentialId,
-        credentialData,
-        authenticatedAt,
-      });
+        credentialPublicKey,
+        credentialCounter,
+        credentialDeviceType,
+        credentialBackedUp,
+        authenticatedAt: now.toISOString(),
+        verifiedAt: now.toISOString(),
+      };
+
+      const parsed = insertConsentContractSchema.safeParse(contractData);
+      
+      if (!parsed.success) {
+        console.error("Biometric contract validation error:", parsed.error);
+        return res.status(400).json({ 
+          error: "Invalid biometric contract data", 
+          details: parsed.error 
+        });
+      }
+
+      // Create contract with verified biometric data
+      const contract = await storage.createContract(parsed.data);
 
       res.json(contract);
     } catch (error) {
