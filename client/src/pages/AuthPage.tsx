@@ -21,6 +21,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const authMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; name?: string }) => {
@@ -34,11 +35,17 @@ export default function AuthPage() {
       
       // Set the user data directly instead of invalidating/refetching
       queryClient.setQueryData(["/api/auth/me"], data);
-      toast({
-        title: mode === "login" ? "Welcome back!" : "Account created!",
-        description: mode === "login" ? "You've successfully logged in." : "Your account has been created.",
-      });
-      navigate("/");
+      
+      // Show success message
+      const message = mode === "login" 
+        ? "You've successfully logged in." 
+        : "Your account has been created.";
+      setSuccessMessage(message);
+      
+      // Navigate after a brief delay to show the success message
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
     },
     onError: (error: any) => {
       // Parse the error message from the backend
@@ -63,8 +70,9 @@ export default function AuthPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Clear previous errors
+    // Clear previous messages
     setErrorMessage(null);
+    setSuccessMessage(null);
     
     if (!email || !password) {
       setErrorMessage("Please enter your email and password.");
@@ -89,6 +97,7 @@ export default function AuthPage() {
     setPassword("");
     setName("");
     setErrorMessage(null);
+    setSuccessMessage(null);
   };
 
   return (
@@ -107,6 +116,12 @@ export default function AuthPage() {
               : "Get started with Title IX consent documentation"}
           </p>
         </div>
+
+        {successMessage && (
+          <Alert className="border-green-600/20 bg-green-600/10 dark:border-green-400/20 dark:bg-green-400/10" data-testid="alert-success">
+            <AlertDescription className="text-green-900 dark:text-green-100">{successMessage}</AlertDescription>
+          </Alert>
+        )}
 
         {errorMessage && (
           <Alert variant="destructive" data-testid="alert-error">
