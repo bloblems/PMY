@@ -30,8 +30,8 @@ const otherEncounterType = { id: "other", label: "Other", icon: Users };
 const intimateActOptions = [
   "Touching/Caressing",
   "Kissing",
-  "Oral Contact",
   "Manual Stimulation",
+  "Oral Contact",
   "Oral Intercourse",
   "Penetrative Intercourse",
   "Photography/Video Recording",
