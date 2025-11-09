@@ -47,10 +47,7 @@ function App() {
           {!isAuthPage && (
             <header className="sticky top-0 z-40 bg-card border-b border-card-border">
               <div className="max-w-md mx-auto px-6 h-14 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <PMYLogo className="h-6 w-6 text-foreground" />
-                  <h1 className="text-lg font-semibold">PMY</h1>
-                </div>
+                <PMYLogo className="text-2xl text-foreground" />
                 <SettingsMenu />
               </div>
             </header>
