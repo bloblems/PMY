@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import IconBottomNav from "@/components/IconBottomNav";
 import SettingsMenu from "@/components/SettingsMenu";
+import PMYLogo from "@/components/PMYLogo";
 import InfoPage from "@/pages/InfoPage";
 import FilesPage from "@/pages/FilesPage";
 import AdminPage from "@/pages/AdminPage";
@@ -46,7 +47,10 @@ function App() {
           {!isAuthPage && (
             <header className="sticky top-0 z-40 bg-card border-b border-card-border">
               <div className="max-w-md mx-auto px-6 h-14 flex items-center justify-between">
-                <h1 className="text-lg font-semibold">PMY</h1>
+                <div className="flex items-center gap-2">
+                  <PMYLogo className="h-6 w-6 text-foreground" />
+                  <h1 className="text-lg font-semibold">PMY</h1>
+                </div>
                 <SettingsMenu />
               </div>
             </header>

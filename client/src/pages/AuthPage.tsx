@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Shield } from "lucide-react";
+import PMYLogo from "@/components/PMYLogo";
 
 type AuthMode = "login" | "signup";
 
@@ -81,8 +81,8 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-3">
-          <div className="mx-auto w-16 h-16 bg-green-600/10 dark:bg-green-400/10 rounded-full flex items-center justify-center">
-            <Shield className="h-8 w-8 text-green-600 dark:text-green-400" />
+          <div className="mx-auto w-20 h-20 bg-green-600/10 dark:bg-green-400/10 rounded-2xl flex items-center justify-center">
+            <PMYLogo className="h-12 w-12 text-green-600 dark:text-green-400" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
             {mode === "login" ? "Welcome back" : "Create account"}
