@@ -124,8 +124,46 @@ Preferred communication style: Simple, everyday language.
 - Test IDs: `button-press-for-yes`, `nav-title-ix`, `nav-files`, `nav-custom`, `nav-share`, `button-settings-menu`
 - Updated subtitle: "Generate the consent required by your institution."
 
+**Status**: ✅ "Press for Yes" button functional, navigates to consent flow
+
+### Multi-Step Consent Creation Flow (November 2025) 🎯 NEW
+**Feature**: Complete 3-step consent documentation flow with Title IX policy integration
+
+**Implementation**:
+- **ConsentFlowPage**: 3-step wizard for creating consent documents
+  - **Step 1 - Encounter Type**: Select from 8 encounter types (intimate, date, social, conversation, movie, music, dinner, other)
+  - **Step 2 - Parties Involved**: Enter names of all participants with dynamic party addition
+  - **Step 3 - Recording Method**: Choose signature contract, voice recording, or dual selfie
+- **State Management**: All flow data passed via URL parameters for bi-directional navigation preservation
+- **Method-Specific Pages**:
+  - **ConsentSignaturePage**: Digital signature capture with react-signature-canvas, incorporates Title IX policy language from selected university into contract text
+  - **ConsentVoicePage**: Audio recording using MediaRecorder API
+  - **ConsentPhotoPage**: Photo upload for dual-selfie consent documentation
+- **Enhanced Database Schema**: universityId, encounterType, parties (text array), method fields added to consent records
+- **Backend API Routes**:
+  - `POST /api/consent-contracts` - Create signature contract with enhanced metadata
+  - `POST /api/consent-recordings` - Upload voice recording with encounter context
+  - `POST /api/consent-photos` - Upload consent photo
+  - `GET /api/universities/:id` - Fetch individual university with Title IX policy
+- **FilesPage Enhancement**: Displays encounter type, parties, and method; downloads include encounter details in HTML
+
+**Title IX Integration**: Contract text automatically incorporates relevant Title IX policy language from the selected institution's database, ensuring legal compliance and educational value.
+
+**Technical Details**:
+- URL-based state management preserves encounterType, parties, and method across navigation
+- `useMemo` ensures contract text updates reactively when university data loads
+- Back navigation returns users to correct step with all selections intact
+- Green accent color (green-600/green-400) for success states, active selections, verification badges
+
+**User Flow**:
+1. Select university on home page → Click "Press for Yes"
+2. Choose encounter type (e.g., "Intimate Encounter")
+3. Enter participant names (Party 1, Party 2, etc.)
+4. Select consent method (contract signature, voice, or photo)
+5. Complete method-specific consent capture
+6. Contract/recording saved to FilesPage with full metadata
+
 **Future**: 
-- "Press for Yes" button will navigate to consent flow UX
 - Custom templates page will feature AI-powered template generation
 - Share page will enable secure document sharing
 - Settings menu will connect to actual account/billing pages

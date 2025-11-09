@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import SignatureCanvas from "react-signature-canvas";
@@ -86,7 +86,7 @@ SIGNATURES:
 The digital signatures below indicate that both parties have read, understood, and agreed to the terms outlined in this consent agreement in accordance with Title IX requirements.`;
   };
 
-  const contractText = generateContractText();
+  const contractText = useMemo(() => generateContractText(), [university, party1Name, party2Name, encounterType]);
 
   const clearSignature = () => {
     sigCanvas.current?.clear();
