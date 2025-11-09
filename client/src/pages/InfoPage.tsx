@@ -170,7 +170,7 @@ export default function InfoPage() {
             <p className="text-muted-foreground text-sm">
               {holdProgress > 0 && holdProgress < 100 
                 ? "Keep holding to continue" 
-                : "Hold for 3 seconds to begin"}
+                : "Hold to create your contract"}
             </p>
           </div>
         </Card>
