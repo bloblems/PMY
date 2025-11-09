@@ -70,10 +70,10 @@ export default function InfoPage() {
       />
 
       {selectedUniversity && (
-        <Card className="p-8 bg-red-600 dark:bg-red-700 border-red-700 dark:border-red-800 hover-elevate active-elevate-2 cursor-pointer transition-transform" data-testid="button-press-for-yes">
+        <Card className="p-8 border-2 border-green-600 dark:border-green-400 hover-elevate active-elevate-2 cursor-pointer transition-transform" data-testid="button-press-for-yes">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-white">Press for Yes</h2>
-            <p className="text-red-50 text-sm">Begin consent documentation</p>
+            <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">Press for Yes</h2>
+            <p className="text-muted-foreground text-sm">Begin consent documentation</p>
           </div>
         </Card>
       )}

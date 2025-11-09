@@ -87,8 +87,10 @@ Preferred communication style: Simple, everyday language.
 **Feature**: Streamlined UI with prominent "Press for Yes" consent button
 
 **Changes**:
-- **Centerpiece Button**: Red "Press for Yes" card positioned between university selector and Title IX info panel
-  - Bold red background (red-600 in light mode, red-700 in dark mode)
+- **Centerpiece Button**: "Press for Yes" card positioned between university selector and Title IX info panel
+  - Dark panel background matching other cards
+  - Green outline (border-2) matching verification badge color (green-600/green-400)
+  - Green heading text with same shade as verification badge
   - Centered text with clear call-to-action
   - Interactive hover and active states
   - Mobile-optimized design
