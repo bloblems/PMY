@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Fingerprint, Check, AlertCircle, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { startRegistration } from "@simplewebauthn/browser";
 import { useConsentFlow } from "@/contexts/ConsentFlowContext";
 
@@ -129,24 +129,16 @@ export default function ConsentBiometricPage() {
         throw new Error("No verified biometric data");
       }
 
-      const response = await fetch("/api/consent-biometric", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          universityId: universityId || null,
-          encounterType,
-          parties,
-          credentialId: verifiedCredential.credentialId,
-          credentialPublicKey: verifiedCredential.publicKey,
-          credentialCounter: verifiedCredential.counter?.toString(),
-          credentialDeviceType: verifiedCredential.credentialDeviceType,
-          credentialBackedUp: verifiedCredential.credentialBackedUp?.toString(),
-        }),
+      const response = await apiRequest("POST", "/api/consent-biometric", {
+        universityId: universityId || null,
+        encounterType,
+        parties,
+        credentialId: verifiedCredential.credentialId,
+        credentialPublicKey: verifiedCredential.publicKey,
+        credentialCounter: verifiedCredential.counter?.toString(),
+        credentialDeviceType: verifiedCredential.credentialDeviceType,
+        credentialBackedUp: verifiedCredential.credentialBackedUp?.toString(),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to create biometric consent");
-      }
 
       return response.json();
     },

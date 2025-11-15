@@ -117,9 +117,22 @@ export default function ConsentVoicePage() {
       formData.append("parties", JSON.stringify(parties));
       formData.append("duration", duration.toString());
 
+      // Get CSRF token from cookie
+      const csrfToken = document.cookie
+        .split(';')
+        .find(c => c.trim().startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+
+      const headers: Record<string, string> = {};
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
       const response = await fetch("/api/consent-recordings", {
         method: "POST",
+        headers,
         body: formData,
+        credentials: "include",
       });
 
       if (!response.ok) {

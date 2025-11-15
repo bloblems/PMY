@@ -179,23 +179,15 @@ The digital signatures below indicate that both parties have read, understood, a
         throw new Error("All fields required");
       }
 
-      const response = await fetch("/api/consent-contracts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          universityId: universityId || null,
-          encounterType,
-          parties,
-          method: "signature",
-          contractText,
-          signature1,
-          signature2,
-        }),
+      const response = await apiRequest("POST", "/api/consent-contracts", {
+        universityId: universityId || null,
+        encounterType,
+        parties,
+        method: "signature",
+        contractText,
+        signature1,
+        signature2,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to create contract");
-      }
 
       return response.json();
     },

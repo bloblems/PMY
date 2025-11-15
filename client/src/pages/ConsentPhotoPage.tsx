@@ -68,9 +68,22 @@ export default function ConsentPhotoPage() {
       formData.append("encounterType", encounterType);
       formData.append("parties", JSON.stringify(parties));
 
+      // Get CSRF token from cookie
+      const csrfToken = document.cookie
+        .split(';')
+        .find(c => c.trim().startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+
+      const headers: Record<string, string> = {};
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
       const response = await fetch("/api/consent-photos", {
         method: "POST",
+        headers,
         body: formData,
+        credentials: "include",
       });
 
       if (!response.ok) {
