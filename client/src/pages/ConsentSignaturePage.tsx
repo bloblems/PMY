@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ChevronLeft, Check, FileSignature } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useConsentFlow } from "@/contexts/ConsentFlowContext";
 
 interface University {
   id: string;
@@ -22,13 +23,21 @@ interface University {
 export default function ConsentSignaturePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const params = new URLSearchParams(window.location.search);
+  const { state } = useConsentFlow();
   
-  const universityId = params.get("universityId") || "";
-  const universityName = params.get("universityName") || "";
-  const encounterType = params.get("encounterType") || "";
-  const parties = JSON.parse(params.get("parties") || "[]") as string[];
-  const intimateActs = JSON.parse(params.get("intimateActs") || "[]") as string[];
+  // Defensive routing: redirect if required state is missing
+  useEffect(() => {
+    if (!state.encounterType || state.parties.length < 2) {
+      toast({
+        title: "Missing Information",
+        description: "Please complete the consent flow from the beginning.",
+        variant: "destructive",
+      });
+      navigate("/");
+    }
+  }, [state.encounterType, state.parties, navigate, toast]);
+  
+  const { universityId, universityName, encounterType, parties, intimateActs } = state;
 
   const { data: university } = useQuery<University>({
     queryKey: ["/api/universities", universityId],
@@ -227,21 +236,7 @@ The digital signatures below indicate that both parties have read, understood, a
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => {
-            // Save flow state to localStorage for ConsentFlowPage to restore
-            const flowState = {
-              universityId,
-              universityName,
-              encounterType,
-              parties,
-              intimateActs,
-              // Don't include method - we're going back to step 5 to choose method again
-            };
-            console.log('[SignaturePage] Saving flowState to localStorage:', flowState);
-            localStorage.setItem("consentFlowState", JSON.stringify(flowState));
-            console.log('[SignaturePage] localStorage saved, navigating to /');
-            navigate("/");
-          }}
+          onClick={() => navigate("/")}
           data-testid="button-back"
         >
           <ChevronLeft className="h-5 w-5" />

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -6,17 +6,26 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Camera, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { useConsentFlow } from "@/contexts/ConsentFlowContext";
 
 export default function ConsentPhotoPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const params = new URLSearchParams(window.location.search);
+  const { state } = useConsentFlow();
   
-  const universityId = params.get("universityId") || "";
-  const universityName = params.get("universityName") || "";
-  const encounterType = params.get("encounterType") || "";
-  const parties = JSON.parse(params.get("parties") || "[]") as string[];
-  const intimateActs = JSON.parse(params.get("intimateActs") || "[]") as string[];
+  // Defensive routing: redirect if required state is missing
+  useEffect(() => {
+    if (!state.encounterType || state.parties.length < 2) {
+      toast({
+        title: "Missing Information",
+        description: "Please complete the consent flow from the beginning.",
+        variant: "destructive",
+      });
+      navigate("/");
+    }
+  }, [state.encounterType, state.parties, navigate, toast]);
+  
+  const { universityId, universityName, encounterType, parties, intimateActs } = state;
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -93,18 +102,7 @@ export default function ConsentPhotoPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => {
-            // Save flow state to localStorage for ConsentFlowPage to restore
-            const flowState = {
-              universityId,
-              universityName,
-              encounterType,
-              parties,
-              intimateActs,
-            };
-            localStorage.setItem("consentFlowState", JSON.stringify(flowState));
-            navigate("/");
-          }}
+          onClick={() => navigate("/")}
           data-testid="button-back"
         >
           <ChevronLeft className="h-5 w-5" />
