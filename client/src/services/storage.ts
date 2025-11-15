@@ -124,58 +124,102 @@ class WebStorageService implements StorageService {
 }
 
 /**
- * iOS Secure Storage implementation (placeholder for Capacitor integration)
+ * iOS Secure Storage implementation (to be implemented in Phase 1, Task 5)
  * 
- * When Capacitor is installed, this will use:
- * - @capacitor/preferences for general key-value storage
- * - capacitor-secure-storage-plugin for sensitive data (iOS Keychain)
+ * STATUS: Graceful fallback implementation - delegates to WebStorageService until Capacitor is installed
+ * This ensures the app won't crash if somehow routed to SecureStorage before Task 5 is complete
  * 
- * Installation:
- *   npm install @capacitor/preferences
- *   npm install capacitor-secure-storage-plugin
+ * IMPLEMENTATION PLAN (when Capacitor is installed - Task 5):
+ * 1. Install Capacitor plugins:
+ *    npm install @capacitor/preferences
+ *    npm install capacitor-secure-storage-plugin
  * 
- * Usage in Capacitor app:
- *   import { Preferences } from '@capacitor/preferences';
- *   import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
+ * 2. Import and use Capacitor APIs:
+ *    import { Preferences } from '@capacitor/preferences';
+ *    import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
+ * 
+ * 3. Replace fallback calls with native Capacitor storage methods
+ *    Use Preferences API for general storage and SecureStorage for sensitive data
+ * 
+ * 4. Keep fallback to WebStorageService if plugins unavailable (graceful degradation)
+ * 
+ * SECURITY NOTE: When implemented, this will store consent flow data in
+ * iOS Keychain via SecureStorage, providing encryption-at-rest and
+ * protection against unauthorized access even on jailbroken devices.
  */
 class SecureStorageService implements StorageService {
+  private fallback: WebStorageService;
+
+  constructor() {
+    this.fallback = new WebStorageService();
+    console.warn('[SecureStorageService] Using fallback to WebStorageService - Capacitor not installed');
+  }
+
   async getItem(key: string): Promise<string | null> {
-    // TODO: Implement when Capacitor is installed
-    // const { value } = await Preferences.get({ key });
-    // return value;
-    throw new Error('SecureStorageService not yet implemented - install Capacitor first');
+    // TODO: Replace with Capacitor implementation in Task 5
+    // try {
+    //   const { value } = await Preferences.get({ key });
+    //   return value;
+    // } catch (e) {
+    //   console.error('[SecureStorage] getItem failed, falling back:', e);
+    //   return this.fallback.getItem(key);
+    // }
+    return this.fallback.getItem(key);
   }
 
   async setItem(key: string, value: string): Promise<void> {
-    // TODO: Implement when Capacitor is installed
-    // await Preferences.set({ key, value });
-    throw new Error('SecureStorageService not yet implemented - install Capacitor first');
+    // TODO: Replace with Capacitor implementation in Task 5
+    // try {
+    //   await Preferences.set({ key, value });
+    // } catch (e) {
+    //   console.error('[SecureStorage] setItem failed, falling back:', e);
+    //   return this.fallback.setItem(key, value);
+    // }
+    return this.fallback.setItem(key, value);
   }
 
   async removeItem(key: string): Promise<void> {
-    // TODO: Implement when Capacitor is installed
-    // await Preferences.remove({ key });
-    throw new Error('SecureStorageService not yet implemented - install Capacitor first');
+    // TODO: Replace with Capacitor implementation in Task 5
+    // try {
+    //   await Preferences.remove({ key });
+    // } catch (e) {
+    //   console.error('[SecureStorage] removeItem failed, falling back:', e);
+    //   return this.fallback.removeItem(key);
+    // }
+    return this.fallback.removeItem(key);
   }
 
   async clear(): Promise<void> {
-    // TODO: Implement when Capacitor is installed
-    // await Preferences.clear();
-    throw new Error('SecureStorageService not yet implemented - install Capacitor first');
+    // TODO: Replace with Capacitor implementation in Task 5
+    // try {
+    //   await Preferences.clear();
+    // } catch (e) {
+    //   console.error('[SecureStorage] clear failed, falling back:', e);
+    //   return this.fallback.clear();
+    // }
+    return this.fallback.clear();
   }
 
   async isAvailable(): Promise<boolean> {
-    // TODO: Implement when Capacitor is installed
+    // TODO: Replace with Capacitor plugin check in Task 5
     // Check if Capacitor plugins are available
-    return false;
+    // For now, indicate we're using fallback
+    return this.fallback.isAvailable();
   }
 }
 
 /**
  * Platform detection
+ * 
+ * CURRENT STATUS: Always returns false until Capacitor is installed
+ * This is expected behavior for Phase 1, Task 1-4 (web implementation)
+ * 
+ * FUTURE: When Capacitor is installed (Task 5), window.Capacitor will be
+ * available and this will correctly detect iOS/Android native platforms
  */
 function isCapacitorPlatform(): boolean {
   // Check if running in Capacitor environment
+  // Note: window.Capacitor only exists after Capacitor installation
   return typeof window !== 'undefined' && 
          window.hasOwnProperty('Capacitor') && 
          // @ts-ignore - Capacitor global added by Capacitor runtime

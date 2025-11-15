@@ -15,6 +15,7 @@ interface ConsentFlowContextType {
   updateState: (updates: Partial<ConsentFlowState>) => void;
   resetState: () => void;
   hasRequiredData: () => boolean;
+  isHydrated: boolean;
 }
 
 const defaultState: ConsentFlowState = {
@@ -41,13 +42,26 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
         const saved = await storage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          setState(parsed);
-          console.log("[ConsentFlowContext] Restored from storage:", parsed);
+          
+          // Validate and merge with default state to handle corrupt/incomplete data
+          const validMethods: Array<ConsentFlowState["method"]> = ["signature", "voice", "photo", "biometric", null];
+          const validatedState: ConsentFlowState = {
+            universityId: typeof parsed.universityId === 'string' ? parsed.universityId : defaultState.universityId,
+            universityName: typeof parsed.universityName === 'string' ? parsed.universityName : defaultState.universityName,
+            encounterType: typeof parsed.encounterType === 'string' ? parsed.encounterType : defaultState.encounterType,
+            parties: Array.isArray(parsed.parties) ? parsed.parties : defaultState.parties,
+            intimateActs: Array.isArray(parsed.intimateActs) ? parsed.intimateActs : defaultState.intimateActs,
+            method: validMethods.includes(parsed.method) ? parsed.method : defaultState.method,
+          };
+          
+          setState(validatedState);
+          console.log("[ConsentFlowContext] Restored from storage:", validatedState);
         } else {
           console.log("[ConsentFlowContext] No saved state, using default");
         }
       } catch (e) {
-        console.error("[ConsentFlowContext] Failed to restore from storage:", e);
+        console.error("[ConsentFlowContext] Failed to restore from storage, using default:", e);
+        setState(defaultState);
       } finally {
         setIsHydrated(true);
       }
@@ -100,7 +114,7 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ConsentFlowContext.Provider value={{ state, updateState, resetState, hasRequiredData }}>
+    <ConsentFlowContext.Provider value={{ state, updateState, resetState, hasRequiredData, isHydrated }}>
       {children}
     </ConsentFlowContext.Provider>
   );

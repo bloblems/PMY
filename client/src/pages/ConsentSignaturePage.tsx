@@ -23,11 +23,11 @@ interface University {
 export default function ConsentSignaturePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { state, hasRequiredData } = useConsentFlow();
+  const { state, hasRequiredData, isHydrated } = useConsentFlow();
   
-  // Defensive routing: redirect if required state is missing
+  // Defensive routing: redirect if required state is missing (after hydration)
   useEffect(() => {
-    if (!hasRequiredData()) {
+    if (isHydrated && !hasRequiredData()) {
       toast({
         title: "Missing Information",
         description: "Please complete the consent flow from the beginning.",
@@ -35,7 +35,7 @@ export default function ConsentSignaturePage() {
       });
       navigate("/");
     }
-  }, [hasRequiredData, navigate, toast]);
+  }, [isHydrated, hasRequiredData, navigate, toast]);
   
   const { universityId, universityName, encounterType, parties, intimateActs } = state;
 
@@ -45,12 +45,20 @@ export default function ConsentSignaturePage() {
   });
 
   const [party1Name, setParty1Name] = useState("");
-  const [party2Name, setParty2Name] = useState(parties[0] || "");
+  const [party2Name, setParty2Name] = useState("");
   const [currentSigner, setCurrentSigner] = useState<1 | 2>(1);
   const [signature1, setSignature1] = useState<string | null>(null);
   const [signature2, setSignature2] = useState<string | null>(null);
   
   const sigCanvas = useRef<SignatureCanvas>(null);
+
+  // Hydrate party names from context after storage loads
+  useEffect(() => {
+    if (isHydrated && parties.length >= 2) {
+      setParty1Name(parties[0] || "");
+      setParty2Name(parties[1] || "");
+    }
+  }, [isHydrated, parties]);
 
   const generateContractText = () => {
     const encounterLabel = encounterType.charAt(0).toUpperCase() + encounterType.slice(1);

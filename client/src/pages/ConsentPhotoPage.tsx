@@ -11,11 +11,11 @@ import { useConsentFlow } from "@/contexts/ConsentFlowContext";
 export default function ConsentPhotoPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { state, hasRequiredData } = useConsentFlow();
+  const { state, hasRequiredData, isHydrated } = useConsentFlow();
   
-  // Defensive routing: redirect if required state is missing
+  // Defensive routing: redirect if required state is missing (after hydration)
   useEffect(() => {
-    if (!hasRequiredData()) {
+    if (isHydrated && !hasRequiredData()) {
       toast({
         title: "Missing Information",
         description: "Please complete the consent flow from the beginning.",
@@ -23,7 +23,7 @@ export default function ConsentPhotoPage() {
       });
       navigate("/");
     }
-  }, [hasRequiredData, navigate, toast]);
+  }, [isHydrated, hasRequiredData, navigate, toast]);
   
   const { universityId, universityName, encounterType, parties, intimateActs } = state;
 
