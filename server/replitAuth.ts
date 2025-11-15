@@ -81,16 +81,22 @@ export async function setupOidcAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
+    console.log("[OIDC] verify function called");
     const claims = tokens.claims();
+    console.log("[OIDC] Claims:", claims ? "present" : "null");
     
     // Upsert user in database
     await upsertUser(claims);
+    console.log("[OIDC] User upserted");
     
     // Retrieve the database user record
     const dbUser = await storage.getUser(claims["sub"]);
     if (!dbUser) {
+      console.error("[OIDC] Failed to retrieve user from database");
       return verified(new Error("Failed to retrieve user from database"));
     }
+    
+    console.log("[OIDC] Database user retrieved:", dbUser.id);
     
     // Store token metadata for later retrieval (attached to user for the callback handler)
     const user = {
@@ -129,6 +135,7 @@ export async function setupOidcAuth(app: Express) {
 
   // OIDC login route
   app.get("/api/login", (req, res, next) => {
+    console.log("[OIDC] /api/login called");
     ensureStrategy(req.hostname);
     
     passport.authenticate(`replitauth:${req.hostname}`, {
@@ -139,21 +146,27 @@ export async function setupOidcAuth(app: Express) {
 
   // OIDC callback route
   app.get("/api/callback", (req, res, next) => {
+    console.log("[OIDC] /api/callback called, query:", req.query);
     ensureStrategy(req.hostname);
     
     passport.authenticate(`replitauth:${req.hostname}`, (err: any, user: any) => {
+      console.log("[OIDC] Passport authenticate callback - err:", err, "user:", user ? "exists" : "null");
+      
       if (err) {
+        console.error("[OIDC] Authentication error:", err);
         logAuthEvent(req, "login_failure", undefined, undefined, { error: err.message, method: "oidc" });
         return res.redirect("/auth/login");
       }
       
       if (!user) {
+        console.error("[OIDC] No user returned from passport");
         logAuthEvent(req, "login_failure", undefined, undefined, { error: "No user returned", method: "oidc" });
         return res.redirect("/auth/login");
       }
       
       // Extract OIDC tokens from user object
       const oidcTokens = (user as any)._oidc_tokens;
+      console.log("[OIDC] OIDC tokens present:", !!oidcTokens);
       
       // Store tokens in session (separate from Passport user)
       if (oidcTokens) {
@@ -163,9 +176,12 @@ export async function setupOidcAuth(app: Express) {
       // Log the user in (this will serialize only user.id via Passport)
       req.login(user, (loginErr) => {
         if (loginErr) {
+          console.error("[OIDC] req.login error:", loginErr);
           logAuthEvent(req, "login_failure", user.id, user.email, { error: loginErr.message, method: "oidc" });
           return next(loginErr);
         }
+        
+        console.log("[OIDC] Login successful for user:", user.id);
         
         // Log successful OIDC login
         logAuthEvent(req, "login", user.id, user.email, { method: "oidc" });
