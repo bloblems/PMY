@@ -21,6 +21,9 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   passwordSalt: text("password_salt").notNull(),
   referralCode: text("referral_code").unique(),
+  savedSignature: text("saved_signature"),
+  savedSignatureType: text("saved_signature_type"),
+  savedSignatureText: text("saved_signature_text"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at").notNull().defaultNow(),
 });
