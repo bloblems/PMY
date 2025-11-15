@@ -874,7 +874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Referral routes
-  app.post("/api/referrals", async (req, res) => {
+  app.post("/api/referrals", referralRateLimiter, async (req, res) => {
     try {
       if (!req.isAuthenticated || !req.isAuthenticated()) {
         return res.status(401).json({ error: "Not authenticated" });
@@ -988,7 +988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Share document via email
-  app.post("/api/share-document", async (req, res) => {
+  app.post("/api/share-document", documentShareRateLimiter, async (req, res) => {
     try {
       if (!req.isAuthenticated || !req.isAuthenticated()) {
         return res.status(401).json({ error: "Not authenticated" });
