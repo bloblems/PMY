@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -121,28 +121,19 @@ export default function ConsentFlowPage() {
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
 
   // Sync selectedUniversity when universities load or state.universityId changes
-  // Only auto-select if encounter type requires university
+  // Only sync if encounter type requires university AND universityId exists in state
   useEffect(() => {
-    if (universities.length > 0 && doesEncounterTypeRequireUniversity(state.encounterType)) {
-      if (state.universityId) {
-        // If there's a university ID in state, find and select it
-        const university = universities.find(u => u.id === state.universityId);
-        if (university) {
-          setSelectedUniversity(university);
-        } else {
-          // Invalid universityId - fall back to first university
-          setSelectedUniversity(universities[0]);
-          updateState({
-            universityId: universities[0].id,
-            universityName: universities[0].name,
-          });
-        }
-      } else if (!selectedUniversity) {
-        // If no university selected yet, default to first one
-        setSelectedUniversity(universities[0]);
+    if (universities.length > 0 && doesEncounterTypeRequireUniversity(state.encounterType) && state.universityId) {
+      // If there's a university ID in state, find and select it
+      const university = universities.find(u => u.id === state.universityId);
+      if (university) {
+        setSelectedUniversity(university);
+      } else {
+        // Invalid universityId - clear it
+        setSelectedUniversity(null);
         updateState({
-          universityId: universities[0].id,
-          universityName: universities[0].name,
+          universityId: "",
+          universityName: "",
         });
       }
     }
@@ -158,17 +149,31 @@ export default function ConsentFlowPage() {
     }
   }, [selectedUniversity]);
 
-  // Clear university when switching to non-university encounter type
+  // Handle encounter type changes
+  const prevEncounterTypeRef = useRef(state.encounterType);
   useEffect(() => {
-    if (state.encounterType && !doesEncounterTypeRequireUniversity(state.encounterType)) {
-      if (state.universityId) {
-        updateState({
-          universityId: "",
-          universityName: "",
-        });
-        setSelectedUniversity(null);
+    // Only run when encounter type actually changes (not on initial mount)
+    if (prevEncounterTypeRef.current && prevEncounterTypeRef.current !== state.encounterType) {
+      const newFlowSteps = getFlowSteps();
+      
+      // Clear university if not required by new encounter type
+      if (!doesEncounterTypeRequireUniversity(state.encounterType)) {
+        if (state.universityId) {
+          updateState({
+            universityId: "",
+            universityName: "",
+          });
+          setSelectedUniversity(null);
+        }
       }
+      
+      // Reset to next appropriate step after encounter type
+      // This prevents numeric step mismatch between 4-step and 5-step flows
+      setStep(newFlowSteps.university || newFlowSteps.parties);
     }
+    
+    // Update ref for next comparison
+    prevEncounterTypeRef.current = state.encounterType;
   }, [state.encounterType]);
 
   // Pre-fill first participant with logged-in user's name when available
@@ -209,7 +214,19 @@ export default function ConsentFlowPage() {
 
   // Determine initial step based on state
   const getInitialStep = () => {
+    // For fresh loads without encounter type, always start at step 1
+    if (!state.encounterType) {
+      return 1;
+    }
+    
     const steps = getFlowSteps();
+    
+    // If encounter type requires university but no university selected, start at encounter type
+    if (doesEncounterTypeRequireUniversity(state.encounterType) && !state.universityId) {
+      return 1;
+    }
+    
+    // Otherwise use normal step progression
     if (state.method) return steps.recordingMethod;
     if (state.intimateActs.length > 0) return steps.intimateActs;
     if (state.parties.some(p => p.trim() !== "")) return steps.parties;
