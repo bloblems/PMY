@@ -6,7 +6,6 @@ export default function IconBottomNav() {
 
   const navItems = [
     { path: "/", icon: Plus, label: "Create", testId: "nav-create" },
-    { path: "/titleix", icon: School, label: "Title IX", testId: "nav-title-ix" },
     { path: "/tools", icon: Wrench, label: "Tools", testId: "nav-tools" },
     { path: "/files", icon: FolderOpen, label: "Contracts", testId: "nav-files" },
     { path: "/share", icon: Share2, label: "Share", testId: "nav-share" },

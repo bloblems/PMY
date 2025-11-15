@@ -35,7 +35,7 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 - **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
 - **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
 - **State Management**: Frontend uses TanStack Query for server state and URL parameters for maintaining state across multi-step consent flows. The consent wizard uses React state with URL synchronization for persistence and deep linking support.
-- **Navigation**: Bottom navigation bar with 5 tabs: Create (home/consent flow), Title IX (information page), Tools (third-party integrations), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/).
+- **Navigation**: Bottom navigation bar with 4 tabs: Create (home/consent flow), Tools (quick access to Title IX, ID verification, and status checks), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/). Tools serves as a hub providing access to Title IX information and verification integrations.
 - **Security**: Implements secure password hashing, session management, and WebAuthn for biometric authentication, ensuring privacy by keeping biometric data on-device.
 
 ## External Dependencies
