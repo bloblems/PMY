@@ -337,14 +337,16 @@ export default function ConsentFlowPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleBack}
-          data-testid="button-back"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
+        {step > flowSteps.encounterType && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            data-testid="button-back"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        )}
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Create Consent Contract</h1>
           <p className="text-sm text-muted-foreground">{state.universityName}</p>
@@ -549,19 +551,21 @@ export default function ConsentFlowPage() {
       )}
 
       <div className="flex gap-3 pt-4">
-        <Button
-          variant="outline"
-          onClick={handleBack}
-          className="flex-1"
-          data-testid="button-back-footer"
-        >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+        {step > flowSteps.encounterType && (
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            className="flex-1"
+            data-testid="button-back-footer"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        )}
         <Button
           onClick={handleNext}
           disabled={!canProceed()}
-          className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+          className={step > flowSteps.encounterType ? "flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500" : "w-full bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"}
           data-testid="button-next"
         >
           {step === flowSteps.recordingMethod ? "Continue" : "Next"}
