@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Share2, Mail, Users, Trophy, QrCode, Copy, Download, CheckCircle, Clock, XCircle } from "lucide-react";
@@ -24,11 +25,25 @@ interface Referral {
   completedAt: string | null;
 }
 
+interface ConsentContract {
+  id: string;
+  encounterType: string;
+  createdAt: string;
+}
+
+interface ConsentRecording {
+  id: string;
+  recordingType: string;
+  createdAt: string;
+}
+
 export default function SharePage() {
   const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMessage, setInviteMessage] = useState("");
   const [shareDocumentEmail, setShareDocumentEmail] = useState("");
+  const [selectedDocumentId, setSelectedDocumentId] = useState("");
+  const [selectedDocumentType, setSelectedDocumentType] = useState<"contract" | "recording">("contract");
 
   // Fetch user's referral code
   const { data: referralData } = useQuery<{ referralCode: string }>({
@@ -43,6 +58,16 @@ export default function SharePage() {
   // Fetch referral history
   const { data: referrals = [] } = useQuery<Referral[]>({
     queryKey: ["/api/referrals"],
+  });
+
+  // Fetch user's consent contracts
+  const { data: contracts = [] } = useQuery<ConsentContract[]>({
+    queryKey: ["/api/contracts"],
+  });
+
+  // Fetch user's consent recordings
+  const { data: recordings = [] } = useQuery<ConsentRecording[]>({
+    queryKey: ["/api/recordings"],
   });
 
   // Create referral mutation
@@ -69,6 +94,28 @@ export default function SharePage() {
     },
   });
 
+  // Share document mutation
+  const shareDocumentMutation = useMutation({
+    mutationFn: async (data: { documentId: string; documentType: string; recipientEmail: string }) => {
+      return await apiRequest("POST", "/api/share-document", data);
+    },
+    onSuccess: () => {
+      setShareDocumentEmail("");
+      setSelectedDocumentId("");
+      toast({
+        title: "Document shared!",
+        description: "The consent document has been sent via email.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to share document. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSendInvite = () => {
     if (!inviteEmail) {
       toast({
@@ -81,6 +128,30 @@ export default function SharePage() {
     createReferralMutation.mutate({
       refereeEmail: inviteEmail,
       invitationMessage: inviteMessage || "Join me on PMY for secure Title IX consent documentation!",
+    });
+  };
+
+  const handleShareDocument = () => {
+    if (!shareDocumentEmail) {
+      toast({
+        title: "Email required",
+        description: "Please enter a recipient email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!selectedDocumentId) {
+      toast({
+        title: "Document required",
+        description: "Please select a document to share.",
+        variant: "destructive",
+      });
+      return;
+    }
+    shareDocumentMutation.mutate({
+      documentId: selectedDocumentId,
+      documentType: selectedDocumentType,
+      recipientEmail: shareDocumentEmail,
     });
   };
 
@@ -141,6 +212,60 @@ export default function SharePage() {
               <h3 className="font-semibold mb-3">Share Document via Email</h3>
               <div className="space-y-3">
                 <div>
+                  <Label htmlFor="document-type">Document Type</Label>
+                  <Select
+                    value={selectedDocumentType}
+                    onValueChange={(value: "contract" | "recording") => {
+                      setSelectedDocumentType(value);
+                      setSelectedDocumentId("");
+                    }}
+                  >
+                    <SelectTrigger id="document-type" data-testid="select-document-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contract">Signature Contracts</SelectItem>
+                      <SelectItem value="recording">Audio/Video Recordings</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="select-document">Select Document</Label>
+                  <Select
+                    value={selectedDocumentId}
+                    onValueChange={setSelectedDocumentId}
+                  >
+                    <SelectTrigger id="select-document" data-testid="select-document">
+                      <SelectValue placeholder="Choose a document..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedDocumentType === "contract" ? (
+                        contracts.length === 0 ? (
+                          <SelectItem value="none" disabled>No contracts available</SelectItem>
+                        ) : (
+                          contracts.map((contract) => (
+                            <SelectItem key={contract.id} value={contract.id}>
+                              {contract.encounterType} - {format(new Date(contract.createdAt), "MMM d, yyyy")}
+                            </SelectItem>
+                          ))
+                        )
+                      ) : (
+                        recordings.length === 0 ? (
+                          <SelectItem value="none" disabled>No recordings available</SelectItem>
+                        ) : (
+                          recordings.map((recording) => (
+                            <SelectItem key={recording.id} value={recording.id}>
+                              {recording.recordingType} - {format(new Date(recording.createdAt), "MMM d, yyyy")}
+                            </SelectItem>
+                          ))
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <Label htmlFor="share-email">Recipient Email</Label>
                   <Input
                     id="share-email"
@@ -155,17 +280,13 @@ export default function SharePage() {
                   </p>
                 </div>
                 <Button
-                  onClick={() => {
-                    toast({
-                      title: "Coming soon",
-                      description: "Document sharing via email will be available soon.",
-                    });
-                  }}
-                  disabled
+                  onClick={handleShareDocument}
+                  disabled={shareDocumentMutation.isPending || !selectedDocumentId || !shareDocumentEmail}
+                  className="w-full"
                   data-testid="button-share-document"
                 >
                   <Mail className="h-4 w-4 mr-2" />
-                  Share Document
+                  {shareDocumentMutation.isPending ? "Sending..." : "Share Document"}
                 </Button>
               </div>
             </Card>
