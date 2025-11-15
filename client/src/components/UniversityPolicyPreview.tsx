@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { School, ExternalLink, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
 
 interface UniversityPolicyPreviewProps {
   universityId: string;
@@ -69,7 +70,7 @@ export default function UniversityPolicyPreview({
               <h4 className="font-semibold text-sm mb-1">{universityName}</h4>
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <p className="text-muted-foreground">
-                  Last updated: <span className="font-medium text-foreground">{lastUpdated}</span>
+                  Updated: <span className="font-medium text-foreground">{format(parseISO(lastUpdated), "MMM d, yyyy")}</span>
                 </p>
                 {verifiedAt && (
                   <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
