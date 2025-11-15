@@ -21,11 +21,12 @@ const referralRateLimiter = rateLimit({
   message: "Too many invitation emails sent. Please try again later.",
   standardHeaders: true, // Return rate limit info in RateLimit-* headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
-  // Use user ID from session for authenticated requests, fall back to IP
+  // Use user ID from session - these endpoints require authentication
   keyGenerator: (req) => {
     const user = req.user as any;
-    return user?.id || req.ip || 'anonymous';
+    return user?.id || 'unauthenticated';
   },
+  skipFailedRequests: true, // Don't count failed requests (auth errors, etc.)
   handler: (req, res) => {
     res.status(429).json({
       error: "Too many invitation emails sent. Please try again in an hour.",
@@ -39,10 +40,12 @@ const documentShareRateLimiter = rateLimit({
   message: "Too many documents shared. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  // Use user ID from session - these endpoints require authentication
   keyGenerator: (req) => {
     const user = req.user as any;
-    return user?.id || req.ip || 'anonymous';
+    return user?.id || 'unauthenticated';
   },
+  skipFailedRequests: true, // Don't count failed requests (auth errors, etc.)
   handler: (req, res) => {
     res.status(429).json({
       error: "Too many documents shared. Please try again in an hour.",
