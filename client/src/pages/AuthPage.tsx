@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import PMYLogo from "@/components/PMYLogo";
 import { AlertCircle } from "lucide-react";
-import { SiGoogle, SiGithub, SiApple } from "react-icons/si";
+import { SiGoogle, SiApple } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
 
 type AuthMode = "login" | "signup";
@@ -120,7 +120,7 @@ export default function AuthPage() {
         {mode === "login" && (
           <Card className="p-8">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <Button
                   onClick={() => window.location.href = "/api/login"}
                   variant="outline"
@@ -129,15 +129,6 @@ export default function AuthPage() {
                 >
                   <SiGoogle className="mr-2 h-5 w-5" />
                   Google
-                </Button>
-                <Button
-                  onClick={() => window.location.href = "/api/login"}
-                  variant="outline"
-                  className="h-12 font-semibold"
-                  data-testid="button-login-github"
-                >
-                  <SiGithub className="mr-2 h-5 w-5" />
-                  GitHub
                 </Button>
                 <Button
                   onClick={() => window.location.href = "/api/login"}
