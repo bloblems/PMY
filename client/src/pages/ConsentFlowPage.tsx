@@ -347,7 +347,7 @@ export default function ConsentFlowPage() {
             <ChevronLeft className="h-5 w-5" />
           </Button>
         )}
-        <div className="flex-1">
+        <div className="flex-1 text-center">
           <h1 className="text-2xl font-bold tracking-tight">Create Consent Contract</h1>
           <p className="text-sm text-muted-foreground">{state.universityName}</p>
         </div>
