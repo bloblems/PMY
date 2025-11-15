@@ -947,6 +947,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Share document via email
+  app.post("/api/share-document", async (req, res) => {
+    try {
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = req.user as any;
+      const { documentId, documentType, recipientEmail } = req.body;
+
+      if (!documentId || !documentType || !recipientEmail) {
+        return res.status(400).json({ 
+          error: "Document ID, type, and recipient email are required" 
+        });
+      }
+
+      // Validate document type
+      if (!["contract", "recording", "photo", "biometric"].includes(documentType)) {
+        return res.status(400).json({ error: "Invalid document type" });
+      }
+
+      // Get user data
+      const sender = await storage.getUser(user.id);
+      if (!sender) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      let documentDate = "";
+      let documentDetails = "";
+
+      // Get document based on type and verify ownership
+      if (documentType === "contract") {
+        const contract = await storage.getContract(documentId, user.id);
+        if (!contract) {
+          return res.status(404).json({ error: "Contract not found or access denied" });
+        }
+        documentDate = new Date(contract.createdAt).toLocaleDateString();
+        documentDetails = "Digital Signature Consent Contract";
+      } else if (documentType === "recording") {
+        const recording = await storage.getRecording(documentId, user.id);
+        if (!recording) {
+          return res.status(404).json({ error: "Recording not found or access denied" });
+        }
+        documentDate = new Date(recording.createdAt).toLocaleDateString();
+        documentDetails = `Audio/Video Consent Recording (${recording.recordingType})`;
+      } else {
+        // For photo and biometric, we'll add support later
+        return res.status(400).json({ 
+          error: "Document type not yet supported for email sharing" 
+        });
+      }
+
+      // Send document email via Resend
+      await sendDocumentEmail({
+        to: recipientEmail,
+        from: sender.email,
+        documentType: documentDetails,
+        documentDate,
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Document shared successfully" 
+      });
+    } catch (error) {
+      console.error("Error sharing document:", error);
+      res.status(500).json({ error: "Failed to share document" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
