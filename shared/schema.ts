@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   profilePictureUrl: text("profile_picture_url"),
   passwordHash: text("password_hash").notNull(),
   passwordSalt: text("password_salt").notNull(),
+  referralCode: text("referral_code").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at").notNull().defaultNow(),
 });
@@ -77,6 +78,17 @@ export const verificationPayments = pgTable("verification_payments", {
   verificationStatus: text("verification_status").notNull().default("pending"),
   verificationResult: text("verification_result"),
   gpuModel: text("gpu_model").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const referrals = pgTable("referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referrerId: text("referrer_id").notNull(),
+  refereeEmail: text("referee_email").notNull(),
+  refereeId: text("referee_id"),
+  status: text("status").notNull().default("pending"),
+  invitationMessage: text("invitation_message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 });
@@ -156,3 +168,14 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+}).extend({
+  status: z.enum(["pending", "completed", "cancelled"]).default("pending"),
+});
+
+export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type Referral = typeof referrals.$inferSelect;
