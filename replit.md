@@ -24,6 +24,8 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
   - Contract generation supports both university-specific (with policy excerpts) and generic Title IX-compliant consent language
   - All recording methods properly handle nullable universityId (FormData omits field when empty, JSON sends null)
 - **Title IX Information**: Provides educational content about Title IX requirements, customized per university (accessible at /titleix). It includes a comprehensive system for managing, updating, and verifying university Title IX policies. OpenAI GPT-4o-mini is used to summarize Title IX policies for universities.
+- **Tools & Integrations**: Showcases third-party ID verification and age verification services (accessible at /tools). Currently features Stripe Identity (available for configuration) and displays upcoming integrations including Persona, Onfido, Veriff, Sumsub, and iDenfy. Each integration card displays status, features, pricing, and documentation links.
+- **University Policy Preview**: When selecting a university during consent flow, displays AI-generated policy summary, verification status, and last updated date to help users make informed decisions.
 - **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
 - **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
 - **Paid Verification**: Users can pay via Stripe to have university Title IX policies verified using advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o).
@@ -32,7 +34,7 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 - **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
 - **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
 - **State Management**: Frontend uses TanStack Query for server state and URL parameters for maintaining state across multi-step consent flows. The consent wizard uses React state with URL synchronization for persistence and deep linking support.
-- **Navigation**: Bottom navigation bar with 4 tabs: Create (home/consent flow), Title IX (information page), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/).
+- **Navigation**: Bottom navigation bar with 5 tabs: Create (home/consent flow), Title IX (information page), Tools (third-party integrations), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/).
 - **Security**: Implements secure password hashing, session management, and WebAuthn for biometric authentication, ensuring privacy by keeping biometric data on-device.
 
 ## External Dependencies
