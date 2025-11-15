@@ -99,51 +99,52 @@ export default function ConsentFlowPage() {
     queryKey: ["/api/auth/me"],
   });
   
-  // Helper function to parse URL parameters into state
-  const parseURLParams = (): ConsentFlowState => {
-    console.log('[ConsentFlow] parseURLParams - searchString:', searchString);
-    const params = new URLSearchParams(searchString);
-    const urlEncounterType = params.get("encounterType") || "";
-    const urlParties = params.get("parties");
-    const urlIntimateActs = params.get("intimateActs");
-    const urlMethod = params.get("method") as "signature" | "voice" | "photo" | "biometric" | null;
+  // Helper function to get initial state from localStorage or defaults
+  // Note: This runs ONCE when component first mounts
+  const getInitialState = (): ConsentFlowState => {
+    // Try to restore from localStorage first (used when navigating back from consent method pages)
+    const savedState = localStorage.getItem("consentFlowState");
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        console.log('[ConsentFlow] Restored state from localStorage on mount:', parsed);
+        // DON'T clear here - let useEffect handle clearing after state is set
+        return {
+          ...parsed,
+          method: null, // Always clear method when coming back to flow page
+        };
+      } catch (e) {
+        console.error('[ConsentFlow] Failed to parse localStorage state:', e);
+      }
+    }
     
-    console.log('[ConsentFlow] parseURLParams - params:', {
-      encounterType: urlEncounterType,
-      parties: urlParties,
-      intimateActs: urlIntimateActs,
-      universityId: params.get("universityId")
-    });
-    
-    const parsedParties = urlParties ? JSON.parse(urlParties) : ["", ""];
-    const parsedIntimateActs = urlIntimateActs ? JSON.parse(urlIntimateActs) : [];
-    
+    // Default empty state
+    console.log('[ConsentFlow] Using default empty state');
     return {
-      universityId: params.get("universityId") || "",
-      universityName: params.get("universityName") || "",
-      encounterType: urlEncounterType,
-      parties: parsedParties,
-      intimateActs: parsedIntimateActs,
-      method: urlMethod,
+      universityId: "",
+      universityName: "",
+      encounterType: "",
+      parties: ["", ""],
+      intimateActs: [],
+      method: null,
     };
   };
   
-  // Parse URL params once for initialization
-  const initialState = parseURLParams();
-  console.log('[ConsentFlow] Component mounting/rendering, initialState:', initialState);
+  // Get initial state once
+  const initialState = getInitialState();
+  console.log('[ConsentFlow] Component mounting, initialState:', initialState);
   
   // Initialize state from URL parameters
   const [state, setState] = useState<ConsentFlowState>(initialState);
   
-  // Sync state with URL when location changes (handles browser back/forward)
+  // Clear localStorage after initial mount if we used it
   useEffect(() => {
-    const newState = parseURLParams();
-    setState(newState);
-    // Also recalculate step based on new URL params
-    const newStep = getInitialStep(newState);
-    console.log('[ConsentFlow] Location changed, newState:', newState, 'newStep:', newStep);
-    setStep(newStep);
-  }, [location]);
+    const savedState = localStorage.getItem("consentFlowState");
+    if (savedState) {
+      console.log('[ConsentFlow] Clearing localStorage after mount');
+      localStorage.removeItem("consentFlowState");
+    }
+  }, []);
 
   // Track selected university object for the selector
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);

@@ -228,16 +228,19 @@ The digital signatures below indicate that both parties have read, understood, a
           variant="ghost"
           size="icon"
           onClick={() => {
-            const params = new URLSearchParams();
-            if (universityId) {
-              params.set("universityId", universityId);
-              params.set("universityName", universityName);
-            }
-            if (encounterType) params.set("encounterType", encounterType);
-            if (parties.length > 0) params.set("parties", JSON.stringify(parties));
-            if (intimateActs.length > 0) params.set("intimateActs", JSON.stringify(intimateActs));
-            // DON'T include method - let user reselect on the flow page
-            navigate("/consent/flow?" + params.toString());
+            // Save flow state to localStorage for ConsentFlowPage to restore
+            const flowState = {
+              universityId,
+              universityName,
+              encounterType,
+              parties,
+              intimateActs,
+              // Don't include method - we're going back to step 5 to choose method again
+            };
+            console.log('[SignaturePage] Saving flowState to localStorage:', flowState);
+            localStorage.setItem("consentFlowState", JSON.stringify(flowState));
+            console.log('[SignaturePage] localStorage saved, navigating to /');
+            navigate("/");
           }}
           data-testid="button-back"
         >
