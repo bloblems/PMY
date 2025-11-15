@@ -56,7 +56,7 @@ function getRequestMetadata(req: Request) {
  */
 export function logAuthEvent(
   req: Request,
-  action: "login" | "logout" | "signup" | "login_failure" | "signup_failure",
+  action: "login" | "logout" | "signup" | "login_failure" | "logout_failure" | "signup_failure",
   userId?: string,
   userEmail?: string,
   details?: Record<string, any>
@@ -85,20 +85,27 @@ export function logAuthEvent(
  */
 export function logConsentEvent(
   req: Request,
-  action: "create_contract" | "create_recording" | "create_photo" | "create_biometric" | "delete" | "share",
+  action: "create_contract" | "create_recording" | "create_photo" | "create_biometric" | "delete" | "share" | "create_failure",
   documentType: "contract" | "recording" | "photo" | "biometric",
-  documentId: string,
+  documentId: string | undefined,
   userId: string,
   details?: Record<string, any>
 ): void {
+  const status: SecurityEvent["status"] = 
+    action === "create_failure" ? "failure" : "success";
+  
+  const severity: SecurityEvent["severity"] = 
+    action === "delete" ? "medium" : 
+    action === "create_failure" ? "medium" : "low";
+
   logSecurityEvent({
     timestamp: new Date().toISOString(),
     eventType: "consent_operation",
     action,
-    resource: `${documentType}/${documentId}`,
+    resource: documentId ? `${documentType}/${documentId}` : documentType,
     userId,
-    status: "success",
-    severity: action === "delete" ? "medium" : "low",
+    status,
+    severity,
     details,
     ...getRequestMetadata(req),
   });

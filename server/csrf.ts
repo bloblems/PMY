@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { type Request, type Response, type NextFunction } from "express";
+import { logCsrfFailure } from "./securityLogger";
 
 // Extend Express session type to include csrfToken
 declare module 'express-session' {
@@ -58,6 +59,10 @@ export function validateCsrfToken(req: Request, res: Response, next: NextFunctio
 
   // Validate token presence and matching
   if (!headerToken || !sessionToken || headerToken !== sessionToken) {
+    // Log CSRF validation failure for security monitoring
+    const user = req.user as any;
+    logCsrfFailure(req, user?.id);
+    
     return res.status(403).json({ 
       error: "Invalid CSRF token",
       code: "CSRF_VALIDATION_FAILED"

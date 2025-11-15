@@ -55,10 +55,13 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
   - **Ownership Verification**: All read/delete operations verify ownership before returning data (returns 404 for unauthorized access)
   - **Delete Authorization**: Delete methods return boolean indicating success; endpoints return 404 when user doesn't own the resource
   - **Password Security**: PBKDF2 hashing with salt for user passwords
-  - **Session Management**: Express-session with secure cookie settings
+  - **Session Management**: PostgreSQL-backed sessions using `connect-pg-simple` with automatic pruning, 7-day rolling sessions, secure/httpOnly/sameSite=strict cookies
+  - **CSRF Protection**: Double-submit cookie pattern with SameSite=strict cookies, applied to all state-changing endpoints, iOS/Capacitor compatible
+  - **File Upload Validation**: Server-side MIME type sniffing with allowlists, iOS-native format support (CAF/AAC/M4A), size limits (10MB audio, 5MB photos)
+  - **Security Audit Logging**: Comprehensive structured logging for auth events, consent operations, file uploads, rate limit violations, and CSRF failures - ready for SIEM integration
   - **Biometric Authentication**: WebAuthn for Touch ID/Face ID/Windows Hello (biometric data stays on-device)
   - **Encrypted Storage**: AES-256 Keychain/Keystore integration for consent flow state on iOS/Android
-  - **Rate Limiting**: Express-rate-limit middleware prevents abuse of email-sending features (10 referral invitations/hour, 20 document shares/hour per user)
+  - **Rate Limiting**: Express-rate-limit middleware prevents abuse of email-sending features (10 referral invitations/hour, 20 document shares/hour per user), violations logged for monitoring
 
 ## External Dependencies
 

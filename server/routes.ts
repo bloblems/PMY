@@ -12,6 +12,7 @@ import { sendInvitationEmail, sendDocumentEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { csrfProtection, setCsrfToken } from "./csrf";
 import { validateFileUpload } from "./fileValidation";
+import { logAuthEvent, logConsentEvent, logRateLimitViolation } from "./securityLogger";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -30,6 +31,12 @@ const referralRateLimiter = rateLimit({
   },
   skipFailedRequests: true, // Don't count failed requests (auth errors, etc.)
   handler: (req, res) => {
+    const user = req.user as any;
+    logRateLimitViolation(
+      req,
+      "referral_invitation",
+      user?.id
+    );
     res.status(429).json({
       error: "Too many invitation emails sent. Please try again in an hour.",
     });
@@ -49,6 +56,12 @@ const documentShareRateLimiter = rateLimit({
   },
   skipFailedRequests: true, // Don't count failed requests (auth errors, etc.)
   handler: (req, res) => {
+    const user = req.user as any;
+    logRateLimitViolation(
+      req,
+      "document_share",
+      user?.id
+    );
     res.status(429).json({
       error: "Too many documents shared. Please try again in an hour.",
     });
@@ -144,10 +157,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/auth/logout", csrfProtection, (req, res) => {
+    const user = req.user as any;
+    const email = user?.email;
+    const userId = user?.id;
+    
     req.logout((err) => {
       if (err) {
+        logAuthEvent(req, "logout_failure", userId, email, { error: err.message });
         return res.status(500).json({ error: "Logout failed" });
       }
+      logAuthEvent(req, "logout", userId, email);
       res.json({ success: true });
     });
   });
@@ -263,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user's recordings (requires authentication)
-  app.get("/api/recordings", isAuthenticated, async (req, res) => {
+  app.get("/api/recordings", isAuthenticated, setCsrfToken, async (req, res) => {
     try {
       const user = req.user as any;
       const recordings = await storage.getRecordingsByUserId(user.id);
@@ -323,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user's contracts (requires authentication)
-  app.get("/api/contracts", isAuthenticated, async (req, res) => {
+  app.get("/api/contracts", isAuthenticated, setCsrfToken, async (req, res) => {
     try {
       const user = req.user as any;
       const contracts = await storage.getContractsByUserId(user.id);
@@ -334,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a single contract (requires authentication and ownership)
-  app.get("/api/contracts/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/contracts/:id", isAuthenticated, setCsrfToken, async (req, res) => {
     try {
       const { id } = req.params;
       const user = req.user as any;
@@ -465,9 +484,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...parsed.data,
         userId: user.id
       });
+      
+      // Log consent creation
+      logConsentEvent(
+        req,
+        "create_contract",
+        "contract",
+        contract.id,
+        user.id,
+        { method: parsed.data.method }
+      );
+      
       res.json(contract);
     } catch (error) {
       console.error("Error creating consent contract:", error);
+      const user = req.user as any;
+      logConsentEvent(
+        req,
+        "create_failure",
+        "contract",
+        undefined,
+        user?.id,
+        { method: req.body.method, error: (error as Error).message }
+      );
       res.status(500).json({ error: "Failed to create contract" });
     }
   });
@@ -505,9 +544,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         duration,
       });
 
+      // Log consent creation
+      logConsentEvent(
+        req,
+        "create_recording",
+        "recording",
+        recording.id,
+        user.id,
+        { duration, encounterType }
+      );
+
       res.json(recording);
     } catch (error) {
       console.error("Error uploading consent recording:", error);
+      const user = req.user as any;
+      logConsentEvent(
+        req,
+        "create_failure",
+        "recording",
+        undefined,
+        user?.id,
+        { error: (error as Error).message }
+      );
       res.status(500).json({ error: "Failed to upload recording" });
     }
   });
@@ -542,9 +600,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         photoUrl,
       });
 
+      // Log consent creation
+      logConsentEvent(
+        req,
+        "create_photo",
+        "contract",
+        contract.id,
+        user.id,
+        { method: "photo", encounterType }
+      );
+
       res.json(contract);
     } catch (error) {
       console.error("Error uploading consent photo:", error);
+      const user = req.user as any;
+      logConsentEvent(
+        req,
+        "create_failure",
+        "contract",
+        undefined,
+        user?.id,
+        { method: "photo", error: (error as Error).message }
+      );
       res.status(500).json({ error: "Failed to upload photo" });
     }
   });
@@ -609,9 +686,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id
       });
 
+      // Log consent creation
+      logConsentEvent(
+        req,
+        "create_biometric",
+        "contract",
+        contract.id,
+        user.id,
+        { method: "biometric", encounterType: parsed.data.encounterType }
+      );
+
       res.json(contract);
     } catch (error) {
       console.error("Error creating biometric consent:", error);
+      const user = req.user as any;
+      logConsentEvent(
+        req,
+        "create_failure",
+        "contract",
+        undefined,
+        user?.id,
+        { method: "biometric", error: (error as Error).message }
+      );
       res.status(500).json({ error: "Failed to create biometric consent" });
     }
   });

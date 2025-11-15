@@ -343,17 +343,89 @@ If a security issue is discovered:
 - Automated security tests in CI/CD
 - Regular dependency updates for security patches
 
-## Future Enhancements
+## OWASP Top 10 2021 Compliance
 
-### Planned Security Improvements
+### Implemented Security Controls (Production-Ready)
+
+#### 1. CSRF Protection (A04-Insecure Design)
+**Implementation**: Double-submit cookie pattern with SameSite=strict (`server/csrf.ts`)
+- Cryptographically secure token generation (32-byte random)
+- Token stored in session (server-side) and cookie (client-side)
+- Validation middleware on all state-changing operations (POST, PUT, DELETE, PATCH)
+- CSRF tokens automatically set on authenticated GET routes
+- Frontend automatic token injection in all requests
+- CSRF validation failures logged for security monitoring
+- **iOS/Capacitor Compatible**: Works in both web and mobile WebView
+
+#### 2. PostgreSQL-Backed Sessions (A02-Cryptographic Failures, A07-Auth Failures)
+**Implementation**: Production-ready persistent session storage (`server/auth.ts`)
+- PostgreSQL session store using `connect-pg-simple`
+- Automatic session table creation (`createTableIfMissing: true`)
+- Automatic session pruning every 15 minutes
+- Rolling sessions (reset expiration on activity)
+- 7-day session expiration with secure, httpOnly, sameSite=strict cookies
+- Prevents session fixation and session hijacking attacks
+- **Replaces**: In-memory MemoryStore (not production-safe)
+
+#### 3. File Upload Validation (A03-Injection, A04-Insecure Design)
+**Implementation**: Server-side file validation with MIME sniffing (`server/fileValidation.ts`)
+- MIME type detection using `file-type` library (prevents content smuggling)
+- File type allowlists (audio: MP3/M4A/WAV/WebM/OGG/CAF/AAC, photo: JPEG/PNG/WebP)
+- iOS-native format support (CAF, AAC, M4A alternative MIME types)
+- File size limits (10MB audio, 5MB photos)
+- Applied to all file upload endpoints (`/api/consent-recordings`, `/api/consent-photos`)
+- Validation outcomes logged for security audit
+
+#### 4. Security Audit Logging (A09-Security Logging Failures)
+**Implementation**: Comprehensive structured logging for SIEM integration (`server/securityLogger.ts`)
+
+**Auth Events** (`logAuthEvent`):
+- Signup success/failure with email and user ID
+- Login success/failure with attempt details
+- Logout success/failure tracking
+- Password validation failures (without exposing password)
+
+**Consent Operations** (`logConsentEvent`):
+- Contract creation (signature/photo/biometric) success/failure
+- Recording creation success/failure
+- All consent methods tracked with metadata (method, encounter type, document ID)
+
+**File Upload Events** (`logFileUpload`):
+- Upload validation success/failure
+- Detailed metadata (fileName, fileSize, mimeType, error reasons)
+- Tracks both legitimate uploads and rejected malicious files
+
+**Rate Limit Violations** (`logRateLimitViolation`):
+- Referral invitation abuse (10/hour limit)
+- Document sharing abuse (20/hour limit)
+- Suspicious activity tracking
+
+**CSRF Validation Failures** (`logCsrfFailure`):
+- High-severity logging for CSRF token validation failures
+- Includes request path, method, IP address, user agent
+- Helps detect CSRF attack attempts
+
+**Log Format**: Structured JSON with timestamp, event type, user ID, IP address, user agent, status (success/failure/suspicious), severity (low/medium/high/critical)
+
+**Production Integration**: Ready for SIEM systems (Datadog, Splunk, ELK Stack)
+
+#### 5. Rate Limiting (A04-Insecure Design)
+**Implementation**: User-scoped rate limiting on email-sending endpoints (`server/routes.ts`)
+- 10 referral invitations per hour per user
+- 20 document shares per hour per user
+- Session-based user identification
+- Rate limit violations logged for security monitoring
+- Prevents abuse and resource exhaustion
+
+### Future Enhancements
+
+#### Planned Security Improvements
 1. **Object Storage Migration**: Replace data URLs with private storage + signed URLs
 2. **EXIF Stripping**: Remove metadata from all photos
-3. **CSRF Protection**: Implement CSRF tokens
-4. **Rate Limiting**: Prevent abuse and DOS attacks
-5. **Audit Logging**: Comprehensive logging for compliance
-6. **Two-Factor Authentication**: Optional 2FA for enhanced security
+3. **Envelope Encryption**: AES-256 encryption for consent data at rest
+4. **Two-Factor Authentication**: Optional 2FA for enhanced security
 
-### Long-term Goals
+#### Long-term Goals
 - Security audit by third-party firm
 - Penetration testing
 - Bug bounty program

@@ -68,6 +68,7 @@ export function setupAuth(app: Express) {
           // Check if user already exists
           const existingUser = await storage.getUserByEmail(email);
           if (existingUser) {
+            logAuthEvent(req, "signup_failure", undefined, email, { reason: "Email already exists" });
             return done(null, false, { message: "Email already exists" });
           }
 
@@ -83,8 +84,10 @@ export function setupAuth(app: Express) {
             passwordSalt: salt,
           });
 
+          logAuthEvent(req, "signup", user.id, email);
           return done(null, user);
         } catch (error) {
+          logAuthEvent(req, "signup_failure", undefined, email, { error: (error as Error).message });
           return done(error);
         }
       }
@@ -98,24 +101,29 @@ export function setupAuth(app: Express) {
       {
         usernameField: "email",
         passwordField: "password",
+        passReqToCallback: true,
       },
-      async (email, password, done) => {
+      async (req, email, password, done) => {
         try {
           const user = await storage.getUserByEmail(email);
           if (!user) {
+            logAuthEvent(req, "login_failure", undefined, email, { reason: "User not found" });
             return done(null, false, { message: "Invalid credentials" });
           }
 
           // Verify password against stored hash
           if (!verifyPassword(password, user.passwordHash, user.passwordSalt)) {
+            logAuthEvent(req, "login_failure", user.id, email, { reason: "Invalid password" });
             return done(null, false, { message: "Invalid credentials" });
           }
 
           // Update last login
           await storage.updateUserLastLogin(user.id);
 
+          logAuthEvent(req, "login", user.id, email);
           return done(null, user);
         } catch (error) {
+          logAuthEvent(req, "login_failure", undefined, email, { error: (error as Error).message });
           return done(error);
         }
       }

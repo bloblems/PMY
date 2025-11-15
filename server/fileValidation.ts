@@ -1,5 +1,6 @@
 import { type Request } from "express";
 import { fileTypeFromBuffer } from "file-type";
+import { logFileUpload } from "./securityLogger";
 
 /**
  * File upload validation for OWASP compliance
@@ -87,8 +88,8 @@ export async function validateUploadedFile(
   // Allow it if the declared MIME type is in our allowlist
   if (!detectedType) {
     const declaredMime = file.mimetype;
-    const allowedTypes = ALLOWED_MIME_TYPES[category];
-    if (allowedTypes.includes(declaredMime as any)) {
+    const allowedTypes = ALLOWED_MIME_TYPES[category] as readonly string[];
+    if (allowedTypes.includes(declaredMime)) {
       // Trust the declared MIME type for iOS-native formats
       return {
         valid: true,
@@ -103,9 +104,9 @@ export async function validateUploadedFile(
   }
 
   // Verify the detected MIME type is in the allowed list
-  const allowedTypes = ALLOWED_MIME_TYPES[category];
+  const allowedTypes = ALLOWED_MIME_TYPES[category] as readonly string[];
   const mimeType = detectedType.mime;
-  if (!allowedTypes.includes(mimeType as (typeof allowedTypes)[number])) {
+  if (!allowedTypes.includes(mimeType)) {
     return {
       valid: false,
       error: `File type ${mimeType} is not allowed. Allowed types: ${allowedTypes.join(", ")}`,
@@ -127,10 +128,37 @@ export async function validateUploadedFile(
 export function validateFileUpload(category: "audio" | "photo") {
   return async (req: Request, res: any, next: any) => {
     const validation = await validateUploadedFile(req.file, category);
+    const user = (req as any).user;
+    const userId = user?.id;
+    const fileName = req.file?.originalname || "unknown";
+    const fileSize = req.file?.size || 0;
+    const mimeType = validation.mimeType || req.file?.mimetype || "unknown";
     
     if (!validation.valid) {
+      // Log failed upload attempt
+      logFileUpload(
+        req,
+        category,
+        fileName,
+        fileSize,
+        mimeType,
+        userId,
+        "failure",
+        validation.error
+      );
       return res.status(400).json({ error: validation.error });
     }
+
+    // Log successful validation
+    logFileUpload(
+      req,
+      category,
+      fileName,
+      fileSize,
+      mimeType!,
+      userId,
+      "success"
+    );
 
     // Attach validation metadata to request for logging
     (req as any).fileValidation = {
