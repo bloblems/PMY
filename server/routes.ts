@@ -20,21 +20,23 @@ function validateSignatureSize(dataURL: string, maxBytes: number = 2 * 1024 * 10
     // Remove data URL prefix (e.g., "data:image/png;base64,")
     const base64Data = dataURL.split(',')[1] || dataURL;
     
-    // Calculate decoded byte size: Base64 length * 0.75 (accounting for padding)
-    const decodedSize = Math.floor((base64Data.length * 3) / 4);
+    // Calculate decoded byte size: (Base64 length * 3) / 4, minus padding
+    // Count padding characters (= at the end)
+    const padding = (base64Data.match(/=/g) || []).length;
+    const decodedSize = Math.floor((base64Data.length * 3) / 4) - padding;
     
     if (decodedSize > maxBytes) {
       const sizeMB = (decodedSize / (1024 * 1024)).toFixed(2);
       const maxMB = (maxBytes / (1024 * 1024)).toFixed(2);
       return { 
         valid: false, 
-        error: `Signature is too large (${sizeMB}MB exceeds ${maxMB}MB limit)` 
+        error: `Size is too large (${sizeMB}MB exceeds ${maxMB}MB limit)` 
       };
     }
     
     return { valid: true };
   } catch (error) {
-    return { valid: false, error: "Invalid signature format" };
+    return { valid: false, error: "Invalid format" };
   }
 }
 
@@ -294,37 +296,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid contract data" });
       }
 
-      // Validate signature sizes (max 2MB per signature to prevent database bloat)
-      if (parsed.data.signature1) {
-        const sig1Validation = validateSignatureSize(parsed.data.signature1);
-        if (!sig1Validation.valid) {
-          return res.status(400).json({ error: `Signature 1: ${sig1Validation.error}` });
-        }
+      // Server-side validation: Require both signatures for contract validity
+      if (!parsed.data.signature1 || !parsed.data.signature2) {
+        return res.status(400).json({ 
+          error: "Both signatures are required. Please ensure both parties have signed the contract." 
+        });
       }
-      if (parsed.data.signature2) {
-        const sig2Validation = validateSignatureSize(parsed.data.signature2);
-        if (!sig2Validation.valid) {
-          return res.status(400).json({ error: `Signature 2: ${sig2Validation.error}` });
-        }
+
+      // Validate signature sizes (max 2MB per signature to prevent database bloat)
+      const sig1Validation = validateSignatureSize(parsed.data.signature1);
+      if (!sig1Validation.valid) {
+        return res.status(400).json({ error: `Signature 1: ${sig1Validation.error}` });
+      }
+      
+      const sig2Validation = validateSignatureSize(parsed.data.signature2);
+      if (!sig2Validation.valid) {
+        return res.status(400).json({ error: `Signature 2: ${sig2Validation.error}` });
       }
 
       const contract = await storage.createContract(parsed.data);
       
-      // Save user's signature if requested
-      if (shouldSave && parsed.data.signature1) {
+      // Save user's OWN signature (signature1) if requested
+      // This ensures we never accidentally save the partner's signature
+      if (shouldSave === true && parsed.data.signature1) {
         const user = req.user as any;
-        const saveSigValidation = validateSignatureSize(parsed.data.signature1);
         
-        if (!saveSigValidation.valid) {
-          console.warn("Signature too large to save for reuse:", saveSigValidation.error);
-        } else {
-          await storage.updateUserSignature(
-            user.id,
-            parsed.data.signature1,
-            signatureType || "draw",
-            signatureText
-          );
-        }
+        await storage.updateUserSignature(
+          user.id,
+          parsed.data.signature1,
+          signatureType || "draw",
+          signatureText || null
+        );
       }
       
       res.json(contract);
@@ -355,7 +357,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid contract data", details: parsed.error });
       }
 
-      // Validate signature sizes if present
+      // For signature-based contracts, require both signatures
+      if (parsed.data.method === "signature") {
+        if (!parsed.data.signature1 || !parsed.data.signature2) {
+          return res.status(400).json({ 
+            error: "Both signatures are required for signature-based contracts." 
+          });
+        }
+      }
+
+      // Validate ALL signature and photo fields to prevent oversized payloads
       if (parsed.data.signature1) {
         const sig1Validation = validateSignatureSize(parsed.data.signature1);
         if (!sig1Validation.valid) {
@@ -368,7 +379,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: `Signature 2: ${sig2Validation.error}` });
         }
       }
-      // Validate photo URL size if present (photos can be large)
       if (parsed.data.photoUrl) {
         const photoValidation = validateSignatureSize(parsed.data.photoUrl, 5 * 1024 * 1024); // 5MB for photos
         if (!photoValidation.valid) {
