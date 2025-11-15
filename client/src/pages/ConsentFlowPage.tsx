@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +87,7 @@ const recordingMethods = [
 
 export default function ConsentFlowPage() {
   const [location, navigate] = useLocation();
+  const searchString = useSearch();
   
   // Fetch universities
   const { data: universities = [] } = useQuery<University[]>({
@@ -100,11 +101,19 @@ export default function ConsentFlowPage() {
   
   // Helper function to parse URL parameters into state
   const parseURLParams = (): ConsentFlowState => {
-    const params = new URLSearchParams(window.location.search);
+    console.log('[ConsentFlow] parseURLParams - searchString:', searchString);
+    const params = new URLSearchParams(searchString);
     const urlEncounterType = params.get("encounterType") || "";
     const urlParties = params.get("parties");
     const urlIntimateActs = params.get("intimateActs");
     const urlMethod = params.get("method") as "signature" | "voice" | "photo" | "biometric" | null;
+    
+    console.log('[ConsentFlow] parseURLParams - params:', {
+      encounterType: urlEncounterType,
+      parties: urlParties,
+      intimateActs: urlIntimateActs,
+      universityId: params.get("universityId")
+    });
     
     const parsedParties = urlParties ? JSON.parse(urlParties) : ["", ""];
     const parsedIntimateActs = urlIntimateActs ? JSON.parse(urlIntimateActs) : [];
@@ -119,13 +128,21 @@ export default function ConsentFlowPage() {
     };
   };
   
+  // Parse URL params once for initialization
+  const initialState = parseURLParams();
+  console.log('[ConsentFlow] Component mounting/rendering, initialState:', initialState);
+  
   // Initialize state from URL parameters
-  const [state, setState] = useState<ConsentFlowState>(parseURLParams);
+  const [state, setState] = useState<ConsentFlowState>(initialState);
   
   // Sync state with URL when location changes (handles browser back/forward)
   useEffect(() => {
     const newState = parseURLParams();
     setState(newState);
+    // Also recalculate step based on new URL params
+    const newStep = getInitialStep(newState);
+    console.log('[ConsentFlow] Location changed, newState:', newState, 'newStep:', newStep);
+    setStep(newStep);
   }, [location]);
 
   // Track selected university object for the selector
@@ -225,25 +242,29 @@ export default function ConsentFlowPage() {
   const flowSteps = getFlowSteps();
 
   // Determine initial step based on state
-  const getInitialStep = () => {
+  const getInitialStep = (fromState: ConsentFlowState) => {
     // For fresh loads without encounter type, always start at step 1
-    if (!state.encounterType) {
+    if (!fromState.encounterType) {
       return 1;
     }
     
-    const steps = getFlowSteps();
+    // Calculate steps based on encounter type
+    const requiresUniversity = doesEncounterTypeRequireUniversity(fromState.encounterType);
+    const steps = requiresUniversity
+      ? { encounterType: 1, university: 2, parties: 3, intimateActs: 4, recordingMethod: 5, totalSteps: 5 }
+      : { encounterType: 1, university: null, parties: 2, intimateActs: 3, recordingMethod: 4, totalSteps: 4 };
     
     // Work backwards from most complete state to least complete
     // If something is SET, it means we've COMPLETED that step, so return the NEXT step
-    if (state.method) return steps.recordingMethod; // User has selected method, show recordingMethod step
-    if (state.intimateActs.length > 0) return steps.recordingMethod; // Intimate acts completed, move to recording method
-    if (state.parties.some(p => p.trim() !== "")) return steps.intimateActs; // Parties completed, move to intimate acts
+    if (fromState.method) return steps.recordingMethod; // User has selected method, show recordingMethod step
+    if (fromState.intimateActs.length > 0) return steps.recordingMethod; // Intimate acts completed, move to recording method
+    if (fromState.parties.some(p => p.trim() !== "")) return steps.intimateActs; // Parties completed, move to intimate acts
     
     // If university is set, we've completed that step, move to parties
-    if (state.universityId && steps.university) return steps.parties;
+    if (fromState.universityId && steps.university) return steps.parties;
     
     // If encounter type is set but nothing else, determine next step
-    if (state.encounterType) {
+    if (fromState.encounterType) {
       // If this encounter type requires university, go to university step
       // Otherwise go to parties step
       return steps.university || steps.parties;
@@ -252,13 +273,11 @@ export default function ConsentFlowPage() {
     return 1; // Default to encounter type step
   };
 
-  const [step, setStep] = useState(getInitialStep());
-
-  // Recalculate step when state changes (from URL navigation or updates)
-  useEffect(() => {
-    const correctStep = getInitialStep();
-    setStep(correctStep);
-  }, [state.encounterType, state.universityId, state.parties, state.intimateActs, state.method]);
+  const [step, setStep] = useState(() => {
+    const initialStep = getInitialStep(initialState);
+    console.log('[ConsentFlow] Initializing step:', initialStep, 'flowSteps:', getFlowSteps());
+    return initialStep;
+  });
 
   const updateState = (updates: Partial<ConsentFlowState>) => {
     setState(prev => ({ ...prev, ...updates }));
