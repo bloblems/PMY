@@ -384,7 +384,7 @@ export default function ConsentFlowPage() {
             onClick={() => updateState({ encounterType: intimateEncounterType.id })}
             data-testid={`option-encounter-${intimateEncounterType.id}`}
           >
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-col items-center text-center gap-2">
               <intimateEncounterType.icon className={`h-6 w-6 ${state.encounterType === intimateEncounterType.id ? "text-green-600 dark:text-green-400" : ""}`} />
               <span className="text-sm font-medium">{intimateEncounterType.label}</span>
             </div>
