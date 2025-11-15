@@ -157,7 +157,6 @@ export default function ToolsPage() {
                           {tool.status === "available" && (
                             <Button
                               size="sm"
-                              className="h-7 text-xs"
                               data-testid={`button-setup-${tool.id}`}
                             >
                               Configure
@@ -168,7 +167,6 @@ export default function ToolsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => window.open(tool.docsUrl, "_blank")}
-                              className="h-7 text-xs"
                               data-testid={`button-docs-${tool.id}`}
                             >
                               <ExternalLink className="w-3 h-3 mr-1" />
