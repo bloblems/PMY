@@ -86,7 +86,7 @@ const recordingMethods = [
 ];
 
 export default function ConsentFlowPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   
   // Fetch universities
   const { data: universities = [] } = useQuery<University[]>({
@@ -98,8 +98,8 @@ export default function ConsentFlowPage() {
     queryKey: ["/api/auth/me"],
   });
   
-  // Initialize state and step from URL parameters
-  const [state, setState] = useState<ConsentFlowState>(() => {
+  // Helper function to parse URL parameters into state
+  const parseURLParams = (): ConsentFlowState => {
     const params = new URLSearchParams(window.location.search);
     const urlEncounterType = params.get("encounterType") || "";
     const urlParties = params.get("parties");
@@ -117,7 +117,16 @@ export default function ConsentFlowPage() {
       intimateActs: parsedIntimateActs,
       method: urlMethod,
     };
-  });
+  };
+  
+  // Initialize state from URL parameters
+  const [state, setState] = useState<ConsentFlowState>(parseURLParams);
+  
+  // Sync state with URL when location changes (handles browser back/forward)
+  useEffect(() => {
+    const newState = parseURLParams();
+    setState(newState);
+  }, [location]);
 
   // Track selected university object for the selector
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
@@ -242,6 +251,14 @@ export default function ConsentFlowPage() {
   };
 
   const [step, setStep] = useState(getInitialStep());
+  
+  // Update step when state changes from URL navigation (browser back/forward)
+  useEffect(() => {
+    const correctStep = getInitialStep();
+    if (step !== correctStep) {
+      setStep(correctStep);
+    }
+  }, [state.encounterType, state.universityId, state.parties, state.intimateActs, state.method]);
 
   const updateState = (updates: Partial<ConsentFlowState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -286,18 +303,40 @@ export default function ConsentFlowPage() {
     return false;
   };
 
+  // Helper to build URL with current state
+  const buildURLWithState = (): string => {
+    const params = new URLSearchParams();
+    
+    if (state.encounterType) params.set("encounterType", state.encounterType);
+    if (state.universityId) {
+      params.set("universityId", state.universityId);
+      params.set("universityName", state.universityName);
+    }
+    if (state.parties.some(p => p.trim() !== "")) {
+      params.set("parties", JSON.stringify(state.parties.filter(p => p.trim() !== "")));
+    }
+    if (state.intimateActs.length > 0) {
+      params.set("intimateActs", JSON.stringify(state.intimateActs));
+    }
+    if (state.method) {
+      params.set("method", state.method);
+    }
+    
+    return params.toString() ? `?${params.toString()}` : "";
+  };
+
   const handleNext = () => {
     if (!canProceed()) return;
 
     if (step === flowSteps.encounterType) {
-      // After selecting encounter type, go to university (if required) or parties
-      setStep(flowSteps.university || flowSteps.parties);
+      // Navigate with URL parameters to create browser history
+      navigate(`/consent/flow${buildURLWithState()}`);
     } else if (step === flowSteps.university) {
-      setStep(flowSteps.parties);
+      navigate(`/consent/flow${buildURLWithState()}`);
     } else if (step === flowSteps.parties) {
-      setStep(flowSteps.intimateActs);
+      navigate(`/consent/flow${buildURLWithState()}`);
     } else if (step === flowSteps.intimateActs) {
-      setStep(flowSteps.recordingMethod);
+      navigate(`/consent/flow${buildURLWithState()}`);
     } else if (step === flowSteps.recordingMethod && state.method) {
       const filteredParties = state.parties.filter(p => p.trim() !== "");
       const params = new URLSearchParams();
