@@ -33,7 +33,7 @@ const intimateEncounterType = { id: "intimate", label: "Intimate Encounter", ico
 
 const encounterTypes = [
   { id: "date", label: "Date", icon: Coffee },
-  { id: "conversation", label: "Private Conversation", icon: MessageCircle },
+  { id: "conversation", label: "Textual Matter", icon: MessageCircle },
   { id: "medical", label: "Medical", icon: Stethoscope },
   { id: "professional", label: "Professional", icon: Briefcase },
 ];
