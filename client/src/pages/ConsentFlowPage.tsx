@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
 
@@ -119,6 +120,9 @@ export default function ConsentFlowPage() {
 
   // Track selected university object for the selector
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
+  
+  // Track whether user selected "Not Applicable" for university
+  const [universityNotApplicable, setUniversityNotApplicable] = useState(false);
 
   // Sync selectedUniversity when universities load or state.universityId changes
   // Only sync if encounter type requires university AND universityId exists in state
@@ -269,7 +273,8 @@ export default function ConsentFlowPage() {
     if (step === flowSteps.encounterType) {
       return state.encounterType !== "";
     } else if (step === flowSteps.university) {
-      return state.universityId !== "";
+      // Can proceed if university is selected OR "Not Applicable" is chosen
+      return state.universityId !== "" || universityNotApplicable;
     } else if (step === flowSteps.parties) {
       return state.parties.some(p => p.trim() !== "");
     } else if (step === flowSteps.intimateActs) {
@@ -434,11 +439,41 @@ export default function ConsentFlowPage() {
             <h2 className="text-lg font-semibold mb-1">Step {flowSteps.university}: Select Your Institution</h2>
             <p className="text-sm text-muted-foreground">Choose your university to generate a Title IX-compliant consent contract</p>
           </div>
-          <UniversitySelector
-            universities={universities}
-            selectedUniversity={selectedUniversity}
-            onSelect={setSelectedUniversity}
-          />
+          
+          <RadioGroup
+            value={universityNotApplicable ? "not-applicable" : "select-university"}
+            onValueChange={(value) => {
+              const isNotApplicable = value === "not-applicable";
+              setUniversityNotApplicable(isNotApplicable);
+              if (isNotApplicable) {
+                // Clear university selection when "Not Applicable" is chosen
+                setSelectedUniversity(null);
+                updateState({ universityId: "", universityName: "" });
+              }
+            }}
+            className="space-y-3"
+          >
+            <div className="flex items-center space-x-3">
+              <RadioGroupItem value="select-university" id="select-university" data-testid="radio-select-university" />
+              <Label htmlFor="select-university" className="font-normal cursor-pointer">
+                Select My University
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3">
+              <RadioGroupItem value="not-applicable" id="not-applicable" data-testid="radio-not-applicable" />
+              <Label htmlFor="not-applicable" className="font-normal cursor-pointer">
+                Not Applicable
+              </Label>
+            </div>
+          </RadioGroup>
+
+          {!universityNotApplicable && (
+            <UniversitySelector
+              universities={universities}
+              selectedUniversity={selectedUniversity}
+              onSelect={setSelectedUniversity}
+            />
+          )}
         </div>
       )}
 
