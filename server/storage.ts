@@ -508,13 +508,13 @@ export class DbStorage implements IStorage {
     const result = await db
       .select()
       .from(consentRecordings)
-      .where(eq(consentRecordings.id, id));
+      .where(and(
+        eq(consentRecordings.id, id),
+        eq(consentRecordings.userId, userId)
+      ))
+      .limit(1);
     
-    const recording = result[0];
-    if (!recording || recording.userId !== userId) {
-      return undefined;
-    }
-    return recording;
+    return result[0]; // Already filtered by userId at DB level
   }
 
   async createRecording(insertRecording: InsertConsentRecording): Promise<ConsentRecording> {
@@ -543,13 +543,13 @@ export class DbStorage implements IStorage {
     const result = await db
       .select()
       .from(consentContracts)
-      .where(eq(consentContracts.id, id));
+      .where(and(
+        eq(consentContracts.id, id),
+        eq(consentContracts.userId, userId)
+      ))
+      .limit(1);
     
-    const contract = result[0];
-    if (!contract || contract.userId !== userId) {
-      return undefined;
-    }
-    return contract;
+    return result[0]; // Already filtered by userId at DB level
   }
 
   async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {

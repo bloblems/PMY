@@ -8,6 +8,9 @@ PMY is a mobile-first web application for documenting consent in accordance with
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Security Guidelines
+See `SECURITY_GUIDELINES.md` for comprehensive security design guidelines. All development must follow these security priorities to prevent Tea App-style data breaches.
+
 ## System Architecture
 
 ### UI/UX Decisions
