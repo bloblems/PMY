@@ -22,12 +22,12 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
-      <Route path="/" component={InfoPage} />
+      <Route path="/" component={ConsentFlowPage} />
+      <Route path="/titleix" component={InfoPage} />
       <Route path="/files" component={FilesPage} />
       <Route path="/custom" component={CustomPage} />
       <Route path="/share" component={SharePage} />
       <Route path="/admin" component={AdminPage} />
-      <Route path="/consent/flow" component={ConsentFlowPage} />
       <Route path="/consent/signature" component={ConsentSignaturePage} />
       <Route path="/consent/voice" component={ConsentVoicePage} />
       <Route path="/consent/photo" component={ConsentPhotoPage} />

@@ -42,13 +42,13 @@ export default function InfoPage() {
     if (successType === 'login') {
       setSuccessMessage("You've successfully logged in.");
       // Clear the URL parameter
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', window.location.pathname);
       // Auto-hide after 4 seconds
       setTimeout(() => setSuccessMessage(null), 4000);
     } else if (successType === 'signup') {
       setSuccessMessage("Your account has been created.");
       // Clear the URL parameter
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', window.location.pathname);
       // Auto-hide after 4 seconds
       setTimeout(() => setSuccessMessage(null), 4000);
     }
@@ -63,7 +63,7 @@ export default function InfoPage() {
         universityId: selectedUniversity.id,
         universityName: selectedUniversity.name,
       });
-      navigate(`/consent/flow?${params.toString()}`);
+      navigate(`/?${params.toString()}`);
     }
   };
 
@@ -138,7 +138,7 @@ export default function InfoPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Title IX Information</h1>
           <p className="text-muted-foreground">
-            Generate the consent required by your institution.
+            Learn about Title IX requirements at your institution.
           </p>
         </div>
         <Card className="p-12">
@@ -156,9 +156,9 @@ export default function InfoPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Create Title IX Consent</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Title IX Information</h1>
         <p className="text-muted-foreground">
-          Select your institution to generate consent contract.
+          Learn about Title IX requirements at your institution.
         </p>
       </div>
 

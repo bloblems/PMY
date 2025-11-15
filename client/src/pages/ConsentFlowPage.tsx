@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase } from "lucide-react";
+import UniversitySelector from "@/components/UniversitySelector";
+
+type University = {
+  id: string;
+  name: string;
+  state: string;
+  titleIXInfo: string;
+  titleIXUrl: string | null;
+  lastUpdated: string;
+  verifiedAt: string | null;
+};
 
 interface ConsentFlowState {
   universityId: string;
@@ -68,6 +79,11 @@ const recordingMethods = [
 export default function ConsentFlowPage() {
   const [, navigate] = useLocation();
   
+  // Fetch universities
+  const { data: universities = [] } = useQuery<University[]>({
+    queryKey: ["/api/universities"],
+  });
+  
   // Fetch current user data
   const { data: userData } = useQuery<{ user: { id: string; email: string; name: string | null } }>({
     queryKey: ["/api/auth/me"],
@@ -94,6 +110,46 @@ export default function ConsentFlowPage() {
     };
   });
 
+  // Track selected university object for the selector
+  const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
+
+  // Sync selectedUniversity when universities load or state.universityId changes
+  useEffect(() => {
+    if (universities.length > 0) {
+      if (state.universityId) {
+        // If there's a university ID in state, find and select it
+        const university = universities.find(u => u.id === state.universityId);
+        if (university) {
+          setSelectedUniversity(university);
+        } else {
+          // Invalid universityId - fall back to first university
+          setSelectedUniversity(universities[0]);
+          updateState({
+            universityId: universities[0].id,
+            universityName: universities[0].name,
+          });
+        }
+      } else if (!selectedUniversity) {
+        // If no university selected yet, default to first one
+        setSelectedUniversity(universities[0]);
+        updateState({
+          universityId: universities[0].id,
+          universityName: universities[0].name,
+        });
+      }
+    }
+  }, [universities, state.universityId]);
+
+  // Update state when university is manually selected
+  useEffect(() => {
+    if (selectedUniversity && selectedUniversity.id !== state.universityId) {
+      updateState({
+        universityId: selectedUniversity.id,
+        universityName: selectedUniversity.name,
+      });
+    }
+  }, [selectedUniversity]);
+
   // Pre-fill first participant with logged-in user's name when available
   useEffect(() => {
     if (userData?.user?.name && state.parties[0] === "") {
@@ -105,10 +161,11 @@ export default function ConsentFlowPage() {
 
   // Determine initial step based on state
   const getInitialStep = () => {
-    if (state.method) return 4;
-    if (state.intimateActs.length > 0) return 3;
-    if (state.parties.some(p => p.trim() !== "")) return 2;
+    if (state.method) return 5;
+    if (state.intimateActs.length > 0) return 4;
+    if (state.parties.some(p => p.trim() !== "")) return 3;
     if (state.encounterType) return 2;
+    if (state.universityId) return 2;
     return 1;
   };
 
@@ -140,10 +197,11 @@ export default function ConsentFlowPage() {
     updateState({ intimateActs: newActs });
   };
 
-  const canProceedFromStep1 = state.encounterType !== "";
-  const canProceedFromStep2 = state.parties.some(p => p.trim() !== "");
-  const canProceedFromStep3 = true; // Can proceed even with no acts selected
-  const canProceedFromStep4 = state.method !== null;
+  const canProceedFromStep1 = state.universityId !== "";
+  const canProceedFromStep2 = state.encounterType !== "";
+  const canProceedFromStep3 = state.parties.some(p => p.trim() !== "");
+  const canProceedFromStep4 = true; // Can proceed even with no acts selected
+  const canProceedFromStep5 = state.method !== null;
 
   const handleNext = () => {
     if (step === 1 && canProceedFromStep1) {
@@ -153,6 +211,8 @@ export default function ConsentFlowPage() {
     } else if (step === 3 && canProceedFromStep3) {
       setStep(4);
     } else if (step === 4 && canProceedFromStep4) {
+      setStep(5);
+    } else if (step === 5 && canProceedFromStep5) {
       const filteredParties = state.parties.filter(p => p.trim() !== "");
       const params = new URLSearchParams({
         universityId: state.universityId,
@@ -178,8 +238,6 @@ export default function ConsentFlowPage() {
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
-    } else {
-      navigate("/");
     }
   };
 
@@ -201,7 +259,7 @@ export default function ConsentFlowPage() {
       </div>
 
       <div className="flex items-center justify-center gap-2 mb-6">
-        {[1, 2, 3, 4].map((s) => (
+        {[1, 2, 3, 4, 5].map((s) => (
           <div
             key={s}
             className={`h-2 rounded-full transition-all ${
@@ -219,7 +277,21 @@ export default function ConsentFlowPage() {
       {step === 1 && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 1: Encounter Type</h2>
+            <h2 className="text-lg font-semibold mb-1">Step 1: Select Your Institution</h2>
+            <p className="text-sm text-muted-foreground">Choose your university to generate a Title IX-compliant consent contract</p>
+          </div>
+          <UniversitySelector
+            universities={universities}
+            selectedUniversity={selectedUniversity}
+            onSelect={setSelectedUniversity}
+          />
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-1">Step 2: Encounter Type</h2>
             <p className="text-sm text-muted-foreground">What kind of encounter is this consent for?</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -261,10 +333,10 @@ export default function ConsentFlowPage() {
         </div>
       )}
 
-      {step === 2 && (
+      {step === 3 && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 2: Parties Involved</h2>
+            <h2 className="text-lg font-semibold mb-1">Step 3: Parties Involved</h2>
             <p className="text-sm text-muted-foreground">
               Add the names of other participants (in addition to yourself)
             </p>
@@ -304,10 +376,10 @@ export default function ConsentFlowPage() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 3: Intimate Acts</h2>
+            <h2 className="text-lg font-semibold mb-1">Step 4: Intimate Acts</h2>
             <p className="text-sm text-muted-foreground">Select which activities require documented consent (optional)</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -349,10 +421,10 @@ export default function ConsentFlowPage() {
         </div>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 4: Recording Method</h2>
+            <h2 className="text-lg font-semibold mb-1">Step 5: Recording Method</h2>
             <p className="text-sm text-muted-foreground">How would you like to document consent?</p>
           </div>
           <div className="space-y-3">
@@ -399,12 +471,13 @@ export default function ConsentFlowPage() {
             (step === 1 && !canProceedFromStep1) ||
             (step === 2 && !canProceedFromStep2) ||
             (step === 3 && !canProceedFromStep3) ||
-            (step === 4 && !canProceedFromStep4)
+            (step === 4 && !canProceedFromStep4) ||
+            (step === 5 && !canProceedFromStep5)
           }
           className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
           data-testid="button-next"
         >
-          {step === 4 ? "Continue" : "Next"}
+          {step === 5 ? "Continue" : "Next"}
           <ChevronRight className="h-4 w-4 ml-2" />
         </Button>
       </div>
