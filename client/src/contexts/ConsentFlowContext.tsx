@@ -65,11 +65,18 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
   };
 
   const hasRequiredData = () => {
-    return Boolean(
-      state.encounterType &&
-      state.parties.length > 0 &&
-      state.parties[0]
-    );
+    // Check that we have an encounter type
+    if (!state.encounterType || state.encounterType.trim() === "") {
+      return false;
+    }
+    
+    // Check that we have at least 2 non-empty party names
+    const validParties = state.parties.filter(p => p && p.trim() !== "");
+    if (validParties.length < 2) {
+      return false;
+    }
+    
+    return true;
   };
 
   return (
