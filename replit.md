@@ -3,6 +3,8 @@
 ## Overview
 PMY is a mobile-first web application for documenting consent in accordance with Title IX requirements. It provides four consent documentation methods: digital signature contracts, audio recording for verbal agreements, photo/selfie capture, and biometric authentication using Touch ID/Face ID/Windows Hello. The app also provides educational information about Title IX consent, customized by university. The application aims to be a secure, legally sound platform adhering to Apple's Human Interface Guidelines and legal-tech patterns, with the ambition to become a leading solution for Title IX compliance and education in academic institutions.
 
+**iOS Deployment Strategy**: The application is architected for deployment as an iOS app using a two-phase approach: (1) Quick launch via Capacitor WebView container wrapping the existing React app, (2) Long-term enhancement with React Native modules for native features. Current architecture already aligns with iOS requirements through React Context state management, Apple HIG design patterns, and mobile-first responsive layout. See `IOS_DEPLOYMENT_STRATEGY.md` for complete roadmap.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -34,7 +36,7 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 ### System Design Choices
 - **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
 - **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
-- **State Management**: Frontend uses TanStack Query for server state and React Context API with sessionStorage for maintaining state across multi-step consent flows. The ConsentFlowContext provides centralized state management with automatic persistence, supporting browser back/forward navigation, page refreshes, and iOS WebView compatibility. All consent method pages implement defensive routing to prevent access without required flow data.
+- **State Management**: Frontend uses TanStack Query for server state and React Context API with sessionStorage for maintaining state across multi-step consent flows. The ConsentFlowContext provides centralized state management with automatic persistence, supporting browser back/forward navigation, page refreshes, and iOS WebView compatibility. All consent method pages implement defensive routing to prevent access without required flow data. **iOS Readiness**: Storage layer designed for abstraction to support native iOS secure storage (Keychain/SecureStorage) via interface pattern when deploying with Capacitor.
 - **Navigation**: Bottom navigation bar with 4 tabs: Create (home/consent flow), Tools (quick access to Title IX, ID verification, and status checks), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/). Tools serves as a hub providing access to Title IX information and verification integrations.
 - **Security**: Implements secure password hashing, session management, and WebAuthn for biometric authentication, ensuring privacy by keeping biometric data on-device.
 

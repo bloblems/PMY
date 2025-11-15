@@ -6,6 +6,8 @@
 
 **Rationale**: This application handles sensitive legal documentation requiring maximum trust, clarity, and professionalism. The clean, minimal iOS aesthetic combined with legal-tech precision creates the "modern and classy" experience for the target demographic while ensuring usability in potentially stressful situations.
 
+**iOS Deployment Alignment**: This design system is intentionally crafted to translate seamlessly from web to native iOS. All components follow iOS patterns (bottom tab navigation, card-based layouts, system fonts) and will render identically in a Capacitor WebView or React Native container. Touch targets, spacing, and typography already meet Apple's accessibility requirements.
+
 **Core Principles**:
 - Trustworthy & Professional: Every interaction reinforces legal validity and security
 - Clarity Over Decoration: Information hierarchy guides users through critical legal processes
