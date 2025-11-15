@@ -29,13 +29,13 @@ export interface IStorage {
   getRecordingsByUserId(userId: string): Promise<ConsentRecording[]>;
   getRecording(id: string, userId: string): Promise<ConsentRecording | undefined>;
   createRecording(recording: InsertConsentRecording): Promise<ConsentRecording>;
-  deleteRecording(id: string, userId: string): Promise<void>;
+  deleteRecording(id: string, userId: string): Promise<boolean>;
 
   // Contract methods
   getContractsByUserId(userId: string): Promise<ConsentContract[]>;
   getContract(id: string, userId: string): Promise<ConsentContract | undefined>;
   createContract(contract: InsertConsentContract): Promise<ConsentContract>;
-  deleteContract(id: string, userId: string): Promise<void>;
+  deleteContract(id: string, userId: string): Promise<boolean>;
 
   // User methods
   getUser(id: string): Promise<User | undefined>;
@@ -214,11 +214,13 @@ export class MemStorage implements IStorage {
     return recording;
   }
 
-  async deleteRecording(id: string, userId: string): Promise<void> {
+  async deleteRecording(id: string, userId: string): Promise<boolean> {
     const recording = this.recordings.get(id);
     if (recording && recording.userId === userId) {
       this.recordings.delete(id);
+      return true;
     }
+    return false;
   }
 
   async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
@@ -262,11 +264,13 @@ export class MemStorage implements IStorage {
     return contract;
   }
 
-  async deleteContract(id: string, userId: string): Promise<void> {
+  async deleteContract(id: string, userId: string): Promise<boolean> {
     const contract = this.contracts.get(id);
     if (contract && contract.userId === userId) {
       this.contracts.delete(id);
+      return true;
     }
+    return false;
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -518,10 +522,12 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async deleteRecording(id: string, userId: string): Promise<void> {
-    await db
+  async deleteRecording(id: string, userId: string): Promise<boolean> {
+    const result = await db
       .delete(consentRecordings)
-      .where(and(eq(consentRecordings.id, id), eq(consentRecordings.userId, userId)));
+      .where(and(eq(consentRecordings.id, id), eq(consentRecordings.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Contract methods
@@ -558,10 +564,12 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async deleteContract(id: string, userId: string): Promise<void> {
-    await db
+  async deleteContract(id: string, userId: string): Promise<boolean> {
+    const result = await db
       .delete(consentContracts)
-      .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)));
+      .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Verification payment methods

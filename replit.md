@@ -45,7 +45,15 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
   - **Security Guarantees**: On native platforms, consent data encrypted at rest, protected by device passcode/biometrics, sandboxed per-app. On web, session-based storage with no plaintext persistence after browser close.
   - **Capacitor Configuration**: `capacitor.config.ts` initialized for iOS deployment with webDir, server, and iOS-specific settings
 - **Navigation**: Bottom navigation bar with 4 tabs: Create (home/consent flow), Tools (quick access to Title IX, ID verification, and status checks), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/). Tools serves as a hub providing access to Title IX information and verification integrations.
-- **Security**: Implements secure password hashing, session management, WebAuthn for biometric authentication (keeping biometric data on-device), and encrypted storage for consent flow state on iOS/Android via Keychain/Keystore integration.
+- **Security**: Implements comprehensive security measures to prevent Tea App-style data breaches:
+  - **Authentication**: All consent data endpoints require `isAuthenticated` middleware (recordings, contracts, photos, biometric)
+  - **User Data Isolation**: Every consent record (contracts, recordings) is scoped to `userId` from authenticated session, preventing cross-user data access
+  - **Ownership Verification**: All read/delete operations verify ownership before returning data (returns 404 for unauthorized access)
+  - **Delete Authorization**: Delete methods return boolean indicating success; endpoints return 404 when user doesn't own the resource
+  - **Password Security**: PBKDF2 hashing with salt for user passwords
+  - **Session Management**: Express-session with secure cookie settings
+  - **Biometric Authentication**: WebAuthn for Touch ID/Face ID/Windows Hello (biometric data stays on-device)
+  - **Encrypted Storage**: AES-256 Keychain/Keystore integration for consent flow state on iOS/Android
 
 ## External Dependencies
 

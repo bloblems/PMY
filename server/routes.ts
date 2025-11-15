@@ -65,13 +65,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signup", (req, res, next) => {
     passport.authenticate("local-signup", (err: any, user: any, info: any) => {
       if (err) {
+        console.error("Signup error:", err);
         return res.status(500).json({ error: "Signup failed" });
       }
       if (!user) {
+        console.error("Signup failed - no user:", info);
         return res.status(400).json({ error: info?.message || "Signup failed" });
       }
       req.login(user, (loginErr) => {
         if (loginErr) {
+          console.error("Login after signup error:", loginErr);
           return res.status(500).json({ error: "Login after signup failed" });
         }
         return res.json({ user: { id: user.id, email: user.email, name: user.name } });
@@ -220,8 +223,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload a new recording
-  app.post("/api/recordings", upload.single("audio"), async (req, res) => {
+  // Upload a new recording (requires authentication)
+  app.post("/api/recordings", isAuthenticated, upload.single("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -236,8 +239,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For now, store as data URL (will be replaced with object storage later)
       const fileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
+      // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
+      const user = req.user as any;
+
       // Save to storage
       const recording = await storage.createRecording({
+        userId: user.id,
         filename,
         fileUrl,
         duration,
@@ -255,7 +262,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const user = req.user as any;
-      await storage.deleteRecording(id, user.id);
+      const deleted = await storage.deleteRecording(id, user.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Recording not found or unauthorized" });
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete recording" });
@@ -318,7 +328,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: `Signature 2: ${sig2Validation.error}` });
       }
 
-      const contract = await storage.createContract(parsed.data);
+      // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
+      const user = req.user as any;
+      const contract = await storage.createContract({
+        ...parsed.data,
+        userId: user.id
+      });
       
       // Save user's OWN signature (signature1) if requested
       // This ensures we never accidentally save the partner's signature
@@ -345,7 +360,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const user = req.user as any;
-      await storage.deleteContract(id, user.id);
+      const deleted = await storage.deleteContract(id, user.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Contract not found or unauthorized" });
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete contract" });
@@ -391,7 +409,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const contract = await storage.createContract(parsed.data);
+      // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
+      const user = req.user as any;
+      const contract = await storage.createContract({
+        ...parsed.data,
+        userId: user.id
+      });
       res.json(contract);
     } catch (error) {
       console.error("Error creating consent contract:", error);
@@ -399,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-recordings", upload.single("audio"), async (req, res) => {
+  app.post("/api/consent-recordings", isAuthenticated, upload.single("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -418,8 +441,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
       const filename = `consent-${Date.now()}.webm`;
 
+      // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
+      const user = req.user as any;
+
       // Save to storage with enhanced fields
       const recording = await storage.createRecording({
+        userId: user.id,
         universityId: universityId || undefined,
         encounterType: encounterType || undefined,
         parties: parsedParties,
@@ -435,7 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-photos", upload.single("photo"), async (req, res) => {
+  app.post("/api/consent-photos", isAuthenticated, upload.single("photo"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No photo file provided" });
@@ -449,8 +476,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store photo as data URL
       const photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
+      // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
+      const user = req.user as any;
+
       // Create a contract with the photo
       const contract = await storage.createContract({
+        userId: user.id,
         universityId: universityId || undefined,
         encounterType: encounterType || undefined,
         parties: parsedParties,
@@ -468,7 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-biometric", async (req, res) => {
+  app.post("/api/consent-biometric", isAuthenticated, async (req, res) => {
     try {
       const { 
         universityId, 
@@ -519,8 +550,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
+      const user = req.user as any;
+
       // Create contract with verified biometric data
-      const contract = await storage.createContract(parsed.data);
+      const contract = await storage.createContract({
+        ...parsed.data,
+        userId: user.id
+      });
 
       res.json(contract);
     } catch (error) {
