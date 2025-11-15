@@ -34,7 +34,6 @@ const encounterTypes = [
   { id: "conversation", label: "Private Conversation", icon: MessageCircle },
   { id: "medical", label: "Medical", icon: Stethoscope },
   { id: "professional", label: "Professional", icon: Briefcase },
-  { id: "social", label: "Social Gathering", icon: Users },
 ];
 
 const otherEncounterType = { id: "other", label: "Other", icon: Users };
