@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation, useSearch } from "wouter";
+import { useLocation } from "wouter";
+import { useConsentFlow } from "@/contexts/ConsentFlowContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,7 +88,7 @@ const recordingMethods = [
 
 export default function ConsentFlowPage() {
   const [location, navigate] = useLocation();
-  const searchString = useSearch();
+  const { state, updateState: updateFlowState } = useConsentFlow();
   
   // Fetch universities
   const { data: universities = [] } = useQuery<University[]>({
@@ -99,50 +100,10 @@ export default function ConsentFlowPage() {
     queryKey: ["/api/auth/me"],
   });
   
-  // Helper function to get initial state from localStorage or defaults
-  // Note: This runs ONCE when component first mounts
-  const getInitialState = (): ConsentFlowState => {
-    // Try to restore from localStorage first (used when navigating back from consent method pages)
-    const savedState = localStorage.getItem("consentFlowState");
-    if (savedState) {
-      try {
-        const parsed = JSON.parse(savedState);
-        console.log('[ConsentFlow] Restored state from localStorage on mount:', parsed);
-        // DON'T clear here - let useEffect handle clearing after state is set
-        return {
-          ...parsed,
-          method: null, // Always clear method when coming back to flow page
-        };
-      } catch (e) {
-        console.error('[ConsentFlow] Failed to parse localStorage state:', e);
-      }
-    }
-    
-    // Default empty state
-    console.log('[ConsentFlow] Using default empty state');
-    return {
-      universityId: "",
-      universityName: "",
-      encounterType: "",
-      parties: ["", ""],
-      intimateActs: [],
-      method: null,
-    };
-  };
-  
-  // Get initial state once
-  const initialState = getInitialState();
-  console.log('[ConsentFlow] Component mounting, initialState:', initialState);
-  
-  // Initialize state from URL parameters
-  const [state, setState] = useState<ConsentFlowState>(initialState);
-  
-  // Clear localStorage after initial mount if we used it
+  // Always clear method when returning to flow page (allows reselection)
   useEffect(() => {
-    const savedState = localStorage.getItem("consentFlowState");
-    if (savedState) {
-      console.log('[ConsentFlow] Clearing localStorage after mount');
-      localStorage.removeItem("consentFlowState");
+    if (state.method !== null) {
+      updateFlowState({ method: null });
     }
   }, []);
 
@@ -163,7 +124,7 @@ export default function ConsentFlowPage() {
       } else {
         // Invalid universityId - clear it
         setSelectedUniversity(null);
-        updateState({
+        updateFlowState({
           universityId: "",
           universityName: "",
         });
@@ -174,7 +135,7 @@ export default function ConsentFlowPage() {
   // Update state when university is manually selected
   useEffect(() => {
     if (selectedUniversity && selectedUniversity.id !== state.universityId) {
-      updateState({
+      updateFlowState({
         universityId: selectedUniversity.id,
         universityName: selectedUniversity.name,
       });
@@ -189,7 +150,7 @@ export default function ConsentFlowPage() {
       const newFlowSteps = getFlowSteps();
       
       // Clear all flow state when encounter type changes to ensure clean slate
-      updateState({
+      updateFlowState({
         universityId: "",
         universityName: "",
         parties: ["", ""],
@@ -211,7 +172,7 @@ export default function ConsentFlowPage() {
     if (userData?.user?.name && state.parties[0] === "") {
       const newParties = [...state.parties];
       newParties[0] = userData.user.name;
-      updateState({ parties: newParties });
+      updateFlowState({ parties: newParties });
     }
   }, [userData]);
 
@@ -275,35 +236,31 @@ export default function ConsentFlowPage() {
   };
 
   const [step, setStep] = useState(() => {
-    const initialStep = getInitialStep(initialState);
+    const initialStep = getInitialStep(state);
     console.log('[ConsentFlow] Initializing step:', initialStep, 'flowSteps:', getFlowSteps());
     return initialStep;
   });
 
-  const updateState = (updates: Partial<ConsentFlowState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  };
-
   const addParty = () => {
-    updateState({ parties: [...state.parties, ""] });
+    updateFlowState({ parties: [...state.parties, ""] });
   };
 
   const updateParty = (index: number, value: string) => {
     const newParties = [...state.parties];
     newParties[index] = value;
-    updateState({ parties: newParties });
+    updateFlowState({ parties: newParties });
   };
 
   const removeParty = (index: number) => {
     const newParties = state.parties.filter((_, i) => i !== index);
-    updateState({ parties: newParties.length === 0 ? [""] : newParties });
+    updateFlowState({ parties: newParties.length === 0 ? [""] : newParties });
   };
 
   const toggleIntimateAct = (act: string) => {
     const newActs = state.intimateActs.includes(act)
       ? state.intimateActs.filter(a => a !== act)
       : [...state.intimateActs, act];
-    updateState({ intimateActs: newActs });
+    updateFlowState({ intimateActs: newActs });
   };
 
   // Dynamic validation based on current step
@@ -448,7 +405,7 @@ export default function ConsentFlowPage() {
                 ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
                 : ""
             }`}
-            onClick={() => updateState({ encounterType: intimateEncounterType.id })}
+            onClick={() => updateFlowState({ encounterType: intimateEncounterType.id })}
             data-testid={`option-encounter-${intimateEncounterType.id}`}
           >
             <div className="flex flex-col items-center text-center gap-2">
@@ -467,7 +424,7 @@ export default function ConsentFlowPage() {
                       ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
                       : ""
                   }`}
-                  onClick={() => updateState({ encounterType: type.id })}
+                  onClick={() => updateFlowState({ encounterType: type.id })}
                   data-testid={`option-encounter-${type.id}`}
                 >
                   <div className="flex flex-col items-center text-center gap-2">
@@ -484,7 +441,7 @@ export default function ConsentFlowPage() {
                 ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
                 : ""
             }`}
-            onClick={() => updateState({ encounterType: otherEncounterType.id })}
+            onClick={() => updateFlowState({ encounterType: otherEncounterType.id })}
             data-testid={`option-encounter-${otherEncounterType.id}`}
           >
             <div className="flex items-center justify-center gap-3">
@@ -510,7 +467,7 @@ export default function ConsentFlowPage() {
               if (isNotApplicable) {
                 // Clear university selection when "Not Applicable" is chosen
                 setSelectedUniversity(null);
-                updateState({ universityId: "", universityName: "" });
+                updateFlowState({ universityId: "", universityName: "" });
               }
             }}
             className="space-y-3"
@@ -656,7 +613,7 @@ export default function ConsentFlowPage() {
                       ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
                       : ""
                   }`}
-                  onClick={() => updateState({ method: method.id })}
+                  onClick={() => updateFlowState({ method: method.id })}
                   data-testid={`option-method-${method.id}`}
                 >
                   <div className="flex items-center gap-4">
