@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { storage } from "@/services/storage";
 
 export interface ConsentFlowState {
   universityId: string;
@@ -30,38 +31,57 @@ const STORAGE_KEY = "pmy_consent_flow_state";
 const ConsentFlowContext = createContext<ConsentFlowContextType | undefined>(undefined);
 
 export function ConsentFlowProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<ConsentFlowState>(() => {
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log("[ConsentFlowContext] Restored from sessionStorage:", parsed);
-        return parsed;
-      }
-    } catch (e) {
-      console.error("[ConsentFlowContext] Failed to restore from sessionStorage:", e);
-    }
-    console.log("[ConsentFlowContext] Using default state");
-    return defaultState;
-  });
+  const [state, setState] = useState<ConsentFlowState>(defaultState);
+  const [isHydrated, setIsHydrated] = useState(false);
 
+  // Hydrate state from storage on mount (async)
   useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      console.log("[ConsentFlowContext] Persisted to sessionStorage:", state);
-    } catch (e) {
-      console.error("[ConsentFlowContext] Failed to persist to sessionStorage:", e);
+    async function loadState() {
+      try {
+        const saved = await storage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setState(parsed);
+          console.log("[ConsentFlowContext] Restored from storage:", parsed);
+        } else {
+          console.log("[ConsentFlowContext] No saved state, using default");
+        }
+      } catch (e) {
+        console.error("[ConsentFlowContext] Failed to restore from storage:", e);
+      } finally {
+        setIsHydrated(true);
+      }
     }
-  }, [state]);
+    loadState();
+  }, []);
+
+  // Persist state to storage whenever it changes (after initial hydration)
+  useEffect(() => {
+    if (!isHydrated) return; // Don't persist until we've loaded initial state
+    
+    async function saveState() {
+      try {
+        await storage.setItem(STORAGE_KEY, JSON.stringify(state));
+        console.log("[ConsentFlowContext] Persisted to storage:", state);
+      } catch (e) {
+        console.error("[ConsentFlowContext] Failed to persist to storage:", e);
+      }
+    }
+    saveState();
+  }, [state, isHydrated]);
 
   const updateState = (updates: Partial<ConsentFlowState>) => {
     setState(prev => ({ ...prev, ...updates }));
   };
 
-  const resetState = () => {
+  const resetState = async () => {
     setState(defaultState);
-    sessionStorage.removeItem(STORAGE_KEY);
-    console.log("[ConsentFlowContext] State reset");
+    try {
+      await storage.removeItem(STORAGE_KEY);
+      console.log("[ConsentFlowContext] State reset");
+    } catch (e) {
+      console.error("[ConsentFlowContext] Failed to clear storage:", e);
+    }
   };
 
   const hasRequiredData = () => {
