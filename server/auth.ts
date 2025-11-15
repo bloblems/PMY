@@ -2,8 +2,10 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { storage } from "./storage";
 import { randomBytes, pbkdf2Sync } from "crypto";
+import { pool } from "./db";
 
 function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
   const newSalt = salt || randomBytes(32).toString("hex");
@@ -22,16 +24,28 @@ export function setupAuth(app: Express) {
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
-  // Session configuration
+  // Configure PostgreSQL session store for production-ready persistent sessions
+  const PgSession = connectPgSimple(session);
+  
+  // Session configuration with PostgreSQL backing
   app.use(
     session({
+      store: new PgSession({
+        pool: pool, // Use existing PostgreSQL connection pool
+        tableName: 'session', // Will be created automatically
+        createTableIfMissing: true,
+        // Prune expired sessions automatically
+        pruneSessionInterval: 60 * 15, // Run every 15 minutes
+      }),
       secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
       resave: false,
       saveUninitialized: false,
+      rolling: true, // Reset expiration on activity
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+        sameSite: "strict", // CSRF protection: prevent cross-site cookie transmission
       },
     })
   );

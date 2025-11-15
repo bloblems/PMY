@@ -10,6 +10,7 @@ import { generateChallenge, verifyAttestation, generateSessionId } from "./webau
 import { isAuthenticated } from "./auth";
 import { sendInvitationEmail, sendDocumentEmail } from "./email";
 import rateLimit from "express-rate-limit";
+import { csrfProtection, setCsrfToken } from "./csrf";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -141,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })(req, res, next);
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", csrfProtection, (req, res) => {
     req.logout((err) => {
       if (err) {
         return res.status(500).json({ error: "Logout failed" });
@@ -165,6 +166,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
     res.status(401).json({ error: "Not authenticated" });
+  });
+
+  // CSRF token endpoint - sets CSRF token in cookie and session
+  app.get("/api/csrf-token", setCsrfToken, (req, res) => {
+    // Token is already set in cookie by setCsrfToken middleware
+    res.json({ success: true });
   });
 
   // WebAuthn endpoints for secure biometric authentication
@@ -266,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload a new recording (requires authentication)
-  app.post("/api/recordings", isAuthenticated, upload.single("audio"), async (req, res) => {
+  app.post("/api/recordings", isAuthenticated, csrfProtection, upload.single("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -300,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a recording (requires authentication)
-  app.delete("/api/recordings/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/recordings/:id", isAuthenticated, csrfProtection, async (req, res) => {
     try {
       const { id } = req.params;
       const user = req.user as any;
@@ -343,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new contract (requires authentication)
-  app.post("/api/contracts", isAuthenticated, async (req, res) => {
+  app.post("/api/contracts", isAuthenticated, csrfProtection, async (req, res) => {
     try {
       const { shouldSave, signatureType, signatureText, ...contractData } = req.body;
       const parsed = insertConsentContractSchema.safeParse(contractData);
@@ -398,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a contract
-  app.delete("/api/contracts/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/contracts/:id", isAuthenticated, csrfProtection, async (req, res) => {
     try {
       const { id } = req.params;
       const user = req.user as any;
@@ -413,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // New consent creation endpoints with enhanced fields (requires authentication)
-  app.post("/api/consent-contracts", isAuthenticated, async (req, res) => {
+  app.post("/api/consent-contracts", isAuthenticated, csrfProtection, async (req, res) => {
     try {
       const parsed = insertConsentContractSchema.safeParse(req.body);
       
@@ -464,7 +471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-recordings", isAuthenticated, upload.single("audio"), async (req, res) => {
+  app.post("/api/consent-recordings", isAuthenticated, csrfProtection, upload.single("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -504,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-photos", isAuthenticated, upload.single("photo"), async (req, res) => {
+  app.post("/api/consent-photos", isAuthenticated, csrfProtection, upload.single("photo"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No photo file provided" });
@@ -541,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-biometric", isAuthenticated, async (req, res) => {
+  app.post("/api/consent-biometric", isAuthenticated, csrfProtection, async (req, res) => {
     try {
       const { 
         universityId, 
@@ -877,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Referral routes
-  app.post("/api/referrals", referralRateLimiter, async (req, res) => {
+  app.post("/api/referrals", isAuthenticated, csrfProtection, referralRateLimiter, async (req, res) => {
     try {
       if (!req.isAuthenticated || !req.isAuthenticated()) {
         return res.status(401).json({ error: "Not authenticated" });
@@ -991,7 +998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Share document via email
-  app.post("/api/share-document", documentShareRateLimiter, async (req, res) => {
+  app.post("/api/share-document", isAuthenticated, csrfProtection, documentShareRateLimiter, async (req, res) => {
     try {
       if (!req.isAuthenticated || !req.isAuthenticated()) {
         return res.status(401).json({ error: "Not authenticated" });
