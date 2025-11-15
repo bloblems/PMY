@@ -48,15 +48,18 @@ export function getOidcSession() {
   });
 }
 
-// Update user session with OIDC tokens
-function updateUserSession(
-  user: any,
+// Store OIDC tokens in session (separate from Passport user object)
+function storeTokensInSession(
+  req: any,
   tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers
 ) {
-  user.claims = tokens.claims();
-  user.access_token = tokens.access_token;
-  user.refresh_token = tokens.refresh_token;
-  user.expires_at = user.claims?.exp;
+  const claims = tokens.claims();
+  req.session.oidc_tokens = {
+    claims,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expires_at: claims?.exp,
+  };
 }
 
 // Upsert user in database from OIDC claims
@@ -78,9 +81,28 @@ export async function setupOidcAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
+    const claims = tokens.claims();
+    
+    // Upsert user in database
+    await upsertUser(claims);
+    
+    // Retrieve the database user record
+    const dbUser = await storage.getUser(claims["sub"]);
+    if (!dbUser) {
+      return verified(new Error("Failed to retrieve user from database"));
+    }
+    
+    // Store token metadata for later retrieval (attached to user for the callback handler)
+    const user = {
+      ...dbUser,
+      _oidc_tokens: {
+        claims,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_at: claims?.exp,
+      }
+    };
+    
     verified(null, user);
   };
 
@@ -119,57 +141,96 @@ export async function setupOidcAuth(app: Express) {
   app.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
     
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/auth/login",
-    })(req, res, (err: any) => {
+    passport.authenticate(`replitauth:${req.hostname}`, (err: any, user: any) => {
       if (err) {
         logAuthEvent(req, "login_failure", undefined, undefined, { error: err.message, method: "oidc" });
-        return next(err);
+        return res.redirect("/auth/login");
       }
       
-      // Log successful OIDC login
-      const userId = (req.user as any)?.claims?.sub;
-      const email = (req.user as any)?.claims?.email;
-      logAuthEvent(req, "login", userId, email, { method: "oidc" });
+      if (!user) {
+        logAuthEvent(req, "login_failure", undefined, undefined, { error: "No user returned", method: "oidc" });
+        return res.redirect("/auth/login");
+      }
       
-      res.redirect("/");
-    });
+      // Extract OIDC tokens from user object
+      const oidcTokens = (user as any)._oidc_tokens;
+      
+      // Store tokens in session (separate from Passport user)
+      if (oidcTokens) {
+        req.session.oidc_tokens = oidcTokens;
+      }
+      
+      // Log the user in (this will serialize only user.id via Passport)
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          logAuthEvent(req, "login_failure", user.id, user.email, { error: loginErr.message, method: "oidc" });
+          return next(loginErr);
+        }
+        
+        // Log successful OIDC login
+        logAuthEvent(req, "login", user.id, user.email, { method: "oidc" });
+        
+        res.redirect("/");
+      });
+    })(req, res, next);
   });
 
   // OIDC logout route
-  app.get("/api/logout", (req, res) => {
-    const userId = (req.user as any)?.claims?.sub;
-    const email = (req.user as any)?.claims?.email;
+  app.get("/api/logout", async (req, res) => {
+    const user = req.user as any;
+    const userId = user?.id;
+    const email = user?.email;
     
-    req.logout(() => {
-      logAuthEvent(req, "logout", userId, email);
+    // Log before logout (user will be cleared after)
+    logAuthEvent(req, "logout", userId, email, { method: "oidc" });
+    
+    req.logout((err) => {
+      // Clear OIDC tokens from session
+      if (req.session?.oidc_tokens) {
+        delete req.session.oidc_tokens;
+      }
       
-      res.redirect(
-        client.buildEndSessionUrl(getOidcConfig() as any, {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.redirect("/");
+      }
+      
+      // Build end session URL with awaited config
+      getOidcConfig().then((config) => {
+        const endSessionUrl = client.buildEndSessionUrl(config, {
           client_id: process.env.REPL_ID!,
           post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+        });
+        res.redirect(endSessionUrl.href);
+      }).catch((configErr) => {
+        console.error("Failed to get OIDC config for logout:", configErr);
+        res.redirect("/");
+      });
     });
   });
 }
 
 // Middleware for OIDC token refresh
 export const isOidcAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  const oidcTokens = req.session?.oidc_tokens;
 
-  if (!req.isAuthenticated() || !user?.expires_at) {
+  // Check if authenticated and has OIDC tokens
+  if (!req.isAuthenticated() || !oidcTokens) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  // If no expires_at or not expired, proceed
+  if (!oidcTokens.expires_at) {
+    return next();
+  }
+
   const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
+  if (now <= oidcTokens.expires_at) {
     return next();
   }
 
   // Token expired, try to refresh
-  const refreshToken = user.refresh_token;
+  const refreshToken = oidcTokens.refresh_token;
   if (!refreshToken) {
     res.status(401).json({ message: "Unauthorized" });
     return;
@@ -178,10 +239,46 @@ export const isOidcAuthenticated: RequestHandler = async (req, res, next) => {
   try {
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
+    
+    // Update tokens in session
+    storeTokensInSession(req, tokenResponse);
+    
+    // Refresh user claims if email/name changed
+    const newClaims = tokenResponse.claims();
+    if (newClaims) {
+      await upsertUser(newClaims);
+      
+      // Reload user from database
+      const updatedUser = await storage.getUser(newClaims["sub"]);
+      if (updatedUser) {
+        // Update session via req.login to persist changes across requests
+        return new Promise<void>((resolve, reject) => {
+          req.login(updatedUser, (err) => {
+            if (err) {
+              console.error("Failed to update session after refresh:", err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        }).then(() => next()).catch(() => {
+          res.status(500).json({ message: "Failed to update session" });
+        });
+      }
+    }
+    
     return next();
   } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
+    console.error("Token refresh failed:", error);
+    
+    // Clear stale tokens and force logout on refresh failure
+    if (req.session?.oidc_tokens) {
+      delete req.session.oidc_tokens;
+    }
+    
+    req.logout(() => {
+      res.status(401).json({ message: "Unauthorized" });
+    });
     return;
   }
 };

@@ -161,12 +161,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const email = user?.email;
     const userId = user?.id;
     
+    // Log before logout
+    logAuthEvent(req, "logout", userId, email, { method: "email" });
+    
     req.logout((err) => {
+      // Clear OIDC tokens if present (handles auth method switches)
+      if (req.session?.oidc_tokens) {
+        delete req.session.oidc_tokens;
+      }
+      
       if (err) {
         logAuthEvent(req, "logout_failure", userId, email, { error: err.message });
         return res.status(500).json({ error: "Logout failed" });
       }
-      logAuthEvent(req, "logout", userId, email);
       res.json({ success: true });
     });
   });
@@ -176,48 +183,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const sessionUser = req.user as any;
+    const user = req.user as any;
+    const oidcTokens = req.session?.oidc_tokens;
     
-    // Check if this is an OIDC user (has claims)
-    if (sessionUser?.claims) {
-      // OIDC user - fetch from database using sub (user ID)
-      const userId = sessionUser.claims.sub;
-      try {
-        const dbUser = await storage.getUser(userId);
-        if (dbUser) {
-          return res.json({
-            user: {
-              id: dbUser.id,
-              email: dbUser.email,
-              name: dbUser.firstName && dbUser.lastName 
-                ? `${dbUser.firstName} ${dbUser.lastName}` 
-                : dbUser.firstName || dbUser.lastName || null,
-              firstName: dbUser.firstName,
-              lastName: dbUser.lastName,
-              profilePictureUrl: dbUser.profilePictureUrl,
-              savedSignature: dbUser.savedSignature || null,
-              savedSignatureType: dbUser.savedSignatureType || null,
-              savedSignatureText: dbUser.savedSignatureText || null,
-              authMethod: "oidc",
-            }
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching OIDC user:", error);
-        return res.status(500).json({ error: "Failed to fetch user data" });
-      }
-    }
+    // Check if OIDC by presence of tokens in session
+    const authMethod = oidcTokens ? "oidc" : "email";
     
-    // Email/password user - data is already in session
+    // Construct name from firstName/lastName if available (OIDC users)
+    const name = user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}` 
+      : user.firstName || user.lastName || user.name || null;
+    
     return res.json({
       user: {
-        id: sessionUser.id,
-        email: sessionUser.email,
-        name: sessionUser.name,
-        savedSignature: sessionUser.savedSignature || null,
-        savedSignatureType: sessionUser.savedSignatureType || null,
-        savedSignatureText: sessionUser.savedSignatureText || null,
-        authMethod: "email",
+        id: user.id,
+        email: user.email,
+        name,
+        firstName: user.firstName || null,
+        lastName: user.lastName || null,
+        profilePictureUrl: user.profilePictureUrl || null,
+        savedSignature: user.savedSignature || null,
+        savedSignatureType: user.savedSignatureType || null,
+        savedSignatureText: user.savedSignatureText || null,
+        authMethod,
       }
     });
   });

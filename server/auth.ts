@@ -128,22 +128,43 @@ export function setupAuth(app: Express) {
   });
 }
 
+// Helper to detect if user is OIDC (has no password)
+function isOidcUser(user: any): boolean {
+  return !user?.passwordHash && !user?.passwordSalt;
+}
+
 // Unified middleware to check if user is authenticated (supports both email/password and OIDC)
 export function isAuthenticated(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  // Check if this is an OIDC user (has claims/expires_at)
+  // Verify user has required database fields (id is minimum requirement)
   const user = req.user as any;
-  if (user?.claims && user?.expires_at) {
-    // OIDC user - check if token is expired (refresh is handled by separate middleware)
-    const now = Math.floor(Date.now() / 1000);
-    if (now > user.expires_at && !user.refresh_token) {
-      return res.status(401).json({ error: "Token expired" });
+  if (!user?.id) {
+    console.error("Authenticated user missing id field:", user);
+    return res.status(500).json({ error: "Invalid user session" });
+  }
+
+  // Check if this is an OIDC user (detected by absence of password)
+  if (isOidcUser(user)) {
+    const oidcTokens = req.session?.oidc_tokens;
+    
+    // OIDC user must have tokens in session
+    if (!oidcTokens) {
+      console.error("OIDC user missing tokens in session");
+      return res.status(401).json({ error: "Invalid OIDC session" });
+    }
+    
+    // Check if token is expired (refresh is handled by separate middleware)
+    if (oidcTokens.expires_at) {
+      const now = Math.floor(Date.now() / 1000);
+      if (now > oidcTokens.expires_at && !oidcTokens.refresh_token) {
+        return res.status(401).json({ error: "Token expired" });
+      }
     }
   }
 
-  // User is authenticated (either email/password or valid OIDC)
+  // User is authenticated (either email/password or valid OIDC) with valid database record
   return next();
 }
