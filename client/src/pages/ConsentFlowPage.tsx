@@ -235,9 +235,9 @@ export default function ConsentFlowPage() {
     
     // Work backwards from most complete state to least complete
     // If something is SET, it means we've COMPLETED that step, so return the NEXT step
-    if (state.method) return steps.recordingMethod;
-    if (state.intimateActs.length > 0) return steps.intimateActs;
-    if (state.parties.some(p => p.trim() !== "")) return steps.parties;
+    if (state.method) return steps.recordingMethod; // User has selected method, show recordingMethod step
+    if (state.intimateActs.length > 0) return steps.recordingMethod; // Intimate acts completed, move to recording method
+    if (state.parties.some(p => p.trim() !== "")) return steps.intimateActs; // Parties completed, move to intimate acts
     
     // If university is set, we've completed that step, move to parties
     if (state.universityId && steps.university) return steps.parties;
@@ -253,6 +253,12 @@ export default function ConsentFlowPage() {
   };
 
   const [step, setStep] = useState(getInitialStep());
+
+  // Recalculate step when state changes (from URL navigation or updates)
+  useEffect(() => {
+    const correctStep = getInitialStep();
+    setStep(correctStep);
+  }, [state.encounterType, state.universityId, state.parties, state.intimateActs, state.method]);
 
   const updateState = (updates: Partial<ConsentFlowState>) => {
     setState(prev => ({ ...prev, ...updates }));

@@ -17,6 +17,7 @@ export default function ConsentBiometricPage() {
   const universityName = params.get("universityName") || "";
   const encounterType = params.get("encounterType") || "";
   const parties = JSON.parse(params.get("parties") || "[]") as string[];
+  const intimateActs = JSON.parse(params.get("intimateActs") || "[]") as string[];
 
   const [status, setStatus] = useState<"idle" | "authenticating" | "verifying" | "verified">("idle");
   const [verifiedCredential, setVerifiedCredential] = useState<any>(null);
@@ -164,13 +165,15 @@ export default function ConsentBiometricPage() {
           variant="ghost"
           size="icon"
           onClick={() => {
-            const params = new URLSearchParams({ 
-              universityId, 
-              universityName,
-              method: "biometric",
-              ...(encounterType && { encounterType }),
-              ...(parties.length > 0 && { parties: JSON.stringify(parties) }),
-            });
+            const params = new URLSearchParams();
+            if (universityId) {
+              params.set("universityId", universityId);
+              params.set("universityName", universityName);
+            }
+            if (encounterType) params.set("encounterType", encounterType);
+            if (parties.length > 0) params.set("parties", JSON.stringify(parties));
+            if (intimateActs.length > 0) params.set("intimateActs", JSON.stringify(intimateActs));
+            // DON'T include method - let user reselect on the flow page
             navigate("/consent/flow?" + params.toString());
           }}
           data-testid="button-back"
