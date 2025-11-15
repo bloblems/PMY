@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -13,18 +13,34 @@ export const universities = pgTable("universities", {
   verifiedAt: timestamp("verified_at"),
 });
 
+// OIDC session storage table (required by Replit Auth)
+// IMPORTANT: Do not drop this table - mandatory for OIDC authentication
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// Users table - supports both OIDC and email/password authentication
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  name: text("name"),
+  email: text("email").unique(), // Nullable for OIDC users without email
+  name: text("name"), // Legacy field for email/password users
+  firstName: text("first_name"), // OIDC field
+  lastName: text("last_name"), // OIDC field
   profilePictureUrl: text("profile_picture_url"),
-  passwordHash: text("password_hash").notNull(),
-  passwordSalt: text("password_salt").notNull(),
+  passwordHash: text("password_hash"), // Nullable - only for email/password users
+  passwordSalt: text("password_salt"), // Nullable - only for email/password users
   referralCode: text("referral_code").unique(),
   savedSignature: text("saved_signature"),
   savedSignatureType: text("saved_signature_type"),
   savedSignatureText: text("saved_signature_text"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(), // Required by OIDC
   lastLoginAt: timestamp("last_login_at").notNull().defaultNow(),
 });
 
@@ -165,12 +181,24 @@ export type VerificationPayment = typeof verificationPayments.$inferSelect;
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   lastLoginAt: true,
+  updatedAt: true,
   passwordHash: true,
   passwordSalt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// OIDC upsert user schema (for Replit Auth)
+export const upsertUserSchema = z.object({
+  id: z.string(),
+  email: z.string().nullable(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  profileImageUrl: z.string().nullable(),
+});
+
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
 
 export const insertReferralSchema = createInsertSchema(referrals).omit({
   id: true,

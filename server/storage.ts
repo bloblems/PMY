@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser, type Referral, type InsertReferral } from "@shared/schema";
+import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser, type UpsertUser, type Referral, type InsertReferral } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
 import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users, referrals } from "@shared/schema";
@@ -42,6 +42,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
   createUser(user: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>; // OIDC - upsert user by id
   updateUserLastLogin(id: string): Promise<User | undefined>;
   updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined>;
   updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined>;
@@ -284,17 +285,61 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User> {
     const user: User = {
       ...insertUser,
+      email: insertUser.email ?? null,
       name: insertUser.name ?? null,
+      firstName: insertUser.firstName ?? null,
+      lastName: insertUser.lastName ?? null,
       profilePictureUrl: insertUser.profilePictureUrl ?? null,
       referralCode: insertUser.referralCode ?? null,
       savedSignature: null,
       savedSignatureType: null,
       savedSignatureText: null,
       createdAt: new Date(),
+      updatedAt: new Date(),
       lastLoginAt: new Date(),
     };
     this.users.set(user.id, user);
     return user;
+  }
+
+  async upsertUser(upsertData: UpsertUser): Promise<User> {
+    const existingUser = this.users.get(upsertData.id);
+    
+    if (existingUser) {
+      // Update existing OIDC user
+      const updated: User = {
+        ...existingUser,
+        email: upsertData.email,
+        firstName: upsertData.firstName,
+        lastName: upsertData.lastName,
+        profilePictureUrl: upsertData.profileImageUrl,
+        updatedAt: new Date(),
+        lastLoginAt: new Date(),
+      };
+      this.users.set(upsertData.id, updated);
+      return updated;
+    } else {
+      // Create new OIDC user
+      const newUser: User = {
+        id: upsertData.id,
+        email: upsertData.email,
+        name: null, // OIDC users don't use the name field
+        firstName: upsertData.firstName,
+        lastName: upsertData.lastName,
+        profilePictureUrl: upsertData.profileImageUrl,
+        passwordHash: null, // OIDC users don't have passwords
+        passwordSalt: null,
+        referralCode: null,
+        savedSignature: null,
+        savedSignatureType: null,
+        savedSignatureText: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastLoginAt: new Date(),
+      };
+      this.users.set(newUser.id, newUser);
+      return newUser;
+    }
   }
 
   async updateUserLastLogin(id: string): Promise<User | undefined> {
@@ -629,6 +674,38 @@ export class DbStorage implements IStorage {
 
   async createUser(insertUser: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User> {
     const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+
+  async upsertUser(upsertData: UpsertUser): Promise<User> {
+    const result = await db
+      .insert(users)
+      .values({
+        id: upsertData.id,
+        email: upsertData.email,
+        firstName: upsertData.firstName,
+        lastName: upsertData.lastName,
+        profilePictureUrl: upsertData.profileImageUrl,
+        name: null,
+        passwordHash: null,
+        passwordSalt: null,
+        referralCode: null,
+        savedSignature: null,
+        savedSignatureType: null,
+        savedSignatureText: null,
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          email: upsertData.email,
+          firstName: upsertData.firstName,
+          lastName: upsertData.lastName,
+          profilePictureUrl: upsertData.profileImageUrl,
+          updatedAt: new Date(),
+          lastLoginAt: new Date(),
+        },
+      })
+      .returning();
     return result[0];
   }
 

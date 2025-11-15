@@ -111,6 +111,12 @@ export function setupAuth(app: Express) {
             return done(null, false, { message: "Invalid credentials" });
           }
 
+          // Check if user has password (email/password user) or OIDC user
+          if (!user.passwordHash || !user.passwordSalt) {
+            logAuthEvent(req, "login_failure", user.id, email, { reason: "User created via OIDC, use 'Log in with Replit' instead" });
+            return done(null, false, { message: "Please use 'Log in with Replit' for this account" });
+          }
+
           // Verify password against stored hash
           if (!verifyPassword(password, user.passwordHash, user.passwordSalt)) {
             logAuthEvent(req, "login_failure", user.id, email, { reason: "Invalid password" });
