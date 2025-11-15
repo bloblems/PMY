@@ -691,6 +691,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Referral routes
+  app.post("/api/referrals", async (req, res) => {
+    try {
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = req.user as any;
+      const { refereeEmail, invitationMessage } = req.body;
+
+      if (!refereeEmail) {
+        return res.status(400).json({ error: "Referee email is required" });
+      }
+
+      const referral = await storage.createReferral({
+        referrerId: user.id,
+        refereeEmail,
+        invitationMessage,
+        status: "pending",
+      });
+
+      res.json(referral);
+    } catch (error) {
+      console.error("Error creating referral:", error);
+      res.status(500).json({ error: "Failed to create referral" });
+    }
+  });
+
+  app.get("/api/referrals", async (req, res) => {
+    try {
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = req.user as any;
+      const referrals = await storage.getReferralsByUserId(user.id);
+      res.json(referrals);
+    } catch (error) {
+      console.error("Error getting referrals:", error);
+      res.status(500).json({ error: "Failed to get referrals" });
+    }
+  });
+
+  app.get("/api/referrals/stats", async (req, res) => {
+    try {
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = req.user as any;
+      const stats = await storage.getReferralStats(user.id);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error getting referral stats:", error);
+      res.status(500).json({ error: "Failed to get referral stats" });
+    }
+  });
+
+  app.get("/api/user/referral-code", async (req, res) => {
+    try {
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const user = req.user as any;
+      const dbUser = await storage.getUser(user.id);
+      
+      if (!dbUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Generate referral code if user doesn't have one
+      if (!dbUser.referralCode) {
+        const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        await storage.updateUserReferralCode(user.id, referralCode);
+        return res.json({ referralCode });
+      }
+
+      res.json({ referralCode: dbUser.referralCode });
+    } catch (error) {
+      console.error("Error getting referral code:", error);
+      res.status(500).json({ error: "Failed to get referral code" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

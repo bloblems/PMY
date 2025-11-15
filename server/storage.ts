@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser } from "@shared/schema";
+import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser, type Referral, type InsertReferral } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
-import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users } from "@shared/schema";
+import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users, referrals } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -40,8 +40,16 @@ export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByReferralCode(referralCode: string): Promise<User | undefined>;
   createUser(user: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User>;
   updateUserLastLogin(id: string): Promise<User | undefined>;
+  updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined>;
+
+  // Referral methods
+  createReferral(referral: InsertReferral): Promise<Referral>;
+  getReferralsByUserId(userId: string): Promise<Referral[]>;
+  getReferralStats(userId: string): Promise<{ total: number; completed: number; pending: number }>;
+  updateReferralStatus(id: string, status: string, refereeId?: string): Promise<Referral | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -475,6 +483,54 @@ export class DbStorage implements IStorage {
       .update(users)
       .set({ lastLoginAt: new Date() })
       .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.referralCode, referralCode));
+    return result[0];
+  }
+
+  async updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set({ referralCode })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Referral methods
+  async createReferral(insertReferral: InsertReferral): Promise<Referral> {
+    const result = await db.insert(referrals).values(insertReferral).returning();
+    return result[0];
+  }
+
+  async getReferralsByUserId(userId: string): Promise<Referral[]> {
+    return await db.select().from(referrals).where(eq(referrals.referrerId, userId)).orderBy(desc(referrals.createdAt));
+  }
+
+  async getReferralStats(userId: string): Promise<{ total: number; completed: number; pending: number }> {
+    const allReferrals = await this.getReferralsByUserId(userId);
+    const total = allReferrals.length;
+    const completed = allReferrals.filter(r => r.status === "completed").length;
+    const pending = allReferrals.filter(r => r.status === "pending").length;
+    return { total, completed, pending };
+  }
+
+  async updateReferralStatus(id: string, status: string, refereeId?: string): Promise<Referral | undefined> {
+    const values: any = { status };
+    if (refereeId) {
+      values.refereeId = refereeId;
+    }
+    if (status === "completed") {
+      values.completedAt = new Date();
+    }
+    const result = await db
+      .update(referrals)
+      .set(values)
+      .where(eq(referrals.id, id))
       .returning();
     return result[0];
   }
