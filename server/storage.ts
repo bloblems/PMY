@@ -44,6 +44,7 @@ export interface IStorage {
   createUser(user: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User>;
   updateUserLastLogin(id: string): Promise<User | undefined>;
   updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined>;
+  updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined>;
 
   // Referral methods
   createReferral(referral: InsertReferral): Promise<Referral>;
@@ -59,6 +60,7 @@ export class MemStorage implements IStorage {
   private reports: Map<string, UniversityReport>;
   private users: Map<string, User>;
   private verificationPayments: Map<string, VerificationPayment>;
+  private referrals: Map<string, Referral>;
 
   constructor() {
     this.universities = new Map();
@@ -67,6 +69,7 @@ export class MemStorage implements IStorage {
     this.reports = new Map();
     this.users = new Map();
     this.verificationPayments = new Map();
+    this.referrals = new Map();
 
     // Seed with initial universities
     this.seedUniversities();
@@ -198,6 +201,9 @@ export class MemStorage implements IStorage {
       ...insertRecording,
       id,
       userId: insertRecording.userId ?? null,
+      universityId: insertRecording.universityId ?? null,
+      encounterType: insertRecording.encounterType ?? null,
+      parties: insertRecording.parties ?? null,
       createdAt: new Date(),
     };
     this.recordings.set(id, recording);
@@ -224,6 +230,21 @@ export class MemStorage implements IStorage {
       ...insertContract,
       id,
       userId: insertContract.userId ?? null,
+      universityId: insertContract.universityId ?? null,
+      encounterType: insertContract.encounterType ?? null,
+      parties: insertContract.parties ?? null,
+      method: insertContract.method ?? null,
+      contractText: insertContract.contractText ?? null,
+      signature1: insertContract.signature1 ?? null,
+      signature2: insertContract.signature2 ?? null,
+      photoUrl: insertContract.photoUrl ?? null,
+      credentialId: insertContract.credentialId ?? null,
+      credentialPublicKey: insertContract.credentialPublicKey ?? null,
+      credentialCounter: insertContract.credentialCounter ?? null,
+      credentialDeviceType: insertContract.credentialDeviceType ?? null,
+      credentialBackedUp: insertContract.credentialBackedUp ?? null,
+      authenticatedAt: insertContract.authenticatedAt ? new Date(insertContract.authenticatedAt) : null,
+      verifiedAt: insertContract.verifiedAt ? new Date(insertContract.verifiedAt) : null,
       createdAt: new Date(),
     };
     this.contracts.set(id, contract);
@@ -247,6 +268,10 @@ export class MemStorage implements IStorage {
       ...insertUser,
       name: insertUser.name ?? null,
       profilePictureUrl: insertUser.profilePictureUrl ?? null,
+      referralCode: insertUser.referralCode ?? null,
+      savedSignature: null,
+      savedSignatureType: null,
+      savedSignatureText: null,
       createdAt: new Date(),
       lastLoginAt: new Date(),
     };
@@ -261,6 +286,35 @@ export class MemStorage implements IStorage {
       this.users.set(id, user);
     }
     return user;
+  }
+
+  async updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (user) {
+      const updated = { ...user, referralCode };
+      this.users.set(id, updated);
+      return updated;
+    }
+    return undefined;
+  }
+
+  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.referralCode === referralCode);
+  }
+
+  async updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (user) {
+      const updated = { 
+        ...user, 
+        savedSignature: signature,
+        savedSignatureType: signatureType,
+        savedSignatureText: signatureText || null,
+      };
+      this.users.set(id, updated);
+      return updated;
+    }
+    return undefined;
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -301,6 +355,49 @@ export class MemStorage implements IStorage {
       this.verificationPayments.set(id, payment);
     }
     return payment;
+  }
+
+  async createReferral(insertReferral: InsertReferral): Promise<Referral> {
+    const id = randomUUID();
+    const referral: Referral = {
+      ...insertReferral,
+      id,
+      refereeId: insertReferral.refereeId ?? null,
+      invitationMessage: insertReferral.invitationMessage ?? null,
+      completedAt: null,
+      createdAt: new Date(),
+    };
+    this.referrals.set(id, referral);
+    return referral;
+  }
+
+  async getReferralsByUserId(userId: string): Promise<Referral[]> {
+    return Array.from(this.referrals.values())
+      .filter(r => r.referrerId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getReferralStats(userId: string): Promise<{ total: number; completed: number; pending: number }> {
+    const allReferrals = await this.getReferralsByUserId(userId);
+    const total = allReferrals.length;
+    const completed = allReferrals.filter(r => r.status === "completed").length;
+    const pending = allReferrals.filter(r => r.status === "pending").length;
+    return { total, completed, pending };
+  }
+
+  async updateReferralStatus(id: string, status: string, refereeId?: string): Promise<Referral | undefined> {
+    const referral = this.referrals.get(id);
+    if (referral) {
+      const updated = {
+        ...referral,
+        status,
+        refereeId: refereeId || referral.refereeId,
+        completedAt: status === "completed" ? new Date() : referral.completedAt,
+      };
+      this.referrals.set(id, updated);
+      return updated;
+    }
+    return undefined;
   }
 }
 
@@ -410,7 +507,14 @@ export class DbStorage implements IStorage {
   }
 
   async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {
-    const result = await db.insert(consentContracts).values(insertContract).returning();
+    const values: any = { ...insertContract };
+    if (insertContract.authenticatedAt) {
+      values.authenticatedAt = new Date(insertContract.authenticatedAt);
+    }
+    if (insertContract.verifiedAt) {
+      values.verifiedAt = new Date(insertContract.verifiedAt);
+    }
+    const result = await db.insert(consentContracts).values(values).returning();
     return result[0];
   }
 
@@ -496,6 +600,19 @@ export class DbStorage implements IStorage {
     const result = await db
       .update(users)
       .set({ referralCode })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set({ 
+        savedSignature: signature,
+        savedSignatureType: signatureType,
+        savedSignatureText: signatureText || null,
+      })
       .where(eq(users.id, id))
       .returning();
     return result[0];

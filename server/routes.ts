@@ -7,8 +7,36 @@ import OpenAI from "openai";
 import Stripe from "stripe";
 import passport from "passport";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
+import { isAuthenticated } from "./auth";
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper function to validate Base64 signature size
+// Base64 encoding increases size by ~33%, so we decode to get true byte size
+function validateSignatureSize(dataURL: string, maxBytes: number = 2 * 1024 * 1024): { valid: boolean; error?: string } {
+  if (!dataURL) return { valid: true };
+  
+  try {
+    // Remove data URL prefix (e.g., "data:image/png;base64,")
+    const base64Data = dataURL.split(',')[1] || dataURL;
+    
+    // Calculate decoded byte size: Base64 length * 0.75 (accounting for padding)
+    const decodedSize = Math.floor((base64Data.length * 3) / 4);
+    
+    if (decodedSize > maxBytes) {
+      const sizeMB = (decodedSize / (1024 * 1024)).toFixed(2);
+      const maxMB = (maxBytes / (1024 * 1024)).toFixed(2);
+      return { 
+        valid: false, 
+        error: `Signature is too large (${sizeMB}MB exceeds ${maxMB}MB limit)` 
+      };
+    }
+    
+    return { valid: true };
+  } catch (error) {
+    return { valid: false, error: "Invalid signature format" };
+  }
+}
 
 const getStripeKey = () => {
   const testingKey = process.env.TESTING_STRIPE_SECRET_KEY;
@@ -78,7 +106,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/me", (req, res) => {
     if (req.isAuthenticated && req.isAuthenticated()) {
       const user = req.user as any;
-      return res.json({ user: { id: user.id, email: user.email, name: user.name } });
+      return res.json({ 
+        user: {
+          id: user.id, 
+          email: user.email, 
+          name: user.name,
+          savedSignature: user.savedSignature || null,
+          savedSignatureType: user.savedSignatureType || null,
+          savedSignatureText: user.savedSignatureText || null,
+        }
+      });
     }
     res.status(401).json({ error: "Not authenticated" });
   });
@@ -247,16 +284,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new contract
-  app.post("/api/contracts", async (req, res) => {
+  // Create a new contract (requires authentication)
+  app.post("/api/contracts", isAuthenticated, async (req, res) => {
     try {
-      const parsed = insertConsentContractSchema.safeParse(req.body);
+      const { shouldSave, signatureType, signatureText, ...contractData } = req.body;
+      const parsed = insertConsentContractSchema.safeParse(contractData);
       
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid contract data" });
       }
 
+      // Validate signature sizes (max 2MB per signature to prevent database bloat)
+      if (parsed.data.signature1) {
+        const sig1Validation = validateSignatureSize(parsed.data.signature1);
+        if (!sig1Validation.valid) {
+          return res.status(400).json({ error: `Signature 1: ${sig1Validation.error}` });
+        }
+      }
+      if (parsed.data.signature2) {
+        const sig2Validation = validateSignatureSize(parsed.data.signature2);
+        if (!sig2Validation.valid) {
+          return res.status(400).json({ error: `Signature 2: ${sig2Validation.error}` });
+        }
+      }
+
       const contract = await storage.createContract(parsed.data);
+      
+      // Save user's signature if requested
+      if (shouldSave && parsed.data.signature1) {
+        const user = req.user as any;
+        const saveSigValidation = validateSignatureSize(parsed.data.signature1);
+        
+        if (!saveSigValidation.valid) {
+          console.warn("Signature too large to save for reuse:", saveSigValidation.error);
+        } else {
+          await storage.updateUserSignature(
+            user.id,
+            parsed.data.signature1,
+            signatureType || "draw",
+            signatureText
+          );
+        }
+      }
+      
       res.json(contract);
     } catch (error) {
       console.error("Error creating contract:", error);
@@ -275,14 +345,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // New consent creation endpoints with enhanced fields
-  app.post("/api/consent-contracts", async (req, res) => {
+  // New consent creation endpoints with enhanced fields (requires authentication)
+  app.post("/api/consent-contracts", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertConsentContractSchema.safeParse(req.body);
       
       if (!parsed.success) {
         console.error("Validation error:", parsed.error);
         return res.status(400).json({ error: "Invalid contract data", details: parsed.error });
+      }
+
+      // Validate signature sizes if present
+      if (parsed.data.signature1) {
+        const sig1Validation = validateSignatureSize(parsed.data.signature1);
+        if (!sig1Validation.valid) {
+          return res.status(400).json({ error: `Signature 1: ${sig1Validation.error}` });
+        }
+      }
+      if (parsed.data.signature2) {
+        const sig2Validation = validateSignatureSize(parsed.data.signature2);
+        if (!sig2Validation.valid) {
+          return res.status(400).json({ error: `Signature 2: ${sig2Validation.error}` });
+        }
+      }
+      // Validate photo URL size if present (photos can be large)
+      if (parsed.data.photoUrl) {
+        const photoValidation = validateSignatureSize(parsed.data.photoUrl, 5 * 1024 * 1024); // 5MB for photos
+        if (!photoValidation.valid) {
+          return res.status(400).json({ error: `Photo: ${photoValidation.error}` });
+        }
       }
 
       const contract = await storage.createContract(parsed.data);
