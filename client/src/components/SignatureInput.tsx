@@ -18,6 +18,8 @@ interface SignatureInputProps {
   savedSignatureText?: string;
   allowSave?: boolean;
   onSavePreferenceChange?: (shouldSave: boolean) => void;
+  autoPopulate?: boolean;
+  currentSignature?: string | null;
 }
 
 export default function SignatureInput({
@@ -29,6 +31,8 @@ export default function SignatureInput({
   savedSignatureText,
   allowSave = false,
   onSavePreferenceChange,
+  autoPopulate = false,
+  currentSignature = null,
 }: SignatureInputProps) {
   const [activeTab, setActiveTab] = useState<"draw" | "type" | "upload" | "saved">(
     savedSignature ? "saved" : "draw"
@@ -36,9 +40,28 @@ export default function SignatureInput({
   const [typedName, setTypedName] = useState("");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [shouldSave, setShouldSave] = useState(false);
+  const hasAutoPopulatedRef = useRef(false);
   const canvasRef = useRef<SignatureCanvas>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Auto-populate saved signature ONLY if:
+  // 1. autoPopulate is enabled
+  // 2. Parent doesn't already have a signature (prevents overwriting manual entries)
+  // 3. We have a saved signature to populate with
+  // 4. We haven't already auto-populated (using ref to survive remounts)
+  useEffect(() => {
+    if (
+      autoPopulate && 
+      !currentSignature && 
+      savedSignature && 
+      savedSignatureType && 
+      !hasAutoPopulatedRef.current
+    ) {
+      onSignatureComplete(savedSignature, savedSignatureType, savedSignatureText);
+      hasAutoPopulatedRef.current = true;
+    }
+  }, [autoPopulate, currentSignature, savedSignature, savedSignatureType, savedSignatureText]);
 
   useEffect(() => {
     if (activeTab === "draw" && canvasRef.current) {

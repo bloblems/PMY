@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -185,6 +185,8 @@ export default function ContractViewer() {
             savedSignatureText={user?.savedSignatureText}
             allowSave={true}
             onSavePreferenceChange={setShouldSaveSignature}
+            autoPopulate={true}
+            currentSignature={signature1}
           />
         </div>
 
