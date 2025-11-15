@@ -9,8 +9,46 @@ import passport from "passport";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
 import { isAuthenticated } from "./auth";
 import { sendInvitationEmail, sendDocumentEmail } from "./email";
+import rateLimit from "express-rate-limit";
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Rate limiting configuration for sharing endpoints
+// Prevents abuse of email-sending functionality
+const referralRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour window
+  max: 10, // Limit each user to 10 referral invitations per hour
+  message: "Too many invitation emails sent. Please try again later.",
+  standardHeaders: true, // Return rate limit info in RateLimit-* headers
+  legacyHeaders: false, // Disable X-RateLimit-* headers
+  // Use user ID from session for authenticated requests, fall back to IP
+  keyGenerator: (req) => {
+    const user = req.user as any;
+    return user?.id || req.ip || 'anonymous';
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      error: "Too many invitation emails sent. Please try again in an hour.",
+    });
+  },
+});
+
+const documentShareRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour window
+  max: 20, // Limit each user to 20 document shares per hour
+  message: "Too many documents shared. Please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const user = req.user as any;
+    return user?.id || req.ip || 'anonymous';
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      error: "Too many documents shared. Please try again in an hour.",
+    });
+  },
+});
 
 // Helper function to validate Base64 signature size
 // Base64 encoding increases size by ~33%, so we decode to get true byte size
