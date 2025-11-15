@@ -43,8 +43,6 @@ export default function ConsentSignaturePage() {
   const sigCanvas = useRef<SignatureCanvas>(null);
 
   const generateContractText = () => {
-    if (!university) return "";
-
     const encounterLabel = encounterType.charAt(0).toUpperCase() + encounterType.slice(1);
     const date = new Date().toLocaleDateString("en-US", { 
       year: "numeric", 
@@ -52,11 +50,13 @@ export default function ConsentSignaturePage() {
       day: "numeric" 
     });
 
-    const policyExcerpt = university.titleIXInfo.length > 200 
-      ? university.titleIXInfo.substring(0, 200) + "..." 
-      : university.titleIXInfo;
+    // Generate university-specific contract if university is available
+    if (university) {
+      const policyExcerpt = university.titleIXInfo.length > 200 
+        ? university.titleIXInfo.substring(0, 200) + "..." 
+        : university.titleIXInfo;
 
-    return `TITLE IX CONSENT AGREEMENT
+      return `TITLE IX CONSENT AGREEMENT
 
 This agreement is made on ${date} between the parties named below.
 
@@ -84,6 +84,41 @@ This document serves as evidence of mutual consent at the time of signing. Both 
 
 SIGNATURES:
 The digital signatures below indicate that both parties have read, understood, and agreed to the terms outlined in this consent agreement in accordance with Title IX requirements.`;
+    }
+
+    // Generate generic Title IX-compliant contract when no university is specified
+    return `TITLE IX CONSENT AGREEMENT
+
+This agreement is made on ${date} between the parties named below.
+
+PARTIES INVOLVED:
+Party 1: ${party1Name || "[Name Required]"}
+Party 2: ${party2Name || "[Name Required]"}
+
+ENCOUNTER TYPE: ${encounterLabel}
+
+CONSENT STATEMENT:
+The undersigned parties acknowledge and affirm their understanding of Title IX principles regarding consent, which require that:
+
+- Consent must be affirmative, conscious, and voluntary
+- Consent must be mutually understandable words or actions indicating willingness to participate
+- Consent cannot be given by someone who is incapacitated by alcohol, drugs, sleep, or any other means
+- Silence or lack of resistance does not constitute consent
+- Past consent does not imply future consent
+- Consent to one form of activity does not imply consent to other forms
+- Consent can be withdrawn at any time
+
+Both parties hereby affirm that:
+1. They are willingly and voluntarily entering into this ${encounterType} encounter
+2. They understand that consent must be clear, knowing, and voluntary
+3. They acknowledge that consent is active, not passive, and can be withdrawn at any time
+4. They are capable of giving consent and are not under the influence of incapacitating substances
+5. They agree to respect each other's boundaries and communicate clearly throughout
+
+This document serves as evidence of mutual consent at the time of signing. Both parties understand that consent is ongoing and can be revoked at any time.
+
+SIGNATURES:
+The digital signatures below indicate that both parties have read, understood, and agreed to the terms outlined in this consent agreement.`;
   };
 
   const contractText = useMemo(() => generateContractText(), [university, party1Name, party2Name, encounterType]);
@@ -130,7 +165,7 @@ The digital signatures below indicate that both parties have read, understood, a
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          universityId,
+          universityId: universityId || null,
           encounterType,
           parties,
           method: "signature",

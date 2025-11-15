@@ -100,7 +100,9 @@ export default function ConsentVoicePage() {
 
       const formData = new FormData();
       formData.append("audio", audioBlob, `consent-${Date.now()}.webm`);
-      formData.append("universityId", universityId);
+      if (universityId) {
+        formData.append("universityId", universityId);
+      }
       formData.append("encounterType", encounterType);
       formData.append("parties", JSON.stringify(parties));
       formData.append("duration", duration.toString());

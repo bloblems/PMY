@@ -52,7 +52,9 @@ export default function ConsentPhotoPage() {
 
       const formData = new FormData();
       formData.append("photo", photoFile);
-      formData.append("universityId", universityId);
+      if (universityId) {
+        formData.append("universityId", universityId);
+      }
       formData.append("encounterType", encounterType);
       formData.append("parties", JSON.stringify(parties));
 

@@ -156,16 +156,14 @@ export default function ConsentFlowPage() {
     if (prevEncounterTypeRef.current && prevEncounterTypeRef.current !== state.encounterType) {
       const newFlowSteps = getFlowSteps();
       
-      // Clear university if not required by new encounter type
-      if (!doesEncounterTypeRequireUniversity(state.encounterType)) {
-        if (state.universityId) {
-          updateState({
-            universityId: "",
-            universityName: "",
-          });
-          setSelectedUniversity(null);
-        }
-      }
+      // Clear all flow state when encounter type changes to ensure clean slate
+      updateState({
+        universityId: "",
+        universityName: "",
+        parties: ["", ""],
+        intimateActs: [],
+      });
+      setSelectedUniversity(null);
       
       // Reset to next appropriate step after encounter type
       // This prevents numeric step mismatch between 4-step and 5-step flows

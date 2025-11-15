@@ -48,6 +48,11 @@ export default function UniversitySelector({
   const [open, setOpen] = useState(false);
   const [showNotListedDialog, setShowNotListedDialog] = useState(false);
   const { toast } = useToast();
+  
+  // Compute the command value based on selected university
+  const commandValue = selectedUniversity 
+    ? `${selectedUniversity.name} ${selectedUniversity.state}` 
+    : "";
 
   const handleNotListed = () => {
     setOpen(false);
@@ -84,7 +89,7 @@ export default function UniversitySelector({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
+        <Command value={commandValue}>
           <CommandInput placeholder="Search universities..." />
           <CommandList>
             <CommandEmpty>No university found.</CommandEmpty>
