@@ -233,32 +233,26 @@ export default function ConsentFlowPage() {
     
     const steps = getFlowSteps();
     
-    // If encounter type requires university but no university selected, start at encounter type
-    if (doesEncounterTypeRequireUniversity(state.encounterType) && !state.universityId) {
-      return 1;
-    }
-    
-    // Otherwise use normal step progression
+    // Work backwards from most complete state to least complete
+    // If something is SET, it means we've COMPLETED that step, so return the NEXT step
     if (state.method) return steps.recordingMethod;
     if (state.intimateActs.length > 0) return steps.intimateActs;
     if (state.parties.some(p => p.trim() !== "")) return steps.parties;
-    if (state.universityId && steps.university) return steps.university;
+    
+    // If university is set, we've completed that step, move to parties
+    if (state.universityId && steps.university) return steps.parties;
+    
+    // If encounter type is set but nothing else, determine next step
     if (state.encounterType) {
-      // If encounter type is set, go to next step (either university or parties)
+      // If this encounter type requires university, go to university step
+      // Otherwise go to parties step
       return steps.university || steps.parties;
     }
-    return 1; // Start at encounter type
+    
+    return 1; // Default to encounter type step
   };
 
   const [step, setStep] = useState(getInitialStep());
-  
-  // Update step when state changes from URL navigation (browser back/forward)
-  useEffect(() => {
-    const correctStep = getInitialStep();
-    if (step !== correctStep) {
-      setStep(correctStep);
-    }
-  }, [state.encounterType, state.universityId, state.parties, state.intimateActs, state.method]);
 
   const updateState = (updates: Partial<ConsentFlowState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -328,16 +322,18 @@ export default function ConsentFlowPage() {
   const handleNext = () => {
     if (!canProceed()) return;
 
+    // For internal step navigation, just use setStep()
     if (step === flowSteps.encounterType) {
-      // Navigate with URL parameters to create browser history
-      navigate(`/consent/flow${buildURLWithState()}`);
+      const nextStep = flowSteps.university || flowSteps.parties;
+      setStep(nextStep);
     } else if (step === flowSteps.university) {
-      navigate(`/consent/flow${buildURLWithState()}`);
+      setStep(flowSteps.parties);
     } else if (step === flowSteps.parties) {
-      navigate(`/consent/flow${buildURLWithState()}`);
+      setStep(flowSteps.intimateActs);
     } else if (step === flowSteps.intimateActs) {
-      navigate(`/consent/flow${buildURLWithState()}`);
+      setStep(flowSteps.recordingMethod);
     } else if (step === flowSteps.recordingMethod && state.method) {
+      // Navigate to recording method page
       const filteredParties = state.parties.filter(p => p.trim() !== "");
       const params = new URLSearchParams();
       
