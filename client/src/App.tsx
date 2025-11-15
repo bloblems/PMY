@@ -11,6 +11,7 @@ import FilesPage from "@/pages/FilesPage";
 import AdminPage from "@/pages/AdminPage";
 import CustomPage from "@/pages/CustomPage";
 import SharePage from "@/pages/SharePage";
+import ToolsPage from "@/pages/ToolsPage";
 import ConsentFlowPage from "@/pages/ConsentFlowPage";
 import ConsentSignaturePage from "@/pages/ConsentSignaturePage";
 import ConsentVoicePage from "@/pages/ConsentVoicePage";
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/files" component={FilesPage} />
       <Route path="/custom" component={CustomPage} />
       <Route path="/share" component={SharePage} />
+      <Route path="/tools" component={ToolsPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/consent/signature" component={ConsentSignaturePage} />
       <Route path="/consent/voice" component={ConsentVoicePage} />

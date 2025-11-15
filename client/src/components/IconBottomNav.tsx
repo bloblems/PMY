@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { FolderOpen, Sparkles, Share2, Plus, School } from "lucide-react";
+import { FolderOpen, Sparkles, Share2, Plus, School, Wrench } from "lucide-react";
 
 export default function IconBottomNav() {
   const [location, setLocation] = useLocation();
@@ -7,6 +7,7 @@ export default function IconBottomNav() {
   const navItems = [
     { path: "/", icon: Plus, label: "Create", testId: "nav-create" },
     { path: "/titleix", icon: School, label: "Title IX", testId: "nav-title-ix" },
+    { path: "/tools", icon: Wrench, label: "Tools", testId: "nav-tools" },
     { path: "/files", icon: FolderOpen, label: "Contracts", testId: "nav-files" },
     { path: "/share", icon: Share2, label: "Share", testId: "nav-share" },
   ];
