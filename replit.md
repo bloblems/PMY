@@ -15,7 +15,14 @@ The application follows Apple Human Interface Guidelines with a mobile-first, si
 The frontend is built with React 18 and TypeScript, using Vite, Wouter for routing, and TanStack Query for server state. UI components are derived from shadcn/ui (Radix UI) and Tailwind CSS. Form validation is handled with `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, handling RESTful API endpoints and file uploads via Multer. Drizzle ORM provides type-safe PostgreSQL operations with Neon serverless.
 
 ### Feature Specifications
-- **Consent Documentation**: Supports digital signature capture (`react-signature-canvas`), audio recording (Media Recorder API), and biometric authentication (WebAuthn for Touch ID/Face ID/Windows Hello) for consent. A 5-step wizard guides users through: (1) university selection, (2) encounter type, (3) parties involved, (4) intimate acts (optional), and (5) recording method selection. The wizard includes smart auto-advancement - when a university is provided via URL parameter, Step 1 is automatically completed and the flow starts at Step 2.
+- **Consent Documentation**: Supports digital signature capture (`react-signature-canvas`), audio recording (Media Recorder API), photo/selfie capture, and biometric authentication (WebAuthn for Touch ID/Face ID/Windows Hello) for consent. The app features a dynamic consent flow that adapts based on encounter type selection:
+  - **5-Step Flow** (for "Intimate Encounter" and "Date"): (1) encounter type, (2) university selection, (3) parties involved, (4) intimate acts (optional), (5) recording method
+  - **4-Step Flow** (for "Social Gathering", "Conversation", "Medical Consultation", "Professional Interaction", "Other"): (1) encounter type, (2) parties involved, (3) intimate acts (optional), (4) recording method
+  - University selection is conditionally required only for encounters where institutional Title IX policies are most relevant
+  - When encounter type changes mid-flow, all state (university, parties, intimate acts) is cleared and step resets to prevent confusion
+  - No auto-selection of universities - requires explicit user interaction
+  - Contract generation supports both university-specific (with policy excerpts) and generic Title IX-compliant consent language
+  - All recording methods properly handle nullable universityId (FormData omits field when empty, JSON sends null)
 - **Title IX Information**: Provides educational content about Title IX requirements, customized per university (accessible at /titleix). It includes a comprehensive system for managing, updating, and verifying university Title IX policies. OpenAI GPT-4o-mini is used to summarize Title IX policies for universities.
 - **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
 - **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
