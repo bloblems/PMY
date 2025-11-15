@@ -870,7 +870,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "pending",
       });
 
-      // Send invitation email via Resend
+      // Send invitation email via Resend with error handling
+      // Note: We still return success even if email fails, since referral is created
       try {
         await sendInvitationEmail({
           to: refereeEmail,
@@ -879,8 +880,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           personalMessage: invitationMessage || undefined,
         });
       } catch (emailError) {
-        console.error("Error sending invitation email:", emailError);
-        // Don't fail the whole request if email fails, just log it
+        console.error("Error sending invitation email via Resend:", emailError);
+        // Don't fail the whole request if email fails - referral is still created
+        // User will see success message, and we can retry email sending later if needed
       }
 
       res.json(referral);
@@ -974,43 +976,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      let documentDate = "";
-      let documentDetails = "";
-
-      // Get document based on type and verify ownership
+      // SECURITY: Verify ownership FIRST before constructing any document details
+      // This prevents leaking metadata about documents the user doesn't own
       if (documentType === "contract") {
         const contract = await storage.getContract(documentId, user.id);
         if (!contract) {
+          // Return 404 without leaking any document information
           return res.status(404).json({ error: "Contract not found or access denied" });
         }
-        documentDate = new Date(contract.createdAt).toLocaleDateString();
-        documentDetails = "Digital Signature Consent Contract";
+        
+        // Only construct document details AFTER ownership is verified
+        const documentDate = new Date(contract.createdAt).toLocaleDateString();
+        const documentDetails = "Digital Signature Consent Contract";
+        
+        // Send document email via Resend with error handling
+        try {
+          await sendDocumentEmail({
+            to: recipientEmail,
+            from: sender.email,
+            documentType: documentDetails,
+            documentDate,
+          });
+          
+          return res.json({ 
+            success: true, 
+            message: "Document shared successfully" 
+          });
+        } catch (emailError) {
+          console.error("Error sending document email via Resend:", emailError);
+          return res.status(502).json({ 
+            error: "Failed to send email. Please try again later." 
+          });
+        }
       } else if (documentType === "recording") {
         const recording = await storage.getRecording(documentId, user.id);
         if (!recording) {
+          // Return 404 without leaking any document information
           return res.status(404).json({ error: "Recording not found or access denied" });
         }
-        documentDate = new Date(recording.createdAt).toLocaleDateString();
-        documentDetails = `Audio/Video Consent Recording (${recording.recordingType})`;
+        
+        // Only construct document details AFTER ownership is verified
+        const documentDate = new Date(recording.createdAt).toLocaleDateString();
+        const documentDetails = `Audio/Video Consent Recording (${recording.recordingType})`;
+        
+        // Send document email via Resend with error handling
+        try {
+          await sendDocumentEmail({
+            to: recipientEmail,
+            from: sender.email,
+            documentType: documentDetails,
+            documentDate,
+          });
+          
+          return res.json({ 
+            success: true, 
+            message: "Document shared successfully" 
+          });
+        } catch (emailError) {
+          console.error("Error sending document email via Resend:", emailError);
+          return res.status(502).json({ 
+            error: "Failed to send email. Please try again later." 
+          });
+        }
       } else {
         // For photo and biometric, we'll add support later
         return res.status(400).json({ 
           error: "Document type not yet supported for email sharing" 
         });
       }
-
-      // Send document email via Resend
-      await sendDocumentEmail({
-        to: recipientEmail,
-        from: sender.email,
-        documentType: documentDetails,
-        documentDate,
-      });
-
-      res.json({ 
-        success: true, 
-        message: "Document shared successfully" 
-      });
     } catch (error) {
       console.error("Error sharing document:", error);
       res.status(500).json({ error: "Failed to share document" });
