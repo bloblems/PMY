@@ -2,6 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FileList from "@/components/FileList";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Heart, Users, Coffee, Briefcase, FileText, ArrowRight } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface Recording {
   id: string;
@@ -27,9 +32,62 @@ interface Contract {
   photoUrl?: string;
 }
 
+interface ContractTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  encounterType: string;
+  iconBgColor: string;
+}
+
+const contractTemplates: ContractTemplate[] = [
+  {
+    id: "intimate-encounter",
+    name: "Intimate Encounter",
+    description: "Comprehensive consent documentation for intimate activities with Title IX compliance.",
+    icon: <Heart className="h-5 w-5" />,
+    encounterType: "Intimate Encounter",
+    iconBgColor: "bg-pink-500/10 dark:bg-pink-400/10"
+  },
+  {
+    id: "date",
+    name: "Date",
+    description: "Clear consent agreement for romantic encounters and social dates.",
+    icon: <Coffee className="h-5 w-5" />,
+    encounterType: "Date",
+    iconBgColor: "bg-purple-500/10 dark:bg-purple-400/10"
+  },
+  {
+    id: "social-gathering",
+    name: "Social Gathering",
+    description: "General consent template for group activities and social events.",
+    icon: <Users className="h-5 w-5" />,
+    encounterType: "Social Gathering",
+    iconBgColor: "bg-blue-500/10 dark:bg-blue-400/10"
+  },
+  {
+    id: "professional",
+    name: "Professional Interaction",
+    description: "Formal consent documentation for professional or workplace contexts.",
+    icon: <Briefcase className="h-5 w-5" />,
+    encounterType: "Professional Interaction",
+    iconBgColor: "bg-green-500/10 dark:bg-green-400/10"
+  },
+  {
+    id: "custom",
+    name: "Custom Contract",
+    description: "Create a personalized consent contract tailored to your specific needs.",
+    icon: <FileText className="h-5 w-5" />,
+    encounterType: "Other",
+    iconBgColor: "bg-orange-500/10 dark:bg-orange-400/10"
+  }
+];
+
 export default function FilesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: recordings = [] } = useQuery<Recording[]>({
     queryKey: ["/api/recordings"],
@@ -213,16 +271,67 @@ export default function FilesPage() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Saved Files and Contracts</h1>
-        <p className="text-muted-foreground">
-          Manage your records
-        </p>
-      </div>
+  const handleUseTemplate = (encounterType: string) => {
+    setLocation(`/?encounter=${encodeURIComponent(encounterType)}`);
+  };
 
-      <FileList files={files} onDownload={handleDownload} onDelete={handleDelete} />
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-[448px] mx-auto p-4 pb-24 space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Contracts</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage saved documents and browse contract templates
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Template Contract Types</h2>
+            <div className="space-y-3">
+              {contractTemplates.map((template) => (
+                <Card
+                  key={template.id}
+                  className="p-4 hover-elevate active-elevate-2 cursor-pointer"
+                  onClick={() => handleUseTemplate(template.encounterType)}
+                  data-testid={`card-template-${template.id}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2.5 rounded-lg ${template.iconBgColor}`}>
+                      {template.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-semibold text-sm">{template.name}</h3>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+                        {template.description}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUseTemplate(template.encounterType);
+                        }}
+                        data-testid={`button-use-${template.id}`}
+                      >
+                        Use Template
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Saved Documents</h2>
+            <FileList files={files} onDownload={handleDownload} onDelete={handleDelete} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
