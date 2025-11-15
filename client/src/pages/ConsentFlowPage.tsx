@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
+import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
 
 type University = {
   id: string;
@@ -468,11 +469,23 @@ export default function ConsentFlowPage() {
           </RadioGroup>
 
           {!universityNotApplicable && (
-            <UniversitySelector
-              universities={universities}
-              selectedUniversity={selectedUniversity}
-              onSelect={setSelectedUniversity}
-            />
+            <>
+              <UniversitySelector
+                universities={universities}
+                selectedUniversity={selectedUniversity}
+                onSelect={setSelectedUniversity}
+              />
+              {selectedUniversity && (
+                <UniversityPolicyPreview
+                  universityId={selectedUniversity.id}
+                  universityName={selectedUniversity.name}
+                  titleIXInfo={selectedUniversity.titleIXInfo}
+                  titleIXUrl={selectedUniversity.titleIXUrl}
+                  lastUpdated={selectedUniversity.lastUpdated}
+                  verifiedAt={selectedUniversity.verifiedAt}
+                />
+              )}
+            </>
           )}
         </div>
       )}
