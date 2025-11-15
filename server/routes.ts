@@ -171,21 +171,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get("/api/auth/me", (req, res) => {
-    if (req.isAuthenticated && req.isAuthenticated()) {
-      const user = req.user as any;
-      return res.json({ 
-        user: {
-          id: user.id, 
-          email: user.email, 
-          name: user.name,
-          savedSignature: user.savedSignature || null,
-          savedSignatureType: user.savedSignatureType || null,
-          savedSignatureText: user.savedSignatureText || null,
-        }
-      });
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
     }
-    res.status(401).json({ error: "Not authenticated" });
+
+    const sessionUser = req.user as any;
+    
+    // Check if this is an OIDC user (has claims)
+    if (sessionUser?.claims) {
+      // OIDC user - fetch from database using sub (user ID)
+      const userId = sessionUser.claims.sub;
+      try {
+        const dbUser = await storage.getUser(userId);
+        if (dbUser) {
+          return res.json({
+            user: {
+              id: dbUser.id,
+              email: dbUser.email,
+              name: dbUser.firstName && dbUser.lastName 
+                ? `${dbUser.firstName} ${dbUser.lastName}` 
+                : dbUser.firstName || dbUser.lastName || null,
+              firstName: dbUser.firstName,
+              lastName: dbUser.lastName,
+              profilePictureUrl: dbUser.profilePictureUrl,
+              savedSignature: dbUser.savedSignature || null,
+              savedSignatureType: dbUser.savedSignatureType || null,
+              savedSignatureText: dbUser.savedSignatureText || null,
+              authMethod: "oidc",
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching OIDC user:", error);
+        return res.status(500).json({ error: "Failed to fetch user data" });
+      }
+    }
+    
+    // Email/password user - data is already in session
+    return res.json({
+      user: {
+        id: sessionUser.id,
+        email: sessionUser.email,
+        name: sessionUser.name,
+        savedSignature: sessionUser.savedSignature || null,
+        savedSignatureType: sessionUser.savedSignatureType || null,
+        savedSignatureText: sessionUser.savedSignatureText || null,
+        authMethod: "email",
+      }
+    });
   });
 
   // CSRF token endpoint - sets CSRF token in cookie and session
@@ -1018,9 +1052,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send invitation email via Resend with error handling
       // Note: We still return success even if email fails, since referral is created
       try {
+        const referrerName = referrer.email 
+          ? referrer.email.split('@')[0]
+          : referrer.firstName || referrer.lastName 
+            ? `${referrer.firstName || ''} ${referrer.lastName || ''}`.trim()
+            : 'PMY User';
+            
         await sendInvitationEmail({
           to: refereeEmail,
-          referrerName: referrer.email.split('@')[0], // Use email username as name
+          referrerName,
           referralCode,
           personalMessage: invitationMessage || undefined,
         });
@@ -1136,9 +1176,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send document email via Resend with error handling
         try {
+          const senderEmail = sender.email || 'noreply@pmy-consent.app';
+          
           await sendDocumentEmail({
             to: recipientEmail,
-            from: sender.email,
+            from: senderEmail,
             documentType: documentDetails,
             documentDate,
           });
@@ -1166,9 +1208,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send document email via Resend with error handling
         try {
+          const senderEmail = sender.email || 'noreply@pmy-consent.app';
+          
           await sendDocumentEmail({
             to: recipientEmail,
-            from: sender.email,
+            from: senderEmail,
             documentType: documentDetails,
             documentDate,
           });

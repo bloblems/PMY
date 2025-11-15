@@ -114,6 +114,32 @@ export default function AuthPage() {
           </Alert>
         )}
 
+        {/* OIDC Login - Only show for login mode */}
+        {mode === "login" && (
+          <Card className="p-8">
+            <div className="space-y-4">
+              <Button
+                onClick={() => window.location.href = "/api/login"}
+                className="w-full h-12 font-semibold"
+                variant="default"
+                data-testid="button-login-replit"
+              >
+                Log in with Replit
+              </Button>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                    Or continue with email
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <Card className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {mode === "signup" && (

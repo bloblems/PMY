@@ -25,34 +25,10 @@ export function setupAuth(app: Express) {
     throw new Error("SESSION_SECRET environment variable is required in production");
   }
 
-  // Configure PostgreSQL session store for production-ready persistent sessions
-  const PgSession = connectPgSimple(session);
+  // Note: Session middleware is now set up in index.ts (shared with OIDC)
+  // Passport initialization is also done in index.ts to be shared
   
-  // Session configuration with PostgreSQL backing
-  app.use(
-    session({
-      store: new PgSession({
-        pool: pool, // Use existing PostgreSQL connection pool
-        tableName: 'session', // Will be created automatically
-        createTableIfMissing: true,
-        // Prune expired sessions automatically
-        pruneSessionInterval: 60 * 15, // Run every 15 minutes
-      }),
-      secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
-      resave: false,
-      saveUninitialized: false,
-      rolling: true, // Reset expiration on activity
-      cookie: {
-        secure: process.env.NODE_ENV === "production",
-        httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-        sameSite: "strict", // CSRF protection: prevent cross-site cookie transmission
-      },
-    })
-  );
-
-  app.use(passport.initialize());
-  app.use(passport.session());
+  // Email/password auth strategies setup only
 
   // Local strategy for signup
   passport.use(
@@ -152,10 +128,22 @@ export function setupAuth(app: Express) {
   });
 }
 
-// Middleware to check if user is authenticated
+// Unified middleware to check if user is authenticated (supports both email/password and OIDC)
 export function isAuthenticated(req: any, res: any, next: any) {
-  if (req.isAuthenticated()) {
-    return next();
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Not authenticated" });
   }
-  res.status(401).json({ error: "Not authenticated" });
+
+  // Check if this is an OIDC user (has claims/expires_at)
+  const user = req.user as any;
+  if (user?.claims && user?.expires_at) {
+    // OIDC user - check if token is expired (refresh is handled by separate middleware)
+    const now = Math.floor(Date.now() / 1000);
+    if (now > user.expires_at && !user.refresh_token) {
+      return res.status(401).json({ error: "Token expired" });
+    }
+  }
+
+  // User is authenticated (either email/password or valid OIDC)
+  return next();
 }
