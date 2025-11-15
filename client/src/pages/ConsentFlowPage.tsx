@@ -38,6 +38,13 @@ const encounterTypes = [
 
 const otherEncounterType = { id: "other", label: "Other", icon: Users };
 
+// Define which encounter types require university selection
+const encounterTypesRequiringUniversity = ["intimate", "date"];
+
+const doesEncounterTypeRequireUniversity = (encounterType: string): boolean => {
+  return encounterTypesRequiringUniversity.includes(encounterType);
+};
+
 const intimateActOptions = [
   "Touching/Caressing",
   "Kissing",
@@ -114,8 +121,9 @@ export default function ConsentFlowPage() {
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
 
   // Sync selectedUniversity when universities load or state.universityId changes
+  // Only auto-select if encounter type requires university
   useEffect(() => {
-    if (universities.length > 0) {
+    if (universities.length > 0 && doesEncounterTypeRequireUniversity(state.encounterType)) {
       if (state.universityId) {
         // If there's a university ID in state, find and select it
         const university = universities.find(u => u.id === state.universityId);
@@ -138,7 +146,7 @@ export default function ConsentFlowPage() {
         });
       }
     }
-  }, [universities, state.universityId]);
+  }, [universities, state.universityId, state.encounterType]);
 
   // Update state when university is manually selected
   useEffect(() => {
@@ -150,6 +158,19 @@ export default function ConsentFlowPage() {
     }
   }, [selectedUniversity]);
 
+  // Clear university when switching to non-university encounter type
+  useEffect(() => {
+    if (state.encounterType && !doesEncounterTypeRequireUniversity(state.encounterType)) {
+      if (state.universityId) {
+        updateState({
+          universityId: "",
+          universityName: "",
+        });
+        setSelectedUniversity(null);
+      }
+    }
+  }, [state.encounterType]);
+
   // Pre-fill first participant with logged-in user's name when available
   useEffect(() => {
     if (userData?.user?.name && state.parties[0] === "") {
@@ -159,14 +180,45 @@ export default function ConsentFlowPage() {
     }
   }, [userData]);
 
+  // Get dynamic step configuration based on encounter type
+  const getFlowSteps = () => {
+    const requiresUniversity = doesEncounterTypeRequireUniversity(state.encounterType);
+    
+    if (requiresUniversity) {
+      return {
+        encounterType: 1,
+        university: 2,
+        parties: 3,
+        intimateActs: 4,
+        recordingMethod: 5,
+        totalSteps: 5,
+      };
+    } else {
+      return {
+        encounterType: 1,
+        university: null, // Skip university step
+        parties: 2,
+        intimateActs: 3,
+        recordingMethod: 4,
+        totalSteps: 4,
+      };
+    }
+  };
+
+  const flowSteps = getFlowSteps();
+
   // Determine initial step based on state
   const getInitialStep = () => {
-    if (state.method) return 5;
-    if (state.intimateActs.length > 0) return 4;
-    if (state.parties.some(p => p.trim() !== "")) return 3;
-    if (state.encounterType) return 2;
-    if (state.universityId) return 2;
-    return 1;
+    const steps = getFlowSteps();
+    if (state.method) return steps.recordingMethod;
+    if (state.intimateActs.length > 0) return steps.intimateActs;
+    if (state.parties.some(p => p.trim() !== "")) return steps.parties;
+    if (state.universityId && steps.university) return steps.university;
+    if (state.encounterType) {
+      // If encounter type is set, go to next step (either university or parties)
+      return steps.university || steps.parties;
+    }
+    return 1; // Start at encounter type
   };
 
   const [step, setStep] = useState(getInitialStep());
@@ -197,31 +249,48 @@ export default function ConsentFlowPage() {
     updateState({ intimateActs: newActs });
   };
 
-  const canProceedFromStep1 = state.universityId !== "";
-  const canProceedFromStep2 = state.encounterType !== "";
-  const canProceedFromStep3 = state.parties.some(p => p.trim() !== "");
-  const canProceedFromStep4 = true; // Can proceed even with no acts selected
-  const canProceedFromStep5 = state.method !== null;
+  // Dynamic validation based on current step
+  const canProceed = () => {
+    if (step === flowSteps.encounterType) {
+      return state.encounterType !== "";
+    } else if (step === flowSteps.university) {
+      return state.universityId !== "";
+    } else if (step === flowSteps.parties) {
+      return state.parties.some(p => p.trim() !== "");
+    } else if (step === flowSteps.intimateActs) {
+      return true; // Can proceed even with no acts selected
+    } else if (step === flowSteps.recordingMethod) {
+      return state.method !== null;
+    }
+    return false;
+  };
 
   const handleNext = () => {
-    if (step === 1 && canProceedFromStep1) {
-      setStep(2);
-    } else if (step === 2 && canProceedFromStep2) {
-      setStep(3);
-    } else if (step === 3 && canProceedFromStep3) {
-      setStep(4);
-    } else if (step === 4 && canProceedFromStep4) {
-      setStep(5);
-    } else if (step === 5 && canProceedFromStep5) {
+    if (!canProceed()) return;
+
+    if (step === flowSteps.encounterType) {
+      // After selecting encounter type, go to university (if required) or parties
+      setStep(flowSteps.university || flowSteps.parties);
+    } else if (step === flowSteps.university) {
+      setStep(flowSteps.parties);
+    } else if (step === flowSteps.parties) {
+      setStep(flowSteps.intimateActs);
+    } else if (step === flowSteps.intimateActs) {
+      setStep(flowSteps.recordingMethod);
+    } else if (step === flowSteps.recordingMethod && state.method) {
       const filteredParties = state.parties.filter(p => p.trim() !== "");
-      const params = new URLSearchParams({
-        universityId: state.universityId,
-        universityName: state.universityName,
-        encounterType: state.encounterType,
-        parties: JSON.stringify(filteredParties),
-        intimateActs: JSON.stringify(state.intimateActs),
-        method: state.method!,
-      });
+      const params = new URLSearchParams();
+      
+      // Only include university if it exists
+      if (state.universityId) {
+        params.set("universityId", state.universityId);
+        params.set("universityName", state.universityName);
+      }
+      
+      params.set("encounterType", state.encounterType);
+      params.set("parties", JSON.stringify(filteredParties));
+      params.set("intimateActs", JSON.stringify(state.intimateActs));
+      params.set("method", state.method);
       
       if (state.method === "signature") {
         navigate(`/consent/signature?${params.toString()}`);
@@ -236,7 +305,16 @@ export default function ConsentFlowPage() {
   };
 
   const handleBack = () => {
-    if (step > 1) {
+    if (step === flowSteps.parties) {
+      // From parties, go back to university (if exists) or encounter type
+      setStep(flowSteps.university || flowSteps.encounterType);
+    } else if (step === flowSteps.university) {
+      setStep(flowSteps.encounterType);
+    } else if (step === flowSteps.intimateActs) {
+      setStep(flowSteps.parties);
+    } else if (step === flowSteps.recordingMethod) {
+      setStep(flowSteps.intimateActs);
+    } else if (step > 1) {
       setStep(step - 1);
     }
   };
@@ -259,7 +337,7 @@ export default function ConsentFlowPage() {
       </div>
 
       <div className="flex items-center justify-center gap-2 mb-6">
-        {[1, 2, 3, 4, 5].map((s) => (
+        {Array.from({ length: flowSteps.totalSteps }, (_, i) => i + 1).map((s) => (
           <div
             key={s}
             className={`h-2 rounded-full transition-all ${
@@ -274,24 +352,10 @@ export default function ConsentFlowPage() {
         ))}
       </div>
 
-      {step === 1 && (
+      {step === flowSteps.encounterType && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 1: Select Your Institution</h2>
-            <p className="text-sm text-muted-foreground">Choose your university to generate a Title IX-compliant consent contract</p>
-          </div>
-          <UniversitySelector
-            universities={universities}
-            selectedUniversity={selectedUniversity}
-            onSelect={setSelectedUniversity}
-          />
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Step 2: Encounter Type</h2>
+            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.encounterType}: Encounter Type</h2>
             <p className="text-sm text-muted-foreground">What kind of encounter is this consent for?</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -333,10 +397,24 @@ export default function ConsentFlowPage() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === flowSteps.university && flowSteps.university !== null && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 3: Parties Involved</h2>
+            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.university}: Select Your Institution</h2>
+            <p className="text-sm text-muted-foreground">Choose your university to generate a Title IX-compliant consent contract</p>
+          </div>
+          <UniversitySelector
+            universities={universities}
+            selectedUniversity={selectedUniversity}
+            onSelect={setSelectedUniversity}
+          />
+        </div>
+      )}
+
+      {step === flowSteps.parties && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.parties}: Parties Involved</h2>
             <p className="text-sm text-muted-foreground">
               Add the names of other participants (in addition to yourself)
             </p>
@@ -376,10 +454,10 @@ export default function ConsentFlowPage() {
         </div>
       )}
 
-      {step === 4 && (
+      {step === flowSteps.intimateActs && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 4: Intimate Acts</h2>
+            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.intimateActs}: Intimate Acts</h2>
             <p className="text-sm text-muted-foreground">Select which activities require documented consent (optional)</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -421,10 +499,10 @@ export default function ConsentFlowPage() {
         </div>
       )}
 
-      {step === 5 && (
+      {step === flowSteps.recordingMethod && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step 5: Recording Method</h2>
+            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.recordingMethod}: Recording Method</h2>
             <p className="text-sm text-muted-foreground">How would you like to document consent?</p>
           </div>
           <div className="space-y-3">
@@ -467,17 +545,11 @@ export default function ConsentFlowPage() {
         </Button>
         <Button
           onClick={handleNext}
-          disabled={
-            (step === 1 && !canProceedFromStep1) ||
-            (step === 2 && !canProceedFromStep2) ||
-            (step === 3 && !canProceedFromStep3) ||
-            (step === 4 && !canProceedFromStep4) ||
-            (step === 5 && !canProceedFromStep5)
-          }
+          disabled={!canProceed()}
           className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
           data-testid="button-next"
         >
-          {step === 5 ? "Continue" : "Next"}
+          {step === flowSteps.recordingMethod ? "Continue" : "Next"}
           <ChevronRight className="h-4 w-4 ml-2" />
         </Button>
       </div>
