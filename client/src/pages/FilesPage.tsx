@@ -59,28 +59,12 @@ const contractTemplates: ContractTemplate[] = [
     iconBgColor: "bg-purple-500/10 dark:bg-purple-400/10"
   },
   {
-    id: "social-gathering",
-    name: "Social Gathering",
-    description: "General consent template for group activities and social events.",
-    icon: <Users className="h-5 w-5" />,
-    encounterType: "Social Gathering",
-    iconBgColor: "bg-blue-500/10 dark:bg-blue-400/10"
-  },
-  {
-    id: "professional",
-    name: "Professional Interaction",
-    description: "Formal consent documentation for professional or workplace contexts.",
+    id: "medical",
+    name: "Medical Consultation",
+    description: "Professional consent documentation for medical examinations and consultations.",
     icon: <Briefcase className="h-5 w-5" />,
-    encounterType: "Professional Interaction",
-    iconBgColor: "bg-green-500/10 dark:bg-green-400/10"
-  },
-  {
-    id: "custom",
-    name: "Custom Contract",
-    description: "Create a personalized consent contract tailored to your specific needs.",
-    icon: <FileText className="h-5 w-5" />,
-    encounterType: "Other",
-    iconBgColor: "bg-orange-500/10 dark:bg-orange-400/10"
+    encounterType: "Medical Consultation",
+    iconBgColor: "bg-blue-500/10 dark:bg-blue-400/10"
   }
 ];
 
@@ -287,6 +271,11 @@ export default function FilesPage() {
 
         <div className="space-y-4">
           <div>
+            <h2 className="text-lg font-semibold mb-3">Saved Documents</h2>
+            <FileList files={files} onDownload={handleDownload} onDelete={handleDelete} />
+          </div>
+
+          <div>
             <h2 className="text-lg font-semibold mb-3">Template Contract Types</h2>
             <div className="space-y-3">
               {contractTemplates.map((template) => (
@@ -324,11 +313,6 @@ export default function FilesPage() {
                 </Card>
               ))}
             </div>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold mb-3">Saved Documents</h2>
-            <FileList files={files} onDownload={handleDownload} onDelete={handleDelete} />
           </div>
         </div>
       </div>
