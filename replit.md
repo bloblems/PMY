@@ -36,9 +36,16 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 ### System Design Choices
 - **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
 - **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
-- **State Management**: Frontend uses TanStack Query for server state and React Context API with sessionStorage for maintaining state across multi-step consent flows. The ConsentFlowContext provides centralized state management with automatic persistence, supporting browser back/forward navigation, page refreshes, and iOS WebView compatibility. All consent method pages implement defensive routing to prevent access without required flow data. **iOS Readiness**: Storage layer designed for abstraction to support native iOS secure storage (Keychain/SecureStorage) via interface pattern when deploying with Capacitor.
+- **State Management**: Frontend uses TanStack Query for server state and React Context API with cross-platform storage abstraction for maintaining state across multi-step consent flows. The ConsentFlowContext provides centralized state management with automatic persistence, supporting browser back/forward navigation, page refreshes, and iOS WebView compatibility. All consent method pages implement defensive routing with isHydrated flag to prevent access before async storage loads.
+- **iOS-Ready Secure Storage**: Implemented production-ready storage abstraction layer (`client/src/services/storage.ts`):
+  - **StorageService Interface**: Cross-platform abstraction for unified storage API
+  - **SecureStorageService**: AES-256 encrypted Keychain storage on iOS via `capacitor-secure-storage-plugin`, hardware-backed Keystore on Android, with automatic fallback to sessionStorage on web. Uses `Capacitor.getPlatform()` for synchronous platform detection to ensure correct storage selected before first access.
+  - **WebStorageService**: Browser-compatible sessionStorage with in-memory fallback for private browsing mode
+  - **Platform Detection**: Synchronous detection using `Capacitor.getPlatform() === 'ios' | 'android' | 'web'` ensures correct storage from first call
+  - **Security Guarantees**: On native platforms, consent data encrypted at rest, protected by device passcode/biometrics, sandboxed per-app. On web, session-based storage with no plaintext persistence after browser close.
+  - **Capacitor Configuration**: `capacitor.config.ts` initialized for iOS deployment with webDir, server, and iOS-specific settings
 - **Navigation**: Bottom navigation bar with 4 tabs: Create (home/consent flow), Tools (quick access to Title IX, ID verification, and status checks), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/). Tools serves as a hub providing access to Title IX information and verification integrations.
-- **Security**: Implements secure password hashing, session management, and WebAuthn for biometric authentication, ensuring privacy by keeping biometric data on-device.
+- **Security**: Implements secure password hashing, session management, WebAuthn for biometric authentication (keeping biometric data on-device), and encrypted storage for consent flow state on iOS/Android via Keychain/Keystore integration.
 
 ## External Dependencies
 
@@ -46,6 +53,7 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 - **Frontend Frameworks/Libraries**: `react`, `wouter`, `@tanstack/react-query`, `react-hook-form`, `zod`, `react-signature-canvas`
 - **UI Libraries**: `@radix-ui/*`, `tailwindcss`, `shadcn/ui`, `class-variance-authority`, `cmdk`
 - **Backend Frameworks/Libraries**: `express`, `multer`, `tsx`, `esbuild`, `@simplewebauthn/server`, `ws`
+- **iOS/Native Integration**: `@capacitor/core`, `@capacitor/cli`, `@capacitor/preferences`, `capacitor-secure-storage-plugin`
 - **AI Services**: `OpenAI API` (GPT-4o-mini, GPT-4, GPT-4o)
 - **Payment Processing**: `Stripe`
 - **Authentication**: `passport`, `express-session`, `@simplewebauthn/browser`
