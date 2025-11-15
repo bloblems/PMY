@@ -35,6 +35,7 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 - **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
 - **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
 - **Paid Verification**: Users can pay via Stripe to have university Title IX policies verified using advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o).
+- **Sharing & Referrals**: Dropbox-style referral program with email invitations via Resend API. Users can share consent documents via email with professional HTML templates. Rate limiting prevents abuse (10 referral invitations/hour, 20 document shares/hour per user). All sharing operations verify ownership before allowing access to prevent data leakage.
 
 ### System Design Choices
 - **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
@@ -57,14 +58,16 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
   - **Session Management**: Express-session with secure cookie settings
   - **Biometric Authentication**: WebAuthn for Touch ID/Face ID/Windows Hello (biometric data stays on-device)
   - **Encrypted Storage**: AES-256 Keychain/Keystore integration for consent flow state on iOS/Android
+  - **Rate Limiting**: Express-rate-limit middleware prevents abuse of email-sending features (10 referral invitations/hour, 20 document shares/hour per user)
 
 ## External Dependencies
 
 - **Database**: `@neondatabase/serverless` (PostgreSQL), `drizzle-orm`
 - **Frontend Frameworks/Libraries**: `react`, `wouter`, `@tanstack/react-query`, `react-hook-form`, `zod`, `react-signature-canvas`
 - **UI Libraries**: `@radix-ui/*`, `tailwindcss`, `shadcn/ui`, `class-variance-authority`, `cmdk`
-- **Backend Frameworks/Libraries**: `express`, `multer`, `tsx`, `esbuild`, `@simplewebauthn/server`, `ws`
+- **Backend Frameworks/Libraries**: `express`, `multer`, `tsx`, `esbuild`, `@simplewebauthn/server`, `ws`, `express-rate-limit`
 - **iOS/Native Integration**: `@capacitor/core`, `@capacitor/cli`, `@capacitor/preferences`, `capacitor-secure-storage-plugin`
 - **AI Services**: `OpenAI API` (GPT-4o-mini, GPT-4, GPT-4o)
 - **Payment Processing**: `Stripe`
+- **Email Services**: `Resend API` (transactional emails for referrals and document sharing)
 - **Authentication**: `passport`, `express-session`, `@simplewebauthn/browser`
