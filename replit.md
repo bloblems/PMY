@@ -9,14 +9,14 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-The application follows Apple Human Interface Guidelines with a mobile-first, single-column layout (max-width: 448px), supporting both light and dark modes. It uses a system font stack, structured heading hierarchy, and Tailwind CSS for styling with custom design tokens. Key UI elements include a bottom navigation bar, card-based layouts, accordions, and toast notifications. The central "Press for Yes" button initiates the consent flow.
+The application follows Apple Human Interface Guidelines with a mobile-first, single-column layout (max-width: 448px), supporting both light and dark modes. It uses a system font stack, structured heading hierarchy, and Tailwind CSS for styling with custom design tokens. Key UI elements include a bottom navigation bar, card-based layouts, accordions, and toast notifications. The app uses a consent-first approach where the home page (/) immediately starts the consent creation flow, making the primary action instantly accessible. A "Press for Yes" button on the Title IX information page provides an alternative entry point with university context.
 
 ### Technical Implementations
 The frontend is built with React 18 and TypeScript, using Vite, Wouter for routing, and TanStack Query for server state. UI components are derived from shadcn/ui (Radix UI) and Tailwind CSS. Form validation is handled with `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, handling RESTful API endpoints and file uploads via Multer. Drizzle ORM provides type-safe PostgreSQL operations with Neon serverless.
 
 ### Feature Specifications
-- **Consent Documentation**: Supports digital signature capture (`react-signature-canvas`), audio recording (Media Recorder API), and biometric authentication (WebAuthn for Touch ID/Face ID/Windows Hello) for consent. A multi-step wizard guides users through defining encounter types and parties involved.
-- **Title IX Information**: Provides educational content about Title IX requirements, customized per university. It includes a comprehensive system for managing, updating, and verifying university Title IX policies. OpenAI GPT-4o-mini is used to summarize Title IX policies for universities.
+- **Consent Documentation**: Supports digital signature capture (`react-signature-canvas`), audio recording (Media Recorder API), and biometric authentication (WebAuthn for Touch ID/Face ID/Windows Hello) for consent. A 5-step wizard guides users through: (1) university selection, (2) encounter type, (3) parties involved, (4) intimate acts (optional), and (5) recording method selection. The wizard includes smart auto-advancement - when a university is provided via URL parameter, Step 1 is automatically completed and the flow starts at Step 2.
+- **Title IX Information**: Provides educational content about Title IX requirements, customized per university (accessible at /titleix). It includes a comprehensive system for managing, updating, and verifying university Title IX policies. OpenAI GPT-4o-mini is used to summarize Title IX policies for universities.
 - **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
 - **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
 - **Paid Verification**: Users can pay via Stripe to have university Title IX policies verified using advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o).
@@ -24,7 +24,8 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 ### System Design Choices
 - **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
 - **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
-- **State Management**: Frontend uses TanStack Query for server state and URL parameters for maintaining state across multi-step consent flows.
+- **State Management**: Frontend uses TanStack Query for server state and URL parameters for maintaining state across multi-step consent flows. The consent wizard uses React state with URL synchronization for persistence and deep linking support.
+- **Navigation**: Bottom navigation bar with 4 tabs: Create (home/consent flow), Title IX (information page), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/).
 - **Security**: Implements secure password hashing, session management, and WebAuthn for biometric authentication, ensuring privacy by keeping biometric data on-device.
 
 ## External Dependencies
