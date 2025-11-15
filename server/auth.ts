@@ -6,6 +6,7 @@ import connectPgSimple from "connect-pg-simple";
 import { storage } from "./storage";
 import { randomBytes, pbkdf2Sync } from "crypto";
 import { pool } from "./db";
+import { logAuthEvent } from "./securityLogger";
 
 function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
   const newSalt = salt || randomBytes(32).toString("hex");

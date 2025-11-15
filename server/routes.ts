@@ -11,6 +11,7 @@ import { isAuthenticated } from "./auth";
 import { sendInvitationEmail, sendDocumentEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { csrfProtection, setCsrfToken } from "./csrf";
+import { validateFileUpload } from "./fileValidation";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -273,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload a new recording (requires authentication)
-  app.post("/api/recordings", isAuthenticated, csrfProtection, upload.single("audio"), async (req, res) => {
+  app.post("/api/recordings", isAuthenticated, csrfProtection, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -471,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-recordings", isAuthenticated, csrfProtection, upload.single("audio"), async (req, res) => {
+  app.post("/api/consent-recordings", isAuthenticated, csrfProtection, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -511,7 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/consent-photos", isAuthenticated, csrfProtection, upload.single("photo"), async (req, res) => {
+  app.post("/api/consent-photos", isAuthenticated, csrfProtection, upload.single("photo"), validateFileUpload("photo"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No photo file provided" });
@@ -1065,7 +1066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Only construct document details AFTER ownership is verified
         const documentDate = new Date(recording.createdAt).toLocaleDateString();
-        const documentDetails = `Audio/Video Consent Recording (${recording.recordingType})`;
+        const documentDetails = `Audio/Video Consent Recording`;
         
         // Send document email via Resend with error handling
         try {
