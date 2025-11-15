@@ -27,13 +27,14 @@ interface ConsentFlowState {
   method: "signature" | "voice" | "photo" | "biometric" | null;
 }
 
+const intimateEncounterType = { id: "intimate", label: "Intimate Encounter", icon: Heart };
+
 const encounterTypes = [
-  { id: "intimate", label: "Intimate Encounter", icon: Heart },
   { id: "date", label: "Date", icon: Coffee },
-  { id: "social", label: "Social Gathering", icon: Users },
   { id: "conversation", label: "Private Conversation", icon: MessageCircle },
   { id: "medical", label: "Medical", icon: Stethoscope },
   { id: "professional", label: "Professional", icon: Briefcase },
+  { id: "social", label: "Social Gathering", icon: Users },
 ];
 
 const otherEncounterType = { id: "other", label: "Other", icon: Users };
@@ -375,6 +376,20 @@ export default function ConsentFlowPage() {
             <h2 className="text-lg font-semibold mb-1">Step {flowSteps.encounterType}: Encounter Type</h2>
             <p className="text-sm text-muted-foreground">What kind of encounter is this consent for?</p>
           </div>
+          <Card
+            className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
+              state.encounterType === intimateEncounterType.id
+                ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                : ""
+            }`}
+            onClick={() => updateState({ encounterType: intimateEncounterType.id })}
+            data-testid={`option-encounter-${intimateEncounterType.id}`}
+          >
+            <div className="flex items-center justify-center gap-3">
+              <intimateEncounterType.icon className={`h-6 w-6 ${state.encounterType === intimateEncounterType.id ? "text-green-600 dark:text-green-400" : ""}`} />
+              <span className="text-sm font-medium">{intimateEncounterType.label}</span>
+            </div>
+          </Card>
           <div className="grid grid-cols-2 gap-3">
             {encounterTypes.map((type) => {
               const Icon = type.icon;
