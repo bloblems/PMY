@@ -8,6 +8,7 @@ import Stripe from "stripe";
 import passport from "passport";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
 import { isAuthenticated } from "./auth";
+import { sendInvitationEmail, sendDocumentEmail } from "./email";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -848,12 +849,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Referee email is required" });
       }
 
+      // Get referrer's user data for name and referral code
+      const referrer = await storage.getUser(user.id);
+      if (!referrer) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Ensure user has a referral code
+      let referralCode = referrer.referralCode;
+      if (!referralCode) {
+        referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        await storage.updateUserReferralCode(user.id, referralCode);
+      }
+
+      // Create referral record
       const referral = await storage.createReferral({
         referrerId: user.id,
         refereeEmail,
         invitationMessage,
         status: "pending",
       });
+
+      // Send invitation email via Resend
+      try {
+        await sendInvitationEmail({
+          to: refereeEmail,
+          referrerName: referrer.email.split('@')[0], // Use email username as name
+          referralCode,
+          personalMessage: invitationMessage || undefined,
+        });
+      } catch (emailError) {
+        console.error("Error sending invitation email:", emailError);
+        // Don't fail the whole request if email fails, just log it
+      }
 
       res.json(referral);
     } catch (error) {
