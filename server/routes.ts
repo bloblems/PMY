@@ -209,10 +209,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all recordings
-  app.get("/api/recordings", async (_req, res) => {
+  // Get user's recordings (requires authentication)
+  app.get("/api/recordings", isAuthenticated, async (req, res) => {
     try {
-      const recordings = await storage.getAllRecordings();
+      const user = req.user as any;
+      const recordings = await storage.getRecordingsByUserId(user.id);
       res.json(recordings);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recordings" });
@@ -249,32 +250,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete a recording
-  app.delete("/api/recordings/:id", async (req, res) => {
+  // Delete a recording (requires authentication)
+  app.delete("/api/recordings/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteRecording(id);
+      const user = req.user as any;
+      await storage.deleteRecording(id, user.id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete recording" });
     }
   });
 
-  // Get all contracts
-  app.get("/api/contracts", async (_req, res) => {
+  // Get user's contracts (requires authentication)
+  app.get("/api/contracts", isAuthenticated, async (req, res) => {
     try {
-      const contracts = await storage.getAllContracts();
+      const user = req.user as any;
+      const contracts = await storage.getContractsByUserId(user.id);
       res.json(contracts);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch contracts" });
     }
   });
 
-  // Get a single contract
-  app.get("/api/contracts/:id", async (req, res) => {
+  // Get a single contract (requires authentication and ownership)
+  app.get("/api/contracts/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      const contract = await storage.getContract(id);
+      const user = req.user as any;
+      const contract = await storage.getContract(id, user.id);
       
       if (!contract) {
         return res.status(404).json({ error: "Contract not found" });
@@ -337,10 +341,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a contract
-  app.delete("/api/contracts/:id", async (req, res) => {
+  app.delete("/api/contracts/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteContract(id);
+      const user = req.user as any;
+      await storage.deleteContract(id, user.id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete contract" });

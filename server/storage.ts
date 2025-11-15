@@ -3,7 +3,7 @@ import { type University, type InsertUniversity, type ConsentRecording, type Ins
 import { universityData } from "./university-data";
 import { db } from "./db";
 import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users, referrals } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   // University methods
@@ -26,16 +26,16 @@ export interface IStorage {
   updateVerificationPaymentStatus(id: string, stripePaymentStatus: string, verificationStatus: string, verificationResult?: string): Promise<VerificationPayment | undefined>;
 
   // Recording methods
-  getAllRecordings(): Promise<ConsentRecording[]>;
-  getRecording(id: string): Promise<ConsentRecording | undefined>;
+  getRecordingsByUserId(userId: string): Promise<ConsentRecording[]>;
+  getRecording(id: string, userId: string): Promise<ConsentRecording | undefined>;
   createRecording(recording: InsertConsentRecording): Promise<ConsentRecording>;
-  deleteRecording(id: string): Promise<void>;
+  deleteRecording(id: string, userId: string): Promise<void>;
 
   // Contract methods
-  getAllContracts(): Promise<ConsentContract[]>;
-  getContract(id: string): Promise<ConsentContract | undefined>;
+  getContractsByUserId(userId: string): Promise<ConsentContract[]>;
+  getContract(id: string, userId: string): Promise<ConsentContract | undefined>;
   createContract(contract: InsertConsentContract): Promise<ConsentContract>;
-  deleteContract(id: string): Promise<void>;
+  deleteContract(id: string, userId: string): Promise<void>;
 
   // User methods
   getUser(id: string): Promise<User | undefined>;
@@ -185,14 +185,18 @@ export class MemStorage implements IStorage {
     return resolved;
   }
 
-  async getAllRecordings(): Promise<ConsentRecording[]> {
-    return Array.from(this.recordings.values()).sort((a, b) => 
-      b.createdAt.getTime() - a.createdAt.getTime()
-    );
+  async getRecordingsByUserId(userId: string): Promise<ConsentRecording[]> {
+    return Array.from(this.recordings.values())
+      .filter(r => r.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async getRecording(id: string): Promise<ConsentRecording | undefined> {
-    return this.recordings.get(id);
+  async getRecording(id: string, userId: string): Promise<ConsentRecording | undefined> {
+    const recording = this.recordings.get(id);
+    if (!recording || recording.userId !== userId) {
+      return undefined;
+    }
+    return recording;
   }
 
   async createRecording(insertRecording: InsertConsentRecording): Promise<ConsentRecording> {
@@ -210,18 +214,25 @@ export class MemStorage implements IStorage {
     return recording;
   }
 
-  async deleteRecording(id: string): Promise<void> {
-    this.recordings.delete(id);
+  async deleteRecording(id: string, userId: string): Promise<void> {
+    const recording = this.recordings.get(id);
+    if (recording && recording.userId === userId) {
+      this.recordings.delete(id);
+    }
   }
 
-  async getAllContracts(): Promise<ConsentContract[]> {
-    return Array.from(this.contracts.values()).sort((a, b) =>
-      b.createdAt.getTime() - a.createdAt.getTime()
-    );
+  async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
+    return Array.from(this.contracts.values())
+      .filter(c => c.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async getContract(id: string): Promise<ConsentContract | undefined> {
-    return this.contracts.get(id);
+  async getContract(id: string, userId: string): Promise<ConsentContract | undefined> {
+    const contract = this.contracts.get(id);
+    if (!contract || contract.userId !== userId) {
+      return undefined;
+    }
+    return contract;
   }
 
   async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {
@@ -251,8 +262,11 @@ export class MemStorage implements IStorage {
     return contract;
   }
 
-  async deleteContract(id: string): Promise<void> {
-    this.contracts.delete(id);
+  async deleteContract(id: string, userId: string): Promise<void> {
+    const contract = this.contracts.get(id);
+    if (contract && contract.userId === userId) {
+      this.contracts.delete(id);
+    }
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -478,13 +492,25 @@ export class DbStorage implements IStorage {
   }
 
   // Recording methods
-  async getAllRecordings(): Promise<ConsentRecording[]> {
-    return await db.select().from(consentRecordings).orderBy(desc(consentRecordings.createdAt));
+  async getRecordingsByUserId(userId: string): Promise<ConsentRecording[]> {
+    return await db
+      .select()
+      .from(consentRecordings)
+      .where(eq(consentRecordings.userId, userId))
+      .orderBy(desc(consentRecordings.createdAt));
   }
 
-  async getRecording(id: string): Promise<ConsentRecording | undefined> {
-    const result = await db.select().from(consentRecordings).where(eq(consentRecordings.id, id));
-    return result[0];
+  async getRecording(id: string, userId: string): Promise<ConsentRecording | undefined> {
+    const result = await db
+      .select()
+      .from(consentRecordings)
+      .where(eq(consentRecordings.id, id));
+    
+    const recording = result[0];
+    if (!recording || recording.userId !== userId) {
+      return undefined;
+    }
+    return recording;
   }
 
   async createRecording(insertRecording: InsertConsentRecording): Promise<ConsentRecording> {
@@ -492,18 +518,32 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async deleteRecording(id: string): Promise<void> {
-    await db.delete(consentRecordings).where(eq(consentRecordings.id, id));
+  async deleteRecording(id: string, userId: string): Promise<void> {
+    await db
+      .delete(consentRecordings)
+      .where(and(eq(consentRecordings.id, id), eq(consentRecordings.userId, userId)));
   }
 
   // Contract methods
-  async getAllContracts(): Promise<ConsentContract[]> {
-    return await db.select().from(consentContracts).orderBy(desc(consentContracts.createdAt));
+  async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
+    return await db
+      .select()
+      .from(consentContracts)
+      .where(eq(consentContracts.userId, userId))
+      .orderBy(desc(consentContracts.createdAt));
   }
 
-  async getContract(id: string): Promise<ConsentContract | undefined> {
-    const result = await db.select().from(consentContracts).where(eq(consentContracts.id, id));
-    return result[0];
+  async getContract(id: string, userId: string): Promise<ConsentContract | undefined> {
+    const result = await db
+      .select()
+      .from(consentContracts)
+      .where(eq(consentContracts.id, id));
+    
+    const contract = result[0];
+    if (!contract || contract.userId !== userId) {
+      return undefined;
+    }
+    return contract;
   }
 
   async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {
@@ -518,8 +558,10 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async deleteContract(id: string): Promise<void> {
-    await db.delete(consentContracts).where(eq(consentContracts.id, id));
+  async deleteContract(id: string, userId: string): Promise<void> {
+    await db
+      .delete(consentContracts)
+      .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)));
   }
 
   // Verification payment methods
