@@ -33,13 +33,14 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 - **Integrations Settings**: Comprehensive integrations page (accessible at /settings/integrations) showcasing third-party ID verification and age verification services. Currently features Stripe Identity (available for configuration) and displays upcoming integrations including Persona, Onfido, Veriff, Sumsub, and iDenfy. Each integration card displays status, features, pricing, and documentation links. Accessible via Settings menu.
 - **University Policy Preview**: When selecting a university during consent flow, displays AI-generated policy summary, verification status, and last updated date to help users make informed decisions.
 - **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
-- **Data Retention Controls**: Comprehensive data retention management system accessible via Settings → Account (/settings/account):
-  - **Customizable Retention Policies**: Users can choose how long to keep consent documentation (30 days, 90 days, 1 year, or forever)
-  - **Automatic Cleanup**: Background service runs every 24 hours to delete expired consent data based on each user's policy
+- **Account Management**: Complete account management system accessible via Settings → Account (/settings/account):
+  - **Change Email**: Users can update their login email with clear warning about permanent change, email normalization (trim/lowercase) prevents duplicate accounts with case-variant emails
+  - **Data Retention Controls**: Customizable retention policies (30 days, 90 days, 1 year, or forever) with automatic cleanup service running every 24 hours
   - **Manual Data Deletion**: One-click deletion of all consent data (recordings, contracts, photos) with confirmation dialog
+  - **Delete Account**: Comprehensive account deletion with multi-step confirmation (type "delete" + 3-second hold button), properly cascades through all user data (recordings, contracts, referrals, verification payments) and destroys session
   - **Policy Hydration Protection**: Save button disabled until retention policy loads from backend to prevent accidental overwrites
   - **Singleton Guard**: Cleanup service protected against duplicate initialization in dev environment
-  - **Audit Logging**: All retention policy updates and manual deletions logged for security monitoring
+  - **Audit Logging**: All account modifications (email changes, retention policy updates, data deletions, account deletions) logged for security monitoring
 - **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
 - **Paid Verification**: Users can pay via Stripe to have university Title IX policies verified using advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o).
 - **Sharing & Referrals**: Dropbox-style referral program with email invitations via Resend API. Users can share consent documents via email with professional HTML templates. Rate limiting prevents abuse (10 referral invitations/hour, 20 document shares/hour per user). All sharing operations verify ownership before allowing access to prevent data leakage.
@@ -63,10 +64,12 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
   - **Delete Authorization**: Delete methods return boolean indicating success; endpoints return 404 when user doesn't own the resource
   - **Password Security**: PBKDF2 hashing with salt for user passwords
   - **Password Reset Tokens**: SHA256 hashing before database storage with constant-time comparison (`timingSafeEqual`) for validation, 1-hour expiry, single-use tokens
-  - **Session Management**: PostgreSQL-backed sessions using `connect-pg-simple` with automatic pruning, 7-day rolling sessions, secure/httpOnly/sameSite=strict cookies
+  - **Session Management**: PostgreSQL-backed sessions using `connect-pg-simple` with automatic pruning, 7-day rolling sessions, secure/httpOnly/sameSite=strict cookies, complete session destruction on account deletion
   - **CSRF Protection**: Double-submit cookie pattern with SameSite=strict cookies, applied to all state-changing endpoints, iOS/Capacitor compatible
+  - **Email Normalization**: Change email endpoint normalizes emails (trim + lowercase) before uniqueness validation to prevent case-variant duplicate accounts
+  - **Cascading Deletions**: Account deletion properly cascades through all user data (recordings, contracts, referrals, verification payments) before deleting user record
   - **File Upload Validation**: Server-side MIME type sniffing with allowlists, iOS-native format support (CAF/AAC/M4A), size limits (10MB audio, 5MB photos)
-  - **Security Audit Logging**: Comprehensive structured logging for auth events, consent operations, file uploads, rate limit violations, and CSRF failures - ready for SIEM integration
+  - **Security Audit Logging**: Comprehensive structured logging for auth events, consent operations, file uploads, rate limit violations, CSRF failures, and account modifications - ready for SIEM integration
   - **Biometric Authentication**: WebAuthn for Touch ID/Face ID/Windows Hello (biometric data stays on-device)
   - **Encrypted Storage**: AES-256 Keychain/Keystore integration for consent flow state on iOS/Android
   - **Rate Limiting**: Express-rate-limit middleware prevents abuse of email-sending features (10 referral invitations/hour, 20 document shares/hour per user), violations logged for monitoring
