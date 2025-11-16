@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Save, Clock, Shield, User, Mail, UserX } from "lucide-react";
+import { Loader2, Trash2, Save, Clock, Shield, User, UserX, Eye, EyeOff } from "lucide-react";
 
 interface UserData {
   user: {
@@ -66,6 +66,7 @@ export default function AccountSettingsPage() {
   // Change email state
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [showEmail, setShowEmail] = useState(false);
   
   // Delete account state
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
@@ -292,6 +293,19 @@ export default function AccountSettingsPage() {
     year: "numeric",
   });
 
+  // Obscure email with asterisks
+  const obscureEmail = (email: string) => {
+    const [localPart, domain] = email.split("@");
+    if (!domain) return email;
+    
+    // Show first 2 characters and last character of local part
+    const obscuredLocal = localPart.length > 3
+      ? `${localPart.slice(0, 2)}${"*".repeat(Math.max(4, localPart.length - 3))}${localPart.slice(-1)}`
+      : "*".repeat(localPart.length);
+    
+    return `${obscuredLocal}@${domain}`;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -315,8 +329,33 @@ export default function AccountSettingsPage() {
             <div className="text-base">{displayName}</div>
           </div>
           <div>
-            <div className="text-sm font-medium text-muted-foreground">Email</div>
-            <div className="text-base">{userData.user.email}</div>
+            <div className="text-sm font-medium text-muted-foreground mb-1">Email</div>
+            <div className="flex items-center gap-2">
+              <div className="text-base flex-1 font-mono">
+                {showEmail ? userData.user.email : obscureEmail(userData.user.email)}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowEmail(!showEmail)}
+                className="h-8 w-8"
+                data-testid="button-toggle-email-visibility"
+              >
+                {showEmail ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsChangeEmailOpen(true)}
+                data-testid="button-change-email"
+              >
+                Change
+              </Button>
+            </div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">Authentication Method</div>
@@ -329,72 +368,53 @@ export default function AccountSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Change Email */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Change Email Address
-          </CardTitle>
-          <CardDescription>
-            Update the email address associated with your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AlertDialog open={isChangeEmailOpen} onOpenChange={setIsChangeEmailOpen}>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="w-full" data-testid="button-change-email">
-                <Mail className="mr-2 h-4 w-4" />
-                Change Email
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Change Email Address</AlertDialogTitle>
-                <AlertDialogDescription className="space-y-2">
-                  <p className="font-semibold text-destructive">This will permanently change how you sign in to your account.</p>
-                  <p>
-                    After changing your email, you must use the new email address to sign in.
-                    You will no longer be able to access this account using your current email address.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Make sure you have access to the new email address before proceeding.
-                  </p>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <div className="py-4">
-                <Label htmlFor="new-email">New Email Address</Label>
-                <Input
-                  id="new-email"
-                  type="email"
-                  placeholder="Enter new email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  data-testid="input-new-email"
-                  className="mt-2"
-                />
-              </div>
-              <AlertDialogFooter>
-                <AlertDialogCancel data-testid="button-cancel-change-email">Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => changeEmailMutation.mutate(newEmail)}
-                  disabled={!newEmail || changeEmailMutation.isPending}
-                  data-testid="button-confirm-change-email"
-                >
-                  {changeEmailMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Changing...
-                    </>
-                  ) : (
-                    "Change Email"
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
+      {/* Change Email Dialog */}
+      <AlertDialog open={isChangeEmailOpen} onOpenChange={setIsChangeEmailOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Email Address</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p className="font-semibold text-destructive">This will permanently change how you sign in to your account.</p>
+              <p>
+                After changing your email, you must use the new email address to sign in.
+                You will no longer be able to access this account using your current email address.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Make sure you have access to the new email address before proceeding.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="new-email">New Email Address</Label>
+            <Input
+              id="new-email"
+              type="email"
+              placeholder="Enter new email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              data-testid="input-new-email"
+              className="mt-2"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-change-email">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => changeEmailMutation.mutate(newEmail)}
+              disabled={!newEmail || changeEmailMutation.isPending}
+              data-testid="button-confirm-change-email"
+            >
+              {changeEmailMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Changing...
+                </>
+              ) : (
+                "Change Email"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Data Retention Policy */}
       <Card>
