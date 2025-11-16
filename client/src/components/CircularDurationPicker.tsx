@@ -149,9 +149,6 @@ export function CircularDurationPicker({
   const handlePointerUp = () => {
     setIsDraggingStart(false);
     setIsDraggingEnd(false);
-    if (svgRef.current) {
-      svgRef.current.releasePointerCapture(svgRef.current.dataset.pointerId as any);
-    }
   };
 
   useEffect(() => {

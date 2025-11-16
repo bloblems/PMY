@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CircularDurationPicker } from "@/components/CircularDurationPicker";
 import { addMinutes, format, addHours, addDays, addWeeks } from "date-fns";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, AlertTriangle } from "lucide-react";
 
 interface ContractDurationStepProps {
   contractStartTime?: string;
@@ -149,6 +149,9 @@ export default function ContractDurationStep({
     }
   };
 
+  // Check if start time is in the past
+  const isStartTimeInPast = startDateTime.getTime() < Date.now();
+
   const handleDurationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const minutes = parseInt(e.target.value, 10);
     if (!isNaN(minutes) && minutes > 0) {
@@ -233,6 +236,12 @@ export default function ContractDurationStep({
                   onChange={handleStartTimeInputChange}
                   data-testid="input-start-datetime"
                 />
+                {isStartTimeInPast && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 mt-1">
+                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                    <span>This start time is in the past. You can use this to document consent that was previously given.</span>
+                  </p>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -255,13 +264,13 @@ export default function ContractDurationStep({
             </CardContent>
           </Card>
 
-          {/* Circular Time Picker - Only for within-day adjustments */}
-          {duration <= 1440 && (
+          {/* Circular Time Picker - Only for durations up to 12 hours */}
+          {duration <= 720 && (
             <Card>
               <CardHeader className="space-y-1">
                 <CardTitle className="text-lg">Time Picker</CardTitle>
                 <CardDescription>
-                  Drag the handles to adjust start time and end time visually
+                  Drag the handles to adjust start time and end time visually (up to 12 hours)
                 </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
