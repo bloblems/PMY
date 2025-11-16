@@ -45,6 +45,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(), // Required by OIDC
   lastLoginAt: timestamp("last_login_at").notNull().defaultNow(),
   dataRetentionPolicy: text("data_retention_policy").notNull().default("forever"), // Options: "30days", "90days", "1year", "forever"
+  stripeCustomerId: text("stripe_customer_id"), // Stripe customer ID for payment methods
 });
 
 export const consentRecordings = pgTable("consent_recordings", {
@@ -113,6 +114,22 @@ export const referrals = pgTable("referrals", {
   invitationMessage: text("invitation_message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
+});
+
+export const paymentMethods = pgTable("payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(),
+  stripePaymentMethodId: text("stripe_payment_method_id").notNull(),
+  type: text("type").notNull(), // "card", "apple_pay", "paypal", "venmo", "bitcoin"
+  isDefault: text("is_default").notNull().default("false"),
+  last4: text("last4"), // Last 4 digits for cards
+  brand: text("brand"), // Card brand (visa, mastercard, etc.)
+  expiryMonth: text("expiry_month"), // Card expiry month
+  expiryYear: text("expiry_year"), // Card expiry year
+  email: text("email"), // For PayPal, Venmo
+  walletAddress: text("wallet_address"), // For Bitcoin
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const insertUniversitySchema = createInsertSchema(universities).omit({
@@ -213,3 +230,15 @@ export const insertReferralSchema = createInsertSchema(referrals).omit({
 
 export type InsertReferral = z.infer<typeof insertReferralSchema>;
 export type Referral = typeof referrals.$inferSelect;
+
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  type: z.enum(["card", "apple_pay", "paypal", "venmo", "bitcoin"]),
+  isDefault: z.enum(["true", "false"]).default("false"),
+});
+
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
