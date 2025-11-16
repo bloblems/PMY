@@ -446,7 +446,7 @@ export default function BillingPage() {
           </Card>
 
           {paymentMethods && paymentMethods.length > 0 ? (
-            <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               {paymentMethods.map((method) => (
                 <PaymentMethodCard
                   key={method.id}

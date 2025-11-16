@@ -66,7 +66,7 @@ function App() {
           <div className="flex flex-col min-h-screen bg-background">
             {!isAuthPage && (
               <header className="sticky top-0 z-40 bg-card border-b border-card-border">
-                <div className="max-w-md mx-auto px-6 h-14 flex items-center justify-between">
+                <div className="w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
                   <PMYLogo className="text-2xl text-foreground" />
                   <SettingsMenu />
                 </div>
@@ -74,7 +74,7 @@ function App() {
             )}
 
             <main className={`flex-1 overflow-auto ${!isAuthPage ? "pb-20" : ""}`}>
-              <div className={`max-w-md mx-auto ${!isAuthPage ? "px-6 py-8" : ""}`}>
+              <div className={`w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto ${!isAuthPage ? "px-4 sm:px-6 py-8" : ""}`}>
                 <Router />
               </div>
             </main>

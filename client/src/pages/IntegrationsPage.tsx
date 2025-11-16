@@ -102,7 +102,7 @@ export default function ToolsPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-[448px] mx-auto p-4 pb-24 space-y-6">
+      <div className="space-y-6">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">Tools & Integrations</h1>
           <p className="text-sm text-muted-foreground">
