@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CircularDurationPicker } from "@/components/CircularDurationPicker";
+import { LinearDurationPicker } from "@/components/LinearDurationPicker";
 import { addMinutes, format, addHours, addDays, addWeeks } from "date-fns";
 import { Calendar, Clock, AlertTriangle, Zap, Gauge, Edit3 } from "lucide-react";
 
@@ -172,9 +172,6 @@ export default function ContractDurationStep({
     setExpandedPanel(expandedPanel === panel ? null : panel);
   };
 
-  // Determine if circular picker should be available
-  const showCircularPicker = duration <= 720;
-
   return (
     <div className="space-y-6">
       {!isDurationEnabled ? (
@@ -261,54 +258,52 @@ export default function ContractDurationStep({
             )}
           </div>
 
-          {/* Panel 2: Circular Picker (only available for durations ≤12 hours) */}
-          {showCircularPicker && (
-            <div className="space-y-2">
-              {expandedPanel !== 'picker' ? (
-                <Button
-                  variant="outline"
-                  onClick={() => togglePanel('picker')}
-                  className="w-full justify-start gap-2"
-                  data-testid="button-toggle-picker"
-                >
-                  <Gauge className="h-4 w-4" />
-                  Time Picker
-                </Button>
-              ) : (
-                <Card>
-                  <CardHeader className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Gauge className="h-4 w-4" />
-                        Time Picker
-                      </CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => togglePanel('picker')}
-                        data-testid="button-collapse-picker"
-                      >
-                        Collapse
-                      </Button>
-                    </div>
-                    <CardDescription>
-                      Drag the handles to adjust start time and end time visually
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-center">
-                      <CircularDurationPicker
-                        startTime={startDateTime}
-                        duration={duration}
-                        onStartTimeChange={setStartDateTime}
-                        onDurationChange={setDuration}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+          {/* Panel 2: Linear Time Picker */}
+          <div className="space-y-2">
+            {expandedPanel !== 'picker' ? (
+              <Button
+                variant="outline"
+                onClick={() => togglePanel('picker')}
+                className="w-full justify-start gap-2"
+                data-testid="button-toggle-picker"
+              >
+                <Gauge className="h-4 w-4" />
+                Timeline Picker
+              </Button>
+            ) : (
+              <Card>
+                <CardHeader className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Gauge className="h-4 w-4" />
+                      Timeline Picker
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => togglePanel('picker')}
+                      data-testid="button-collapse-picker"
+                    >
+                      Collapse
+                    </Button>
+                  </div>
+                  <CardDescription>
+                    Drag the handles to adjust start and end times
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center">
+                    <LinearDurationPicker
+                      startTime={startDateTime}
+                      duration={duration}
+                      onStartTimeChange={setStartDateTime}
+                      onDurationChange={setDuration}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {/* Panel 3: Manual Entry */}
           <div className="space-y-2">
