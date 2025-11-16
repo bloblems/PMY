@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser, type UpsertUser, type Referral, type InsertReferral } from "@shared/schema";
+import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser, type UpsertUser, type Referral, type InsertReferral, type PaymentMethod, type InsertPaymentMethod } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
-import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users, referrals } from "@shared/schema";
+import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users, referrals, paymentMethods } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
@@ -61,6 +61,14 @@ export interface IStorage {
   getReferralsByUserId(userId: string): Promise<Referral[]>;
   getReferralStats(userId: string): Promise<{ total: number; completed: number; pending: number }>;
   updateReferralStatus(id: string, status: string, refereeId?: string): Promise<Referral | undefined>;
+
+  // Payment method methods
+  getPaymentMethodsByUserId(userId: string): Promise<PaymentMethod[]>;
+  getPaymentMethod(id: string, userId: string): Promise<PaymentMethod | undefined>;
+  createPaymentMethod(paymentMethod: InsertPaymentMethod): Promise<PaymentMethod>;
+  setDefaultPaymentMethod(id: string, userId: string): Promise<boolean>;
+  deletePaymentMethod(id: string, userId: string): Promise<boolean>;
+  updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -310,6 +318,7 @@ export class MemStorage implements IStorage {
       passwordResetToken: null,
       passwordResetTokenExpiry: null,
       dataRetentionPolicy: "forever",
+      stripeCustomerId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       lastLoginAt: new Date(),
@@ -352,6 +361,7 @@ export class MemStorage implements IStorage {
         savedSignatureType: null,
         savedSignatureText: null,
         dataRetentionPolicy: "forever",
+        stripeCustomerId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         lastLoginAt: new Date(),
@@ -574,6 +584,31 @@ export class MemStorage implements IStorage {
       return updated;
     }
     return undefined;
+  }
+
+  // Payment method stub implementations
+  async getPaymentMethodsByUserId(_userId: string): Promise<PaymentMethod[]> {
+    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  }
+
+  async getPaymentMethod(_id: string, _userId: string): Promise<PaymentMethod | undefined> {
+    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  }
+
+  async createPaymentMethod(_paymentMethod: InsertPaymentMethod): Promise<PaymentMethod> {
+    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  }
+
+  async setDefaultPaymentMethod(_id: string, _userId: string): Promise<boolean> {
+    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  }
+
+  async deletePaymentMethod(_id: string, _userId: string): Promise<boolean> {
+    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  }
+
+  async updateUserStripeCustomerId(_userId: string, _stripeCustomerId: string): Promise<User | undefined> {
+    throw new Error("Stripe customer ID not supported in MemStorage. Use DbStorage.");
   }
 }
 
@@ -983,6 +1018,72 @@ export class DbStorage implements IStorage {
       .update(referrals)
       .set(values)
       .where(eq(referrals.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Payment method methods
+  async getPaymentMethodsByUserId(userId: string): Promise<PaymentMethod[]> {
+    return await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.userId, userId))
+      .orderBy(desc(paymentMethods.createdAt));
+  }
+
+  async getPaymentMethod(id: string, userId: string): Promise<PaymentMethod | undefined> {
+    const result = await db
+      .select()
+      .from(paymentMethods)
+      .where(and(eq(paymentMethods.id, id), eq(paymentMethods.userId, userId)));
+    return result[0];
+  }
+
+  async createPaymentMethod(insertPaymentMethod: InsertPaymentMethod): Promise<PaymentMethod> {
+    const result = await db.insert(paymentMethods).values(insertPaymentMethod).returning();
+    return result[0];
+  }
+
+  async setDefaultPaymentMethod(id: string, userId: string): Promise<boolean> {
+    const paymentMethod = await this.getPaymentMethod(id, userId);
+    if (!paymentMethod) {
+      return false;
+    }
+
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: "false", updatedAt: new Date() })
+      .where(eq(paymentMethods.userId, userId));
+
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: "true", updatedAt: new Date() })
+      .where(eq(paymentMethods.id, id));
+
+    return true;
+  }
+
+  async deletePaymentMethod(id: string, userId: string): Promise<boolean> {
+    const paymentMethod = await this.getPaymentMethod(id, userId);
+    if (!paymentMethod) {
+      return false;
+    }
+
+    await db
+      .delete(paymentMethods)
+      .where(eq(paymentMethods.id, id));
+
+    return true;
+  }
+
+  async updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set({ 
+        stripeCustomerId,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
       .returning();
     return result[0];
   }
