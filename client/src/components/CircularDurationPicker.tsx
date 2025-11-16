@@ -133,18 +133,14 @@ export function CircularDurationPicker({
       const durationAM = Math.round((candidateAM.getTime() - startTime.getTime()) / 60000);
       const durationPM = Math.round((candidatePM.getTime() - startTime.getTime()) / 60000);
       
-      if (durationAM > 0 && durationAM <= 720) {
-        endDate = candidateAM;
-      } else if (durationPM > 0 && durationPM <= 720) {
-        endDate = candidatePM;
-      } else if (durationAM > 0) {
+      if (durationAM > 0) {
         endDate = candidateAM;
       } else if (durationPM > 0) {
         endDate = candidatePM;
       }
       
       const newDuration = Math.round((endDate.getTime() - startTime.getTime()) / 60000);
-      if (newDuration > 0 && newDuration <= 720) {
+      if (newDuration > 0) {
         onDurationChange(newDuration);
       }
     }
@@ -153,15 +149,20 @@ export function CircularDurationPicker({
   const handlePointerUp = () => {
     setIsDraggingStart(false);
     setIsDraggingEnd(false);
+    if (svgRef.current) {
+      svgRef.current.releasePointerCapture(svgRef.current.dataset.pointerId as any);
+    }
   };
 
   useEffect(() => {
     if (isDraggingStart || isDraggingEnd) {
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
+      document.addEventListener("pointercancel", handlePointerUp);
       return () => {
         document.removeEventListener("pointermove", handlePointerMove);
         document.removeEventListener("pointerup", handlePointerUp);
+        document.removeEventListener("pointercancel", handlePointerUp);
       };
     }
   }, [isDraggingStart, isDraggingEnd, startTime, duration]);
@@ -199,7 +200,6 @@ export function CircularDurationPicker({
           width="400"
           height="400"
           className="select-none"
-          style={{ touchAction: "none" }}
         >
           <circle cx={centerX} cy={centerY} r={radius + 30} fill="hsl(var(--card))" />
           
