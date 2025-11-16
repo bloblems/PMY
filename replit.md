@@ -55,6 +55,7 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
   - **Ownership Verification**: All read/delete operations verify ownership before returning data (returns 404 for unauthorized access)
   - **Delete Authorization**: Delete methods return boolean indicating success; endpoints return 404 when user doesn't own the resource
   - **Password Security**: PBKDF2 hashing with salt for user passwords
+  - **Password Reset Tokens**: SHA256 hashing before database storage with constant-time comparison (`timingSafeEqual`) for validation, 1-hour expiry, single-use tokens
   - **Session Management**: PostgreSQL-backed sessions using `connect-pg-simple` with automatic pruning, 7-day rolling sessions, secure/httpOnly/sameSite=strict cookies
   - **CSRF Protection**: Double-submit cookie pattern with SameSite=strict cookies, applied to all state-changing endpoints, iOS/Capacitor compatible
   - **File Upload Validation**: Server-side MIME type sniffing with allowlists, iOS-native format support (CAF/AAC/M4A), size limits (10MB audio, 5MB photos)
