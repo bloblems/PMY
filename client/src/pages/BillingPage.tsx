@@ -21,10 +21,9 @@ import {
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : null;
 
 interface PaymentMethod {
   id: string;
@@ -366,6 +365,42 @@ export default function BillingPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!stripePromise) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Billing & Payment Methods</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage your payment methods securely
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Stripe Configuration Required</CardTitle>
+            <CardDescription>
+              To enable billing and payment features, you need to configure your Stripe publishable key.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg bg-muted p-4 space-y-2">
+              <p className="text-sm font-medium">Setup Instructions:</p>
+              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Go to <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Stripe Dashboard → API Keys</a></li>
+                <li>Make sure you're in <strong>Test mode</strong></li>
+                <li>Copy your <strong>Publishable key</strong> (starts with pk_test_)</li>
+                <li>Add it as an environment variable: <code className="bg-background px-1 py-0.5 rounded">VITE_STRIPE_PUBLIC_KEY</code></li>
+              </ol>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The publishable key is safe to use in your browser - it's designed to be public and allows secure payment collection.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
