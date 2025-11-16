@@ -91,7 +91,7 @@ export default function UniversitySelector({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command value={commandValue}>
           <CommandInput placeholder="Search universities..." />
-          <CommandList>
+          <CommandList className="max-h-[200px]">
             <CommandEmpty>No university found.</CommandEmpty>
             <CommandGroup>
               {universities.map((university) => (
