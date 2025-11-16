@@ -77,7 +77,10 @@ export default function SettingsMenu() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem data-testid="menu-item-account">
+            <DropdownMenuItem 
+              onClick={() => navigate("/settings/account")}
+              data-testid="menu-item-account"
+            >
               <User className="mr-2 h-4 w-4" />
               <span>Account</span>
             </DropdownMenuItem>

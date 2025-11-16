@@ -44,6 +44,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(), // Required by OIDC
   lastLoginAt: timestamp("last_login_at").notNull().defaultNow(),
+  dataRetentionPolicy: text("data_retention_policy").notNull().default("forever"), // Options: "30days", "90days", "1year", "forever"
 });
 
 export const consentRecordings = pgTable("consent_recordings", {

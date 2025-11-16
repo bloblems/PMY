@@ -324,6 +324,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user data retention policy
+  app.patch("/api/auth/retention-policy", csrfProtection, isAuthenticated, async (req, res) => {
+    try {
+      const { dataRetentionPolicy } = req.body;
+      const user = req.user as any;
+      
+      const validPolicies = ["30days", "90days", "1year", "forever"];
+      if (!dataRetentionPolicy || !validPolicies.includes(dataRetentionPolicy)) {
+        return res.status(400).json({ error: "Invalid retention policy" });
+      }
+
+      await storage.updateUserRetentionPolicy(user.id, dataRetentionPolicy);
+      
+      logAuthEvent(req, "retention_policy_updated", user.id, undefined, {
+        newPolicy: dataRetentionPolicy
+      });
+
+      return res.json({ success: true, message: "Retention policy updated successfully" });
+    } catch (error) {
+      console.error("Update retention policy error:", error);
+      return res.status(500).json({ error: "Failed to update retention policy" });
+    }
+  });
+
+  // Delete all user data (contracts, recordings)
+  app.delete("/api/auth/delete-all-data", csrfProtection, isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // Delete all recordings and contracts for this user
+      await storage.deleteAllUserData(user.id);
+      
+      logAuthEvent(req, "user_data_deleted", user.id, undefined, {
+        action: "manual_deletion"
+      });
+
+      return res.json({ 
+        success: true, 
+        message: "All data has been permanently deleted" 
+      });
+    } catch (error) {
+      console.error("Delete all data error:", error);
+      return res.status(500).json({ error: "Failed to delete data" });
+    }
+  });
+
   // CSRF token endpoint - sets CSRF token in cookie and session
   app.get("/api/csrf-token", setCsrfToken, (req, res) => {
     // Token is already set in cookie by setCsrfToken middleware

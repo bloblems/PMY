@@ -38,6 +38,7 @@ export interface IStorage {
   deleteContract(id: string, userId: string): Promise<boolean>;
 
   // User methods
+  getAllUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
@@ -50,6 +51,8 @@ export interface IStorage {
   setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void>;
   clearPasswordResetToken(userId: string): Promise<void>;
   updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void>;
+  updateUserRetentionPolicy(userId: string, dataRetentionPolicy: string): Promise<void>;
+  deleteAllUserData(userId: string): Promise<void>;
 
   // Referral methods
   createReferral(referral: InsertReferral): Promise<Referral>;
@@ -278,6 +281,10 @@ export class MemStorage implements IStorage {
     return false;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
   }
@@ -300,6 +307,7 @@ export class MemStorage implements IStorage {
       savedSignatureText: null,
       passwordResetToken: null,
       passwordResetTokenExpiry: null,
+      dataRetentionPolicy: "forever",
       createdAt: new Date(),
       updatedAt: new Date(),
       lastLoginAt: new Date(),
@@ -341,6 +349,7 @@ export class MemStorage implements IStorage {
         savedSignature: null,
         savedSignatureType: null,
         savedSignatureText: null,
+        dataRetentionPolicy: "forever",
         createdAt: new Date(),
         updatedAt: new Date(),
         lastLoginAt: new Date(),
@@ -426,6 +435,30 @@ export class MemStorage implements IStorage {
       };
       this.users.set(userId, updated);
     }
+  }
+
+  async updateUserRetentionPolicy(userId: string, dataRetentionPolicy: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      const updated = { 
+        ...user, 
+        dataRetentionPolicy,
+        updatedAt: new Date(),
+      };
+      this.users.set(userId, updated);
+    }
+  }
+
+  async deleteAllUserData(userId: string): Promise<void> {
+    // Delete all recordings for this user
+    const userRecordings = Array.from(this.recordings.values())
+      .filter(r => r.userId === userId);
+    userRecordings.forEach(r => this.recordings.delete(r.id));
+    
+    // Delete all contracts for this user
+    const userContracts = Array.from(this.contracts.values())
+      .filter(c => c.userId === userId);
+    userContracts.forEach(c => this.contracts.delete(c.id));
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -710,6 +743,11 @@ export class DbStorage implements IStorage {
   }
 
   // User methods
+  async getAllUsers(): Promise<User[]> {
+    const result = await db.select().from(users);
+    return result;
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
@@ -741,6 +779,9 @@ export class DbStorage implements IStorage {
         savedSignature: null,
         savedSignatureType: null,
         savedSignatureText: null,
+        passwordResetToken: null,
+        passwordResetTokenExpiry: null,
+        dataRetentionPolicy: "forever",
       })
       .onConflictDoUpdate({
         target: users.id,
@@ -826,6 +867,28 @@ export class DbStorage implements IStorage {
         passwordSalt,
       })
       .where(eq(users.id, userId));
+  }
+
+  async updateUserRetentionPolicy(userId: string, dataRetentionPolicy: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        dataRetentionPolicy,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async deleteAllUserData(userId: string): Promise<void> {
+    // Delete all recordings for this user
+    await db
+      .delete(consentRecordings)
+      .where(eq(consentRecordings.userId, userId));
+    
+    // Delete all contracts for this user
+    await db
+      .delete(consentContracts)
+      .where(eq(consentContracts.userId, userId));
   }
 
   // Referral methods

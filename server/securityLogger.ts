@@ -52,11 +52,11 @@ function getRequestMetadata(req: Request) {
 }
 
 /**
- * Log authentication events (login, logout, signup, failures)
+ * Log authentication events (login, logout, signup, failures, retention policy updates, data deletion)
  */
 export function logAuthEvent(
   req: Request,
-  action: "login" | "logout" | "signup" | "login_failure" | "logout_failure" | "signup_failure",
+  action: "login" | "logout" | "signup" | "login_failure" | "logout_failure" | "signup_failure" | "retention_policy_updated" | "user_data_deleted",
   userId?: string,
   userEmail?: string,
   details?: Record<string, any>

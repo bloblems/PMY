@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import { setupOidcAuth, getOidcSession } from "./replitAuth";
+import { initializeDataRetention } from "./dataRetention";
 import passport from "passport";
 
 const app = express();
@@ -97,5 +98,8 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Initialize automatic data retention cleanup
+    initializeDataRetention();
   });
 })();
