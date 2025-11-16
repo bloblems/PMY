@@ -8,7 +8,7 @@ import Stripe from "stripe";
 import passport from "passport";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
 import { isAuthenticated } from "./auth";
-import { sendInvitationEmail, sendDocumentEmail } from "./email";
+import { sendInvitationEmail, sendDocumentEmail, sendWelcomeEmail, sendPasswordResetEmail, sendPasswordResetConfirmationEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { csrfProtection, setCsrfToken } from "./csrf";
 import { validateFileUpload } from "./fileValidation";
@@ -129,11 +129,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Signup failed - no user:", info);
         return res.status(400).json({ error: info?.message || "Signup failed" });
       }
-      req.login(user, (loginErr) => {
+      req.login(user, async (loginErr) => {
         if (loginErr) {
           console.error("Login after signup error:", loginErr);
           return res.status(500).json({ error: "Login after signup failed" });
         }
+        
+        // Send welcome email (don't block response on email delivery)
+        if (user.email && user.name) {
+          sendWelcomeEmail({
+            to: user.email,
+            name: user.name
+          }).catch(err => {
+            console.error("Failed to send welcome email:", err);
+          });
+        }
+        
         return res.json({ user: { id: user.id, email: user.email, name: user.name } });
       });
     })(req, res, next);
@@ -208,6 +219,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authMethod,
       }
     });
+  });
+
+  // Password reset endpoints
+  app.post("/api/auth/request-reset", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      
+      // Always return success to prevent email enumeration
+      // But only send email if user exists and uses email/password auth
+      if (user && user.passwordHash) {
+        // Generate secure reset token (32 random bytes = 64 hex characters)
+        const resetToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+        
+        // Token expires in 1 hour
+        const expiryDate = new Date();
+        expiryDate.setHours(expiryDate.getHours() + 1);
+        
+        // Save token to database
+        await storage.setPasswordResetToken(user.id, resetToken, expiryDate);
+        
+        // Send reset email
+        await sendPasswordResetEmail({
+          to: user.email!,
+          name: user.name || 'User',
+          resetToken
+        });
+      }
+      
+      // Always return success to prevent email enumeration
+      return res.json({ 
+        success: true, 
+        message: "If an account exists with that email, a password reset link has been sent." 
+      });
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      return res.status(500).json({ error: "Failed to process password reset request" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      
+      if (!token || !newPassword) {
+        return res.status(400).json({ error: "Token and new password are required" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+
+      // Find user by reset token
+      const user = await storage.getUserByResetToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+
+      // Check if token is expired
+      if (!user.passwordResetTokenExpiry || user.passwordResetTokenExpiry < new Date()) {
+        return res.status(400).json({ error: "Reset token has expired" });
+      }
+
+      // Hash new password
+      const crypto = await import('crypto');
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = crypto.pbkdf2Sync(newPassword, salt, 100000, 64, 'sha512').toString('hex');
+
+      // Update password and clear reset token
+      await storage.updatePassword(user.id, hash, salt);
+      await storage.clearPasswordResetToken(user.id);
+
+      // Send confirmation email
+      await sendPasswordResetConfirmationEmail({
+        to: user.email!,
+        name: user.name || 'User'
+      });
+
+      return res.json({ success: true, message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      return res.status(500).json({ error: "Failed to reset password" });
+    }
   });
 
   // CSRF token endpoint - sets CSRF token in cookie and session

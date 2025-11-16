@@ -41,11 +41,15 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>; // OIDC - upsert user by id
   updateUserLastLogin(id: string): Promise<User | undefined>;
   updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined>;
   updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined>;
+  setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void>;
+  clearPasswordResetToken(userId: string): Promise<void>;
+  updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void>;
 
   // Referral methods
   createReferral(referral: InsertReferral): Promise<Referral>;
@@ -294,6 +298,8 @@ export class MemStorage implements IStorage {
       savedSignature: null,
       savedSignatureType: null,
       savedSignatureText: null,
+      passwordResetToken: null,
+      passwordResetTokenExpiry: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       lastLoginAt: new Date(),
@@ -329,6 +335,8 @@ export class MemStorage implements IStorage {
         profilePictureUrl: upsertData.profileImageUrl,
         passwordHash: null, // OIDC users don't have passwords
         passwordSalt: null,
+        passwordResetToken: null,
+        passwordResetTokenExpiry: null,
         referralCode: null,
         savedSignature: null,
         savedSignatureType: null,
@@ -378,6 +386,46 @@ export class MemStorage implements IStorage {
       return updated;
     }
     return undefined;
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(u => u.passwordResetToken === token);
+  }
+
+  async setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      const updated = { 
+        ...user, 
+        passwordResetToken: token,
+        passwordResetTokenExpiry: expiry,
+      };
+      this.users.set(userId, updated);
+    }
+  }
+
+  async clearPasswordResetToken(userId: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      const updated = { 
+        ...user, 
+        passwordResetToken: null,
+        passwordResetTokenExpiry: null,
+      };
+      this.users.set(userId, updated);
+    }
+  }
+
+  async updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      const updated = { 
+        ...user, 
+        passwordHash,
+        passwordSalt,
+      };
+      this.users.set(userId, updated);
+    }
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -743,6 +791,41 @@ export class DbStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return result[0];
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.passwordResetToken, token));
+    return result[0];
+  }
+
+  async setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        passwordResetToken: token,
+        passwordResetTokenExpiry: expiry,
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async clearPasswordResetToken(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        passwordResetToken: null,
+        passwordResetTokenExpiry: null,
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        passwordHash,
+        passwordSalt,
+      })
+      .where(eq(users.id, userId));
   }
 
   // Referral methods
