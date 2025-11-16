@@ -82,21 +82,65 @@ export function CircularDurationPicker({
     const time = angleToTime(angle);
 
     if (isDraggingStart) {
-      const newStartTime = new Date(startTime);
-      const isPM = startTime.getHours() >= 12;
       const hours24 = time.hours === 12 ? 0 : time.hours;
-      newStartTime.setHours(isPM ? hours24 + 12 : hours24, time.minutes, 0, 0);
-      onStartTimeChange(newStartTime);
+      
+      const candidates = [
+        new Date(startTime),
+        new Date(startTime),
+        new Date(startTime.getTime() + 24 * 60 * 60 * 1000),
+        new Date(startTime.getTime() + 24 * 60 * 60 * 1000),
+        new Date(startTime.getTime() - 24 * 60 * 60 * 1000),
+        new Date(startTime.getTime() - 24 * 60 * 60 * 1000),
+      ];
+      
+      candidates[0].setHours(hours24, time.minutes, 0, 0);
+      candidates[1].setHours(hours24 + 12, time.minutes, 0, 0);
+      candidates[2].setHours(hours24, time.minutes, 0, 0);
+      candidates[3].setHours(hours24 + 12, time.minutes, 0, 0);
+      candidates[4].setHours(hours24, time.minutes, 0, 0);
+      candidates[5].setHours(hours24 + 12, time.minutes, 0, 0);
+      
+      let closestCandidate = candidates[0];
+      let minDiff = Math.abs(candidates[0].getTime() - startTime.getTime());
+      
+      for (const candidate of candidates) {
+        const diff = Math.abs(candidate.getTime() - startTime.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestCandidate = candidate;
+        }
+      }
+      
+      onStartTimeChange(closestCandidate);
     } else if (isDraggingEnd) {
-      const newEndTime = new Date(startTime);
-      const isPM = startTime.getHours() >= 12;
-      let hours24 = time.hours === 12 ? 0 : time.hours;
+      const hours24 = time.hours === 12 ? 0 : time.hours;
       
-      let endDate = new Date(startTime);
-      endDate.setHours(isPM ? hours24 + 12 : hours24, time.minutes, 0, 0);
+      const candidateAM = new Date(startTime);
+      candidateAM.setHours(hours24, time.minutes, 0, 0);
       
-      if (endDate <= startTime) {
-        endDate = new Date(endDate.getTime() + 12 * 60 * 60 * 1000);
+      const candidatePM = new Date(startTime);
+      candidatePM.setHours(hours24 + 12, time.minutes, 0, 0);
+      
+      let endDate = candidateAM;
+      
+      if (candidateAM <= startTime) {
+        candidateAM.setTime(candidateAM.getTime() + 24 * 60 * 60 * 1000);
+      }
+      if (candidatePM <= startTime) {
+        candidatePM.setTime(candidatePM.getTime() + 24 * 60 * 60 * 1000);
+      }
+      
+      const durationAM = Math.round((candidateAM.getTime() - startTime.getTime()) / 60000);
+      const durationPM = Math.round((candidatePM.getTime() - startTime.getTime()) / 60000);
+      
+      if (durationAM > 0 && durationAM <= 720) {
+        endDate = candidateAM;
+      } else if (durationPM > 0 && durationPM <= 720) {
+        endDate = candidatePM;
+      } else if (durationAM > 0) {
+        endDate = candidateAM;
+      } else if (durationPM > 0) {
+        endDate = candidatePM;
       }
       
       const newDuration = Math.round((endDate.getTime() - startTime.getTime()) / 60000);
