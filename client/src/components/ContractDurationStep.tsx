@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CircularDurationPicker } from "@/components/CircularDurationPicker";
 import { addMinutes, format, addHours, addDays, addWeeks } from "date-fns";
-import { Calendar, Clock, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, AlertTriangle, Zap, Gauge, Edit3 } from "lucide-react";
 
 interface ContractDurationStepProps {
   contractStartTime?: string;
@@ -18,6 +18,8 @@ interface ContractDurationStepProps {
   }) => void;
 }
 
+type PanelType = 'presets' | 'picker' | 'manual' | null;
+
 export default function ContractDurationStep({
   contractStartTime,
   contractDuration,
@@ -28,6 +30,9 @@ export default function ContractDurationStep({
   const [isDurationEnabled, setIsDurationEnabled] = useState(() => {
     return !!(contractStartTime || contractDuration || contractEndTime);
   });
+
+  // Track which panel is expanded (all start collapsed)
+  const [expandedPanel, setExpandedPanel] = useState<PanelType>(null);
 
   // Parse existing values or use defaults for UI display
   const [startDateTime, setStartDateTime] = useState<Date>(() => {
@@ -163,6 +168,13 @@ export default function ContractDurationStep({
     setDuration(minutes);
   };
 
+  const togglePanel = (panel: PanelType) => {
+    setExpandedPanel(expandedPanel === panel ? null : panel);
+  };
+
+  // Determine if circular picker should be available
+  const showCircularPicker = duration <= 720;
+
   return (
     <div className="space-y-6">
       {!isDurationEnabled ? (
@@ -188,103 +200,184 @@ export default function ContractDurationStep({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {/* Duration Presets */}
-          <Card>
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-lg">Quick Presets</CardTitle>
-              <CardDescription>
-                Select a common duration
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                {durationPresets.map((preset) => (
-                  <Button
-                    key={preset.label}
-                    variant={duration === preset.minutes ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handlePresetClick(preset.minutes)}
-                    data-testid={`button-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
-                    className="h-auto py-2"
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          {/* Panel 1: Quick Presets */}
+          <div className="space-y-2">
+            {expandedPanel !== 'presets' ? (
+              <Button
+                variant="outline"
+                onClick={() => togglePanel('presets')}
+                className="w-full justify-start gap-2"
+                data-testid="button-toggle-presets"
+              >
+                <Zap className="h-4 w-4" />
+                Quick Presets
+              </Button>
+            ) : (
+              <Card>
+                <CardHeader className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Quick Presets
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => togglePanel('presets')}
+                      data-testid="button-collapse-presets"
+                    >
+                      Collapse
+                    </Button>
+                  </div>
+                  <CardDescription>
+                    Select a common duration
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    {durationPresets.map((preset) => (
+                      <Button
+                        key={preset.label}
+                        variant={duration === preset.minutes ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePresetClick(preset.minutes)}
+                        data-testid={`button-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        className="h-auto py-2"
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
-          {/* Manual Date/Time Inputs */}
-          <Card>
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-lg">Manual Entry</CardTitle>
-              <CardDescription>
-                Set custom start time and duration
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="start-time" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Start Date & Time
-                </Label>
-                <Input
-                  id="start-time"
-                  type="datetime-local"
-                  value={formatDateTimeLocal(startDateTime)}
-                  onChange={handleStartTimeInputChange}
-                  data-testid="input-start-datetime"
-                />
-                {isStartTimeInPast && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 mt-1">
-                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                    <span>This start time is in the past. You can use this to document consent that was previously given.</span>
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="duration" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Duration (minutes)
-                </Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min="1"
-                  value={duration}
-                  onChange={handleDurationInputChange}
-                  data-testid="input-duration-minutes"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {formatDuration(duration)} • Ends: {format(addMinutes(startDateTime, duration), "MMM d, yyyy 'at' h:mm a")}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Circular Time Picker - Only for durations up to 12 hours */}
-          {duration <= 720 && (
-            <Card>
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-lg">Time Picker</CardTitle>
-                <CardDescription>
-                  Drag the handles to adjust start time and end time visually (up to 12 hours)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <div className="flex justify-center min-w-[400px]">
-                  <CircularDurationPicker
-                    startTime={startDateTime}
-                    duration={duration}
-                    onStartTimeChange={setStartDateTime}
-                    onDurationChange={setDuration}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+          {/* Panel 2: Circular Picker (only available for durations ≤12 hours) */}
+          {showCircularPicker && (
+            <div className="space-y-2">
+              {expandedPanel !== 'picker' ? (
+                <Button
+                  variant="outline"
+                  onClick={() => togglePanel('picker')}
+                  className="w-full justify-start gap-2"
+                  data-testid="button-toggle-picker"
+                >
+                  <Gauge className="h-4 w-4" />
+                  Time Picker
+                </Button>
+              ) : (
+                <Card>
+                  <CardHeader className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Gauge className="h-4 w-4" />
+                        Time Picker
+                      </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => togglePanel('picker')}
+                        data-testid="button-collapse-picker"
+                      >
+                        Collapse
+                      </Button>
+                    </div>
+                    <CardDescription>
+                      Drag the handles to adjust start time and end time visually
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-center">
+                      <CircularDurationPicker
+                        startTime={startDateTime}
+                        duration={duration}
+                        onStartTimeChange={setStartDateTime}
+                        onDurationChange={setDuration}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
+
+          {/* Panel 3: Manual Entry */}
+          <div className="space-y-2">
+            {expandedPanel !== 'manual' ? (
+              <Button
+                variant="outline"
+                onClick={() => togglePanel('manual')}
+                className="w-full justify-start gap-2"
+                data-testid="button-toggle-manual"
+              >
+                <Edit3 className="h-4 w-4" />
+                Manual Entry
+              </Button>
+            ) : (
+              <Card>
+                <CardHeader className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Edit3 className="h-4 w-4" />
+                      Manual Entry
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => togglePanel('manual')}
+                      data-testid="button-collapse-manual"
+                    >
+                      Collapse
+                    </Button>
+                  </div>
+                  <CardDescription>
+                    Set custom start time and duration
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="start-time" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Start Date & Time
+                    </Label>
+                    <Input
+                      id="start-time"
+                      type="datetime-local"
+                      value={formatDateTimeLocal(startDateTime)}
+                      onChange={handleStartTimeInputChange}
+                      data-testid="input-start-datetime"
+                    />
+                    {isStartTimeInPast && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 mt-1">
+                        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                        <span>This start time is in the past. You can use this to document consent that was previously given.</span>
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="duration" className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Duration (minutes)
+                    </Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      min="1"
+                      value={duration}
+                      onChange={handleDurationInputChange}
+                      data-testid="input-duration-minutes"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {formatDuration(duration)} • Ends: {format(addMinutes(startDateTime, duration), "MMM d, yyyy 'at' h:mm a")}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           <Button
             variant="outline"
