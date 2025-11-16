@@ -704,12 +704,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // New consent creation endpoints with enhanced fields (requires authentication)
   app.post("/api/consent-contracts", isAuthenticated, csrfProtection, async (req, res) => {
     try {
+      console.log("[ConsentContract] Received request body duration fields:", {
+        contractStartTime: req.body.contractStartTime,
+        contractDuration: req.body.contractDuration,
+        contractEndTime: req.body.contractEndTime
+      });
+      
       const parsed = insertConsentContractSchema.safeParse(req.body);
       
       if (!parsed.success) {
         console.error("Validation error:", parsed.error);
         return res.status(400).json({ error: "Invalid contract data", details: parsed.error });
       }
+      
+      console.log("[ConsentContract] After validation, duration fields:", {
+        contractStartTime: parsed.data.contractStartTime,
+        contractDuration: parsed.data.contractDuration,
+        contractEndTime: parsed.data.contractEndTime
+      });
 
       // For signature-based contracts, require both signatures
       if (parsed.data.method === "signature") {

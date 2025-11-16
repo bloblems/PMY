@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -60,15 +60,29 @@ export default function ContractDurationStep({
     return "0";
   });
 
+  // Create stable string representation of startDate for dependency tracking
+  const startDateKey = useMemo(() => startDate ? startDate.toISOString() : "", [startDate]);
+
+  // Track last sent values to prevent redundant updates
+  const lastSentRef = useRef<{
+    contractStartTime?: string;
+    contractDuration?: number;
+    contractEndTime?: string;
+  }>({});
+
   // Only update parent when duration is explicitly enabled
   useEffect(() => {
     if (!isDurationEnabled) {
-      // Ensure parent has undefined values when duration is not enabled
-      onUpdate({
-        contractStartTime: undefined,
-        contractDuration: undefined,
-        contractEndTime: undefined,
-      });
+      // Only clear if we previously had duration enabled
+      if (lastSentRef.current.contractDuration !== undefined) {
+        console.log("[ContractDuration] Clearing duration (disabled)");
+        onUpdate({
+          contractStartTime: undefined,
+          contractDuration: undefined,
+          contractEndTime: undefined,
+        });
+        lastSentRef.current = {};
+      }
       return;
     }
 
@@ -98,13 +112,24 @@ export default function ContractDurationStep({
     // Calculate end time
     const calculatedEndDateTime = addMinutes(combinedStartDateTime, totalDurationMinutes);
 
-    // Update parent component
-    onUpdate({
+    const updates = {
       contractStartTime: combinedStartDateTime.toISOString(),
       contractDuration: totalDurationMinutes,
       contractEndTime: calculatedEndDateTime.toISOString(),
-    });
-  }, [isDurationEnabled, startDate, startTime, durationHours, durationMinutes]);
+    };
+
+    // Only call onUpdate if values have actually changed
+    const hasChanged = 
+      lastSentRef.current.contractStartTime !== updates.contractStartTime ||
+      lastSentRef.current.contractDuration !== updates.contractDuration ||
+      lastSentRef.current.contractEndTime !== updates.contractEndTime;
+
+    if (hasChanged) {
+      console.log("[ContractDuration] Updating parent with duration:", updates);
+      lastSentRef.current = updates;
+      onUpdate(updates);
+    }
+  }, [isDurationEnabled, startDateKey, startTime, durationHours, durationMinutes, onUpdate]);
 
   const enableDuration = () => {
     setIsDurationEnabled(true);

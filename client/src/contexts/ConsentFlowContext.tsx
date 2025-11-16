@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { storage } from "@/services/storage";
 
 export interface ConsentFlowState {
@@ -93,11 +93,11 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
     saveState();
   }, [state, isHydrated]);
 
-  const updateState = (updates: Partial<ConsentFlowState>) => {
+  const updateState = useCallback((updates: Partial<ConsentFlowState>) => {
     setState(prev => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const resetState = async () => {
+  const resetState = useCallback(async () => {
     setState(defaultState);
     try {
       await storage.removeItem(STORAGE_KEY);
@@ -105,9 +105,9 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("[ConsentFlowContext] Failed to clear storage:", e);
     }
-  };
+  }, []);
 
-  const hasRequiredData = () => {
+  const hasRequiredData = useCallback(() => {
     // Check that we have an encounter type
     if (!state.encounterType || state.encounterType.trim() === "") {
       return false;
@@ -120,7 +120,7 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
     }
     
     return true;
-  };
+  }, [state]);
 
   return (
     <ConsentFlowContext.Provider value={{ state, updateState, resetState, hasRequiredData, isHydrated }}>
