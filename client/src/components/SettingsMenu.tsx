@@ -84,7 +84,10 @@ export default function SettingsMenu() {
               <User className="mr-2 h-4 w-4" />
               <span>Account</span>
             </DropdownMenuItem>
-            <DropdownMenuItem data-testid="menu-item-billing">
+            <DropdownMenuItem 
+              onClick={() => navigate("/settings/billing")}
+              data-testid="menu-item-billing"
+            >
               <CreditCard className="mr-2 h-4 w-4" />
               <span>Billing</span>
             </DropdownMenuItem>

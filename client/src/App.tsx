@@ -16,6 +16,7 @@ import SharePage from "@/pages/SharePage";
 import ToolsPage from "@/pages/ToolsPage";
 import IntegrationsPage from "@/pages/IntegrationsPage";
 import AccountSettingsPage from "@/pages/AccountSettingsPage";
+import BillingPage from "@/pages/BillingPage";
 import ConsentFlowPage from "@/pages/ConsentFlowPage";
 import ConsentSignaturePage from "@/pages/ConsentSignaturePage";
 import ConsentVoicePage from "@/pages/ConsentVoicePage";
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/tools" component={ToolsPage} />
       <Route path="/settings/integrations" component={IntegrationsPage} />
       <Route path="/settings/account" component={AccountSettingsPage} />
+      <Route path="/settings/billing" component={BillingPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/consent/signature" component={ConsentSignaturePage} />
       <Route path="/consent/voice" component={ConsentVoicePage} />

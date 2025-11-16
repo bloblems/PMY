@@ -1242,6 +1242,307 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Payment method routes
+  app.get("/api/payment-methods", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const paymentMethods = await storage.getPaymentMethodsByUserId(user.id);
+      res.json(paymentMethods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ error: "Failed to fetch payment methods" });
+    }
+  });
+
+  app.post("/api/payment-methods/sync-from-stripe", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userData = await storage.getUser(user.id);
+      
+      if (!userData || !userData.stripeCustomerId) {
+        return res.status(400).json({ error: "User not setup for payments" });
+      }
+
+      const paymentMethodsFromStripe = await stripe.paymentMethods.list({
+        customer: userData.stripeCustomerId,
+        type: "card",
+      });
+
+      const customer = await stripe.customers.retrieve(userData.stripeCustomerId);
+      const defaultPaymentMethodId = (customer as any).invoice_settings?.default_payment_method;
+
+      const existingMethods = await storage.getPaymentMethodsByUserId(user.id);
+      const existingMethodIds = new Set(existingMethods.map(m => m.stripePaymentMethodId));
+
+      for (const pm of paymentMethodsFromStripe.data) {
+        if (!existingMethodIds.has(pm.id)) {
+          try {
+            await storage.createPaymentMethod({
+              userId: user.id,
+              stripePaymentMethodId: pm.id,
+              type: "card",
+              last4: pm.card?.last4 || null,
+              brand: pm.card?.brand || null,
+              expiryMonth: pm.card?.exp_month?.toString() || null,
+              expiryYear: pm.card?.exp_year?.toString() || null,
+              email: null,
+              walletAddress: null,
+              isDefault: pm.id === defaultPaymentMethodId ? "true" : "false",
+            });
+          } catch (error) {
+            console.error("Error syncing payment method from Stripe:", error);
+          }
+        }
+      }
+
+      const stripeMethodIds = new Set(paymentMethodsFromStripe.data.map(pm => pm.id));
+      for (const method of existingMethods) {
+        if (!stripeMethodIds.has(method.stripePaymentMethodId)) {
+          try {
+            await storage.deletePaymentMethod(method.id, user.id);
+          } catch (error) {
+            console.error("Error removing orphaned payment method from database:", error);
+          }
+        }
+      }
+
+      if (defaultPaymentMethodId) {
+        const defaultMethod = existingMethods.find(m => m.stripePaymentMethodId === defaultPaymentMethodId);
+        if (defaultMethod && defaultMethod.isDefault !== "true") {
+          try {
+            await storage.setDefaultPaymentMethod(defaultMethod.id, user.id);
+          } catch (error) {
+            console.error("Error updating default payment method in database:", error);
+          }
+        }
+      }
+
+      const updatedMethods = await storage.getPaymentMethodsByUserId(user.id);
+      res.json({ success: true, paymentMethods: updatedMethods });
+    } catch (error) {
+      console.error("Error syncing payment methods from Stripe:", error);
+      res.status(500).json({ error: "Failed to sync payment methods" });
+    }
+  });
+
+  app.post("/api/payment-methods", isAuthenticated, csrfProtection, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { stripePaymentMethodId } = req.body;
+
+      if (!stripePaymentMethodId) {
+        return res.status(400).json({ error: "Missing payment method ID" });
+      }
+
+      const userData = await storage.getUser(user.id);
+      if (!userData || !userData.stripeCustomerId) {
+        return res.status(400).json({ error: "User not setup for payments" });
+      }
+
+      const stripePaymentMethod = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
+      
+      if (stripePaymentMethod.customer !== userData.stripeCustomerId) {
+        await stripe.paymentMethods.attach(stripePaymentMethodId, {
+          customer: userData.stripeCustomerId,
+        });
+      }
+
+      const existingMethods = await storage.getPaymentMethodsByUserId(user.id);
+      const isFirstMethod = existingMethods.length === 0;
+
+      if (isFirstMethod) {
+        await stripe.customers.update(userData.stripeCustomerId, {
+          invoice_settings: {
+            default_payment_method: stripePaymentMethodId,
+          },
+        });
+      }
+
+      try {
+        const paymentMethod = await storage.createPaymentMethod({
+          userId: user.id,
+          stripePaymentMethodId,
+          type: "card",
+          last4: stripePaymentMethod.card?.last4 || null,
+          brand: stripePaymentMethod.card?.brand || null,
+          expiryMonth: stripePaymentMethod.card?.exp_month?.toString() || null,
+          expiryYear: stripePaymentMethod.card?.exp_year?.toString() || null,
+          email: null,
+          walletAddress: null,
+          isDefault: isFirstMethod ? "true" : "false",
+        });
+        res.json(paymentMethod);
+      } catch (dbError) {
+        console.error("CRITICAL: Payment method created in Stripe but failed to save to database. User can sync from Stripe. Details:", {
+          userId: user.id,
+          stripeCustomerId: userData.stripeCustomerId,
+          stripePaymentMethodId,
+          error: dbError
+        });
+        res.json({
+          id: stripePaymentMethodId,
+          userId: user.id,
+          stripePaymentMethodId,
+          type: "card",
+          last4: stripePaymentMethod.card?.last4 || null,
+          brand: stripePaymentMethod.card?.brand || null,
+          expiryMonth: stripePaymentMethod.card?.exp_month?.toString() || null,
+          expiryYear: stripePaymentMethod.card?.exp_year?.toString() || null,
+          email: null,
+          walletAddress: null,
+          isDefault: isFirstMethod ? "true" : "false",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating payment method:", error);
+      res.status(500).json({ error: "Failed to create payment method" });
+    }
+  });
+
+  app.post("/api/payment-methods/:id/set-default", isAuthenticated, csrfProtection, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { id } = req.params;
+
+      const paymentMethod = await storage.getPaymentMethod(id, user.id);
+      if (!paymentMethod) {
+        return res.status(404).json({ error: "Payment method not found" });
+      }
+
+      const userData = await storage.getUser(user.id);
+      if (!userData || !userData.stripeCustomerId) {
+        return res.status(400).json({ error: "User not setup for payments" });
+      }
+
+      await stripe.customers.update(userData.stripeCustomerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethod.stripePaymentMethodId,
+        },
+      });
+
+      try {
+        const success = await storage.setDefaultPaymentMethod(id, user.id);
+        if (!success) {
+          return res.status(404).json({ error: "Payment method not found" });
+        }
+        res.json({ success: true });
+      } catch (dbError) {
+        console.error("CRITICAL: Default payment method set in Stripe but failed to update database. User can sync from Stripe. Details:", {
+          userId: user.id,
+          stripeCustomerId: userData.stripeCustomerId,
+          paymentMethodId: id,
+          error: dbError
+        });
+        res.json({ success: true });
+      }
+    } catch (error) {
+      console.error("Error setting default payment method:", error);
+      res.status(500).json({ error: "Failed to set default payment method" });
+    }
+  });
+
+  app.delete("/api/payment-methods/:id", isAuthenticated, csrfProtection, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { id } = req.params;
+
+      const paymentMethod = await storage.getPaymentMethod(id, user.id);
+      if (!paymentMethod) {
+        return res.status(404).json({ error: "Payment method not found" });
+      }
+
+      const userData = await storage.getUser(user.id);
+      if (!userData || !userData.stripeCustomerId) {
+        return res.status(400).json({ error: "User not setup for payments" });
+      }
+
+      const isDefault = paymentMethod.isDefault === "true";
+      
+      if (isDefault) {
+        const allMethods = await storage.getPaymentMethodsByUserId(user.id);
+        const otherMethods = allMethods.filter(m => m.id !== id);
+        
+        if (otherMethods.length > 0) {
+          const newDefault = otherMethods[0];
+          await stripe.customers.update(userData.stripeCustomerId, {
+            invoice_settings: {
+              default_payment_method: newDefault.stripePaymentMethodId,
+            },
+          });
+          try {
+            await storage.setDefaultPaymentMethod(newDefault.id, user.id);
+          } catch (dbError) {
+            console.error("CRITICAL: New default set in Stripe but failed to update database. User can sync from Stripe. Details:", {
+              userId: user.id,
+              newDefaultId: newDefault.id,
+              error: dbError
+            });
+          }
+        } else {
+          await stripe.customers.update(userData.stripeCustomerId, {
+            invoice_settings: {
+              default_payment_method: null,
+            },
+          });
+        }
+      }
+
+      await stripe.paymentMethods.detach(paymentMethod.stripePaymentMethodId);
+      
+      try {
+        const success = await storage.deletePaymentMethod(id, user.id);
+        if (!success) {
+          console.error("Payment method deleted from Stripe but not found in database. Likely already deleted.");
+        }
+      } catch (dbError) {
+        console.error("CRITICAL: Payment method deleted from Stripe but failed to delete from database. User can sync from Stripe. Details:", {
+          userId: user.id,
+          paymentMethodId: id,
+          error: dbError
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting payment method:", error);
+      res.status(500).json({ error: "Failed to delete payment method" });
+    }
+  });
+
+  app.post("/api/payment-methods/setup-intent", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userData = await storage.getUser(user.id);
+      
+      if (!userData) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      let customerId = userData.stripeCustomerId;
+      
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: userData.email || undefined,
+          metadata: {
+            userId: user.id,
+          },
+        });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(user.id, customerId);
+      }
+
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+      });
+
+      res.json({ clientSecret: setupIntent.client_secret, customerId });
+    } catch (error) {
+      console.error("Error creating setup intent:", error);
+      res.status(500).json({ error: "Failed to create setup intent" });
+    }
+  });
+
   // Referral routes
   app.post("/api/referrals", isAuthenticated, csrfProtection, referralRateLimiter, async (req, res) => {
     try {

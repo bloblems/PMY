@@ -1,78 +1,39 @@
 # PMY - Title IX Consent Documentation App
 
 ## Overview
-PMY is a mobile-first web application for documenting consent in accordance with Title IX requirements. It provides four consent documentation methods: digital signature contracts, audio recording for verbal agreements, photo/selfie capture, and biometric authentication using Touch ID/Face ID/Windows Hello. The app also provides educational information about Title IX consent, customized by university. The application aims to be a secure, legally sound platform adhering to Apple's Human Interface Guidelines and legal-tech patterns, with the ambition to become a leading solution for Title IX compliance and education in academic institutions.
-
-**iOS Deployment Strategy**: The application is architected for deployment as an iOS app using a two-phase approach: (1) Quick launch via Capacitor WebView container wrapping the existing React app, (2) Long-term enhancement with React Native modules for native features. Current architecture already aligns with iOS requirements through React Context state management, Apple HIG design patterns, and mobile-first responsive layout. See `IOS_DEPLOYMENT_STRATEGY.md` for complete roadmap.
+PMY is a mobile-first web application designed to document consent in compliance with Title IX regulations. It offers multiple methods for consent capture, including digital signatures, audio recordings, photo/selfie capture, and biometric authentication. The application also provides educational resources on Title IX consent, tailored to specific universities. PMY aims to be a secure, legally compliant platform, adhering to Apple's Human Interface Guidelines and legal-tech best practices, with the goal of becoming a leading solution for Title IX compliance and education within academic institutions.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Security Guidelines
-See `SECURITY_GUIDELINES.md` for comprehensive security design guidelines. All development must follow these security priorities to prevent Tea App-style data breaches.
-
 ## System Architecture
 
 ### UI/UX Decisions
-The application follows Apple Human Interface Guidelines with a mobile-first, single-column layout (max-width: 448px), supporting both light and dark modes. It uses a system font stack, structured heading hierarchy, and Tailwind CSS for styling with custom design tokens. Key UI elements include a bottom navigation bar, card-based layouts, accordions, and toast notifications. The app uses a consent-first approach where the home page (/) immediately starts the consent creation flow, making the primary action instantly accessible. A "Press for Yes" button on the Title IX information page provides an alternative entry point with university context.
+The application adheres to Apple Human Interface Guidelines, featuring a mobile-first, single-column responsive layout (max-width: 448px) with light and dark mode support. It uses a system font stack, a clear heading hierarchy, and Tailwind CSS with custom design tokens for styling. Core UI components include a bottom navigation bar, card-based layouts, accordions, and toast notifications. The primary action, consent creation, is immediately accessible from the homepage, emphasizing a consent-first approach.
 
 ### Technical Implementations
-The frontend is built with React 18 and TypeScript, using Vite, Wouter for routing, and TanStack Query for server state. UI components are derived from shadcn/ui (Radix UI) and Tailwind CSS. Form validation is handled with `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, handling RESTful API endpoints and file uploads via Multer. Drizzle ORM provides type-safe PostgreSQL operations with Neon serverless.
+The frontend is built with React 18 and TypeScript, utilizing Vite, Wouter for routing, and TanStack Query for server state management. UI components are derived from shadcn/ui (Radix UI) and styled with Tailwind CSS. Form validation is handled by `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, providing RESTful API endpoints and handling file uploads via Multer. Drizzle ORM facilitates type-safe PostgreSQL interactions with Neon serverless.
 
 ### Feature Specifications
-- **Consent Documentation**: Supports digital signature capture (`react-signature-canvas`), audio recording (Media Recorder API), photo/selfie capture, and biometric authentication (WebAuthn for Touch ID/Face ID/Windows Hello) for consent. The app features a dynamic consent flow that adapts based on encounter type selection:
-  - **5-Step Flow** (for "Intimate Encounter" and "Date"): (1) encounter type, (2) university selection, (3) parties involved, (4) intimate acts (optional), (5) recording method
-  - **4-Step Flow** (for "Social Gathering", "Conversation", "Medical Consultation", "Professional Interaction", "Other"): (1) encounter type, (2) parties involved, (3) intimate acts (optional), (4) recording method
-  - University selection is conditionally required only for encounters where institutional Title IX policies are most relevant
-  - When encounter type changes mid-flow, all state (university, parties, intimate acts) is cleared and step resets to prevent confusion
-  - No auto-selection of universities - requires explicit user interaction
-  - Contract generation supports both university-specific (with policy excerpts) and generic Title IX-compliant consent language
-  - All recording methods properly handle nullable universityId (FormData omits field when empty, JSON sends null)
-- **Title IX Information**: Provides educational content about Title IX requirements, customized per university (accessible at /titleix). It includes a comprehensive system for managing, updating, and verifying university Title IX policies. OpenAI GPT-4o-mini is used to summarize Title IX policies for universities.
-- **Tools**: Quick access panel page (accessible at /tools) with three convenient tool panels: Title IX (view policies), ID Verify (access verification integrations), and Status Check (check consent documentation status). Each panel provides a direct action button and navigation to relevant features.
-- **Integrations Settings**: Comprehensive integrations page (accessible at /settings/integrations) showcasing third-party ID verification and age verification services. Currently features Stripe Identity (available for configuration) and displays upcoming integrations including Persona, Onfido, Veriff, Sumsub, and iDenfy. Each integration card displays status, features, pricing, and documentation links. Accessible via Settings menu.
-- **University Policy Preview**: When selecting a university during consent flow, displays AI-generated policy summary, verification status, and last updated date to help users make informed decisions.
-- **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
-- **Account Management**: Complete account management system accessible via Settings → Account (/settings/account):
-  - **Change Email**: Users can update their login email with clear warning about permanent change, email normalization (trim/lowercase) prevents duplicate accounts with case-variant emails
-  - **Data Retention Controls**: Customizable retention policies (30 days, 90 days, 1 year, or forever) with automatic cleanup service running every 24 hours
-  - **Manual Data Deletion**: One-click deletion of all consent data (recordings, contracts, photos) with confirmation dialog
-  - **Delete Account**: Comprehensive account deletion with multi-step confirmation (type "delete" + 3-second hold button), properly cascades through all user data (recordings, contracts, referrals, verification payments) and destroys session
-  - **Policy Hydration Protection**: Save button disabled until retention policy loads from backend to prevent accidental overwrites
-  - **Singleton Guard**: Cleanup service protected against duplicate initialization in dev environment
-  - **Audit Logging**: All account modifications (email changes, retention policy updates, data deletions, account deletions) logged for security monitoring
-- **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
-- **Paid Verification**: Users can pay via Stripe to have university Title IX policies verified using advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o).
-- **Sharing & Referrals**: Dropbox-style referral program with email invitations via Resend API. Users can share consent documents via email with professional HTML templates. Rate limiting prevents abuse (10 referral invitations/hour, 20 document shares/hour per user). All sharing operations verify ownership before allowing access to prevent data leakage.
+- **Consent Documentation**: Supports digital signature capture, audio recording, photo/selfie capture, and biometric authentication (WebAuthn). The consent flow dynamically adjusts between a 5-step process (for "Intimate Encounter" and "Date") and a 4-step process (for other encounter types), adapting based on user selections. University selection is conditional. Contract generation includes both university-specific and generic Title IX-compliant language.
+- **Title IX Information**: Offers educational content about Title IX requirements, customized by university, accessible at `/titleix`. It includes a system for managing and verifying university Title IX policies, with OpenAI GPT-4o-mini used for policy summarization.
+- **Tools**: A quick access panel at `/tools` provides sections for Title IX policies, ID verification, and consent documentation status checks.
+- **Integrations Settings**: A dedicated page at `/settings/integrations` displays third-party ID and age verification services, currently featuring Stripe Identity with planned integrations for Persona, Onfido, Veriff, Sumsub, and iDenfy.
+- **University Policy Preview**: During consent flow, an AI-generated summary of university policies, verification status, and last updated date is displayed.
+- **User Management**: Secure authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
+- **Account Management**: Accessible via `/settings/account`, allowing users to change email, customize data retention policies (30 days, 90 days, 1 year, forever), manually delete consent data, and comprehensively delete their account. All modifications are audit logged.
+- **Billing & Payment Methods**: A billing page at `/settings/billing` enables management of PCI-compliant payment methods via Stripe Payment Methods API. It supports multiple payment methods, uses Stripe Elements for secure collection, and ensures Stripe-first synchronization for all operations with robust error logging and recovery mechanisms.
+- **University Data**: A database pre-seeded with 287 US universities and their Title IX information.
+- **Paid Verification**: Users can pay via Stripe for advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o) to verify university Title IX policies.
+- **Sharing & Referrals**: Features a Dropbox-style referral program using Resend API and allows sharing of consent documents via email. Rate limiting is applied to prevent abuse.
 
 ### System Design Choices
-- **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`. Users table includes `dataRetentionPolicy` column (30days, 90days, 1year, forever) with default value "forever" for backward compatibility.
-- **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
-- **State Management**: Frontend uses TanStack Query for server state and React Context API with cross-platform storage abstraction for maintaining state across multi-step consent flows. The ConsentFlowContext provides centralized state management with automatic persistence, supporting browser back/forward navigation, page refreshes, and iOS WebView compatibility. All consent method pages implement defensive routing with isHydrated flag to prevent access before async storage loads.
-- **iOS-Ready Secure Storage**: Implemented production-ready storage abstraction layer (`client/src/services/storage.ts`):
-  - **StorageService Interface**: Cross-platform abstraction for unified storage API
-  - **SecureStorageService**: AES-256 encrypted Keychain storage on iOS via `capacitor-secure-storage-plugin`, hardware-backed Keystore on Android, with automatic fallback to sessionStorage on web. Uses `Capacitor.getPlatform()` for synchronous platform detection to ensure correct storage selected before first access.
-  - **WebStorageService**: Browser-compatible sessionStorage with in-memory fallback for private browsing mode
-  - **Platform Detection**: Synchronous detection using `Capacitor.getPlatform() === 'ios' | 'android' | 'web'` ensures correct storage from first call
-  - **Security Guarantees**: On native platforms, consent data encrypted at rest, protected by device passcode/biometrics, sandboxed per-app. On web, session-based storage with no plaintext persistence after browser close.
-  - **Capacitor Configuration**: `capacitor.config.ts` initialized for iOS deployment with webDir, server, and iOS-specific settings
-- **Navigation**: Bottom navigation bar with 4 tabs: Create (home/consent flow), Tools (quick access to Title IX, ID verification, and status checks), Contracts (saved documents), and Share. The consent-first architecture makes consent creation immediately accessible at the home route (/). Tools serves as a hub providing access to Title IX information and verification integrations.
-- **Security**: Implements comprehensive security measures to prevent Tea App-style data breaches:
-  - **Authentication**: All consent data endpoints require `isAuthenticated` middleware (recordings, contracts, photos, biometric)
-  - **User Data Isolation**: Every consent record (contracts, recordings) is scoped to `userId` from authenticated session, preventing cross-user data access
-  - **Ownership Verification**: All read/delete operations verify ownership before returning data (returns 404 for unauthorized access)
-  - **Delete Authorization**: Delete methods return boolean indicating success; endpoints return 404 when user doesn't own the resource
-  - **Password Security**: PBKDF2 hashing with salt for user passwords
-  - **Password Reset Tokens**: SHA256 hashing before database storage with constant-time comparison (`timingSafeEqual`) for validation, 1-hour expiry, single-use tokens
-  - **Session Management**: PostgreSQL-backed sessions using `connect-pg-simple` with automatic pruning, 7-day rolling sessions, secure/httpOnly/sameSite=strict cookies, complete session destruction on account deletion
-  - **CSRF Protection**: Double-submit cookie pattern with SameSite=strict cookies, applied to all state-changing endpoints, iOS/Capacitor compatible
-  - **Email Normalization**: Change email endpoint normalizes emails (trim + lowercase) before uniqueness validation to prevent case-variant duplicate accounts
-  - **Cascading Deletions**: Account deletion properly cascades through all user data (recordings, contracts, referrals, verification payments) before deleting user record
-  - **File Upload Validation**: Server-side MIME type sniffing with allowlists, iOS-native format support (CAF/AAC/M4A), size limits (10MB audio, 5MB photos)
-  - **Security Audit Logging**: Comprehensive structured logging for auth events, consent operations, file uploads, rate limit violations, CSRF failures, and account modifications - ready for SIEM integration
-  - **Biometric Authentication**: WebAuthn for Touch ID/Face ID/Windows Hello (biometric data stays on-device)
-  - **Encrypted Storage**: AES-256 Keychain/Keystore integration for consent flow state on iOS/Android
-  - **Rate Limiting**: Express-rate-limit middleware prevents abuse of email-sending features (10 referral invitations/hour, 20 document shares/hour per user), violations logged for monitoring
+- **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, `verificationPayments`, and `payment_methods`. The `users` table contains `dataRetentionPolicy` and `stripeCustomerId`. `payment_methods` stores metadata, while Stripe manages sensitive payment data.
+- **API Design**: RESTful APIs support CRUD operations and multipart form data for uploads.
+- **State Management**: Frontend uses TanStack Query for server state and React Context API with a cross-platform storage abstraction for managing multi-step consent flow state, supporting browser navigation and iOS WebView compatibility.
+- **iOS-Ready Secure Storage**: Implemented production-ready storage abstraction (`client/src/services/storage.ts`) using `SecureStorageService` for AES-256 encrypted Keychain storage on iOS (and Keystore on Android) with fallback to `sessionStorage` on web. This ensures secure, platform-appropriate data storage.
+- **Navigation**: A bottom navigation bar with "Create", "Tools", "Contracts", and "Share" tabs. The "Create" tab serves as the primary entry for the consent flow.
+- **Security**: Comprehensive measures include `isAuthenticated` middleware for all sensitive endpoints, user data isolation by `userId`, ownership verification for all read/delete operations, PBKDF2 password hashing, SHA256 hashed password reset tokens, PostgreSQL-backed session management with secure cookies, CSRF protection, email normalization, cascading deletions, Stripe-first payment method security, server-side file upload validation, structured security audit logging, WebAuthn for biometric authentication, encrypted storage on native platforms, and rate limiting for email-sending features.
 
 ## External Dependencies
 
@@ -83,5 +44,5 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 - **iOS/Native Integration**: `@capacitor/core`, `@capacitor/cli`, `@capacitor/preferences`, `capacitor-secure-storage-plugin`
 - **AI Services**: `OpenAI API` (GPT-4o-mini, GPT-4, GPT-4o)
 - **Payment Processing**: `Stripe`
-- **Email Services**: `Resend API` (transactional emails for referrals and document sharing)
+- **Email Services**: `Resend API`
 - **Authentication**: `passport`, `express-session`, `@simplewebauthn/browser`
