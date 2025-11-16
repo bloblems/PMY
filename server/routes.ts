@@ -355,6 +355,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Change user email
+  app.patch("/api/auth/change-email", csrfProtection, isAuthenticated, async (req, res) => {
+    try {
+      const { newEmail } = req.body;
+      const user = req.user as any;
+      
+      if (!newEmail || typeof newEmail !== "string") {
+        return res.status(400).json({ error: "Valid email is required" });
+      }
+
+      // Normalize email (trim and lowercase) for consistent comparison
+      const normalizedEmail = newEmail.trim().toLowerCase();
+      
+      if (!normalizedEmail) {
+        return res.status(400).json({ error: "Valid email is required" });
+      }
+
+      // Check if email is already in use (case-insensitive)
+      const existingUser = await storage.getUserByEmail(normalizedEmail);
+      if (existingUser && existingUser.id !== user.id) {
+        return res.status(400).json({ error: "Email already in use" });
+      }
+
+      await storage.updateUserEmail(user.id, normalizedEmail);
+      
+      logAuthEvent(req, "email_changed", user.id, normalizedEmail, {
+        oldEmail: user.email
+      });
+
+      return res.json({ success: true, message: "Email updated successfully" });
+    } catch (error) {
+      console.error("Change email error:", error);
+      return res.status(500).json({ error: "Failed to update email" });
+    }
+  });
+
   // Delete all user data (contracts, recordings)
   app.delete("/api/auth/delete-all-data", csrfProtection, isAuthenticated, async (req, res) => {
     try {
@@ -374,6 +410,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete all data error:", error);
       return res.status(500).json({ error: "Failed to delete data" });
+    }
+  });
+
+  // Delete entire user account
+  app.delete("/api/auth/delete-account", csrfProtection, isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userId = user.id;
+      const email = user.email;
+      
+      // Delete the user account and all associated data
+      await storage.deleteUser(userId);
+      
+      logAuthEvent(req, "account_deleted", userId, email, {
+        action: "user_initiated_deletion"
+      });
+
+      // Logout and destroy session
+      req.logout((logoutErr) => {
+        if (logoutErr) {
+          console.error("Logout error after account deletion:", logoutErr);
+        }
+        
+        // Destroy the session completely
+        req.session.destroy((sessionErr) => {
+          if (sessionErr) {
+            console.error("Session destruction error after account deletion:", sessionErr);
+          }
+          
+          // Clear the session cookie
+          res.clearCookie('connect.sid');
+          return res.json({ success: true, message: "Account deleted successfully" });
+        });
+      });
+    } catch (error) {
+      console.error("Delete account error:", error);
+      return res.status(500).json({ error: "Failed to delete account" });
     }
   });
 

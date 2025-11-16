@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   AlertDialog,
@@ -18,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Save, Clock, Shield, User } from "lucide-react";
+import { Loader2, Trash2, Save, Clock, Shield, User, Mail, UserX } from "lucide-react";
 
 interface UserData {
   user: {
@@ -61,6 +62,21 @@ export default function AccountSettingsPage() {
   const [, navigate] = useLocation();
   const [selectedPolicy, setSelectedPolicy] = useState<string>("forever");
   const [isPolicyHydrated, setIsPolicyHydrated] = useState(false);
+  
+  // Change email state
+  const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  
+  // Delete account state
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [isHolding, setIsHolding] = useState(false);
+  const holdTimerRef = useRef<number | null>(null);
+  const holdStartRef = useRef<number | null>(null);
+  
+  const HOLD_DURATION = 3000; // 3 seconds
+  const RETREAT_DURATION = 300; // 300ms for quick retreat
 
   const { data: userData, isLoading } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -101,6 +117,44 @@ export default function AccountSettingsPage() {
     },
   });
 
+  const changeEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await apiRequest("PATCH", "/api/auth/change-email", {
+        newEmail: email,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(["/api/auth/me"], (old: UserData | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          user: {
+            ...old.user,
+            email: newEmail,
+          },
+        };
+      });
+      
+      setIsChangeEmailOpen(false);
+      setNewEmail("");
+      toast({
+        title: "Email updated",
+        description: "Your email address has been successfully changed",
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message?.includes("already in use") 
+        ? "This email is already in use" 
+        : "Failed to update email address";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteAllDataMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("DELETE", "/api/auth/delete-all-data", {});
@@ -123,6 +177,29 @@ export default function AccountSettingsPage() {
     },
   });
 
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/auth/delete-account", {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently deleted",
+      });
+      // Clear all cached data and navigate to home
+      queryClient.clear();
+      setTimeout(() => navigate("/"), 1000);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete account",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Initialize selected policy when user data loads
   useEffect(() => {
     if (userData?.user) {
@@ -130,6 +207,67 @@ export default function AccountSettingsPage() {
       setIsPolicyHydrated(true);
     }
   }, [userData]);
+
+  // Hold button functions for delete account
+  const startHold = () => {
+    if (deleteConfirmText.toLowerCase() !== "delete") return;
+    
+    setIsHolding(true);
+    holdStartRef.current = Date.now();
+
+    holdTimerRef.current = window.setInterval(() => {
+      if (holdStartRef.current) {
+        const elapsed = Date.now() - holdStartRef.current;
+        const progress = Math.min((elapsed / HOLD_DURATION) * 100, 100);
+        setHoldProgress(progress);
+
+        if (progress >= 100) {
+          stopHold();
+          deleteAccountMutation.mutate();
+        }
+      }
+    }, 16); // ~60fps updates
+  };
+
+  const stopHold = () => {
+    setIsHolding(false);
+    holdStartRef.current = null;
+    
+    if (holdTimerRef.current) {
+      clearInterval(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    // Quick retreat animation
+    if (holdProgress < 100 && holdProgress > 0) {
+      const startProgress = holdProgress;
+      const retreatStart = Date.now();
+
+      const retreatInterval = setInterval(() => {
+        const elapsed = Date.now() - retreatStart;
+        const retreatProgress = (elapsed / RETREAT_DURATION) * 100;
+        const newProgress = startProgress - (startProgress * (retreatProgress / 100));
+        
+        if (newProgress <= 0 || retreatProgress >= 100) {
+          setHoldProgress(0);
+          clearInterval(retreatInterval);
+        } else {
+          setHoldProgress(newProgress);
+        }
+      }, 16);
+    } else if (holdProgress >= 100) {
+      setHoldProgress(0);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) {
+        clearInterval(holdTimerRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -188,6 +326,73 @@ export default function AccountSettingsPage() {
             <div className="text-sm font-medium text-muted-foreground">Member Since</div>
             <div className="text-base">{memberSince}</div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Change Email */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Change Email Address
+          </CardTitle>
+          <CardDescription>
+            Update the email address associated with your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog open={isChangeEmailOpen} onOpenChange={setIsChangeEmailOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="w-full" data-testid="button-change-email">
+                <Mail className="mr-2 h-4 w-4" />
+                Change Email
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Change Email Address</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <p className="font-semibold text-destructive">This will permanently change how you sign in to your account.</p>
+                  <p>
+                    After changing your email, you must use the new email address to sign in.
+                    You will no longer be able to access this account using your current email address.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Make sure you have access to the new email address before proceeding.
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="py-4">
+                <Label htmlFor="new-email">New Email Address</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  placeholder="Enter new email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  data-testid="input-new-email"
+                  className="mt-2"
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-change-email">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => changeEmailMutation.mutate(newEmail)}
+                  disabled={!newEmail || changeEmailMutation.isPending}
+                  data-testid="button-confirm-change-email"
+                >
+                  {changeEmailMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Changing...
+                    </>
+                  ) : (
+                    "Change Email"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 
@@ -262,13 +467,14 @@ export default function AccountSettingsPage() {
             Irreversible actions that permanently delete your data
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          {/* Delete All Data */}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="destructive"
                 className="w-full"
-                data-testid="button-delete-all"
+                data-testid="button-delete-all-data"
                 disabled={deleteAllDataMutation.isPending}
               >
                 {deleteAllDataMutation.isPending ? (
@@ -293,14 +499,109 @@ export default function AccountSettingsPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                <AlertDialogCancel data-testid="button-cancel-delete-data">Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => deleteAllDataMutation.mutate()}
                   className="bg-destructive hover:bg-destructive/90"
-                  data-testid="button-confirm-delete"
+                  data-testid="button-confirm-delete-data"
                 >
                   Delete Everything
                 </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Delete Account */}
+          <AlertDialog open={isDeleteAccountOpen} onOpenChange={(open) => {
+            setIsDeleteAccountOpen(open);
+            if (!open) {
+              setDeleteConfirmText("");
+              setHoldProgress(0);
+              if (holdTimerRef.current) {
+                clearInterval(holdTimerRef.current);
+              }
+            }
+          }}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                data-testid="button-delete-account"
+                disabled={deleteAccountMutation.isPending}
+              >
+                {deleteAccountMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <UserX className="mr-2 h-4 w-4" />
+                    Delete Account
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Your Account</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <p className="font-semibold text-destructive">This action cannot be undone.</p>
+                  <p>
+                    This will permanently delete your account and all associated data including
+                    consent documents, recordings, and contracts from our servers.
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="delete-confirm">Type "delete" to confirm</Label>
+                  <Input
+                    id="delete-confirm"
+                    type="text"
+                    placeholder="Type delete"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    data-testid="input-delete-confirm"
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Hold the button below for 3 seconds to confirm
+                  </p>
+                  <div
+                    className="relative w-full h-12 border-2 border-destructive rounded-md cursor-pointer transition-transform overflow-hidden select-none"
+                    onMouseDown={startHold}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={startHold}
+                    onTouchEnd={stopHold}
+                    data-testid="button-hold-delete"
+                  >
+                    <div
+                      className="absolute inset-0 bg-destructive/20 pointer-events-none"
+                      style={{
+                        width: `${holdProgress}%`,
+                        transition: isHolding ? 'none' : `width ${RETREAT_DURATION}ms ease-out`,
+                      }}
+                    />
+                    <div className="relative flex items-center justify-center h-full text-destructive font-semibold">
+                      {deleteConfirmText.toLowerCase() !== "delete" ? (
+                        "Type 'delete' first"
+                      ) : holdProgress >= 100 ? (
+                        "Deleting..."
+                      ) : holdProgress > 0 ? (
+                        "Hold..."
+                      ) : (
+                        "Hold to Delete Account"
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete-account">Cancel</AlertDialogCancel>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

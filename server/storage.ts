@@ -53,6 +53,8 @@ export interface IStorage {
   updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void>;
   updateUserRetentionPolicy(userId: string, dataRetentionPolicy: string): Promise<void>;
   deleteAllUserData(userId: string): Promise<void>;
+  updateUserEmail(userId: string, newEmail: string): Promise<void>;
+  deleteUser(userId: string): Promise<void>;
 
   // Referral methods
   createReferral(referral: InsertReferral): Promise<Referral>;
@@ -459,6 +461,36 @@ export class MemStorage implements IStorage {
     const userContracts = Array.from(this.contracts.values())
       .filter(c => c.userId === userId);
     userContracts.forEach(c => this.contracts.delete(c.id));
+  }
+
+  async updateUserEmail(userId: string, newEmail: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      const updated = { 
+        ...user, 
+        email: newEmail,
+        updatedAt: new Date(),
+      };
+      this.users.set(userId, updated);
+    }
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    // Delete all consent data (recordings, contracts)
+    await this.deleteAllUserData(userId);
+    
+    // Delete any referrals made by this user
+    const userReferrals = Array.from(this.referrals.values())
+      .filter(r => r.referrerId === userId);
+    userReferrals.forEach(r => this.referrals.delete(r.id));
+    
+    // Delete any verification payments for this user
+    const userPayments = Array.from(this.verificationPayments.values())
+      .filter(p => p.userId === userId);
+    userPayments.forEach(p => this.verificationPayments.delete(p.id));
+    
+    // Finally delete the user account itself
+    this.users.delete(userId);
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -889,6 +921,36 @@ export class DbStorage implements IStorage {
     await db
       .delete(consentContracts)
       .where(eq(consentContracts.userId, userId));
+  }
+
+  async updateUserEmail(userId: string, newEmail: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        email: newEmail,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    // Delete all consent data (recordings, contracts)
+    await this.deleteAllUserData(userId);
+    
+    // Delete any referrals made by this user
+    await db
+      .delete(referrals)
+      .where(eq(referrals.referrerId, userId));
+    
+    // Delete any verification payments for this user
+    await db
+      .delete(verificationPayments)
+      .where(eq(verificationPayments.userId, userId));
+    
+    // Finally delete the user account itself
+    await db
+      .delete(users)
+      .where(eq(users.id, userId));
   }
 
   // Referral methods
