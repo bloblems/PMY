@@ -35,6 +35,8 @@ export const users = pgTable("users", {
   profilePictureUrl: text("profile_picture_url"),
   passwordHash: text("password_hash"), // Nullable - only for email/password users
   passwordSalt: text("password_salt"), // Nullable - only for email/password users
+  passwordResetToken: text("password_reset_token"), // Nullable - temporary reset token
+  passwordResetTokenExpiry: timestamp("password_reset_token_expiry"), // Nullable - token expiration
   referralCode: text("referral_code").unique(),
   savedSignature: text("saved_signature"),
   savedSignatureType: text("saved_signature_type"),

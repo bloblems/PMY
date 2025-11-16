@@ -20,6 +20,22 @@ interface SendDocumentEmailParams {
   };
 }
 
+interface SendWelcomeEmailParams {
+  to: string;
+  name: string;
+}
+
+interface SendPasswordResetEmailParams {
+  to: string;
+  name: string;
+  resetToken: string;
+}
+
+interface SendPasswordResetConfirmationParams {
+  to: string;
+  name: string;
+}
+
 /**
  * Send referral invitation email via Resend
  */
@@ -213,6 +229,283 @@ This document was sent via PMY's secure document sharing feature.
   }
 
   const result = await resend.emails.send(emailData);
+
+  return result;
+}
+
+/**
+ * Send welcome email to new users
+ */
+export async function sendWelcomeEmail({
+  to,
+  name
+}: SendWelcomeEmailParams) {
+  const appUrl = process.env.REPLIT_DOMAINS?.split(',')[0] || 'https://pmy.app';
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to PMY</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 32px;">Welcome to PMY!</h1>
+        <p style="color: rgba(255,255,255,0.95); margin: 10px 0 0 0; font-size: 16px;">Secure Title IX Consent Documentation</p>
+      </div>
+      
+      <div style="background: white; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #333; margin-top: 0;">Hi ${name}, thanks for joining!</h2>
+        
+        <p>Your PMY account is now active and ready to use. You can start documenting consent using any of our four secure methods:</p>
+        
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 6px; margin: 20px 0;">
+          <h3 style="margin-top: 0; font-size: 16px; color: #16a34a;">📝 Four Documentation Methods</h3>
+          <ul style="margin: 10px 0; padding-left: 20px; color: #555;">
+            <li><strong>Digital Signatures:</strong> Sign consent contracts digitally</li>
+            <li><strong>Audio Recording:</strong> Record verbal consent agreements</li>
+            <li><strong>Photo Capture:</strong> Document consent with dual selfies</li>
+            <li><strong>Biometric Auth:</strong> Use Touch ID, Face ID, or Windows Hello</li>
+          </ul>
+        </div>
+        
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${appUrl}" style="display: inline-block; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            Start Documenting Consent
+          </a>
+        </div>
+        
+        <div style="background: #e8f5e9; border-left: 4px solid #16a34a; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #1b5e20; font-size: 14px;">
+            <strong>✓ Title IX Compliant:</strong> All documentation methods meet Title IX requirements and include university-specific policy guidance.
+          </p>
+        </div>
+        
+        <p style="font-size: 14px; color: #888; border-top: 1px solid #e5e5e5; padding-top: 20px; margin-top: 30px;">
+          Need help? Visit our help center or reply to this email.
+        </p>
+      </div>
+      
+      <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+        <p>PMY - Secure Title IX Consent Documentation</p>
+        <p>You're receiving this because you created a PMY account.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const textContent = `
+Welcome to PMY!
+
+Hi ${name}, thanks for joining!
+
+Your PMY account is now active and ready to use. You can start documenting consent using any of our four secure methods:
+
+📝 Four Documentation Methods:
+• Digital Signatures: Sign consent contracts digitally
+• Audio Recording: Record verbal consent agreements
+• Photo Capture: Document consent with dual selfies
+• Biometric Auth: Use Touch ID, Face ID, or Windows Hello
+
+✓ Title IX Compliant: All documentation methods meet Title IX requirements and include university-specific policy guidance.
+
+Get started: ${appUrl}
+
+Need help? Visit our help center or reply to this email.
+
+---
+PMY - Secure Title IX Consent Documentation
+You're receiving this because you created a PMY account.
+  `.trim();
+
+  const result = await resend.emails.send({
+    from: 'PMY <welcome@updates.pmy.app>',
+    to,
+    subject: 'Welcome to PMY - Your Account is Ready',
+    html: htmlContent,
+    text: textContent,
+  });
+
+  return result;
+}
+
+/**
+ * Send password reset email with reset token
+ */
+export async function sendPasswordResetEmail({
+  to,
+  name,
+  resetToken
+}: SendPasswordResetEmailParams) {
+  const appUrl = process.env.REPLIT_DOMAINS?.split(',')[0] || 'https://pmy.app';
+  const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Your PMY Password</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">Password Reset Request</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">PMY Account Security</p>
+      </div>
+      
+      <div style="background: white; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #333; margin-top: 0;">Hi ${name},</h2>
+        
+        <p>We received a request to reset the password for your PMY account. Click the button below to create a new password:</p>
+        
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            Reset Your Password
+          </a>
+        </div>
+        
+        <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
+        <p style="font-size: 13px; color: #667eea; word-break: break-all; background: #f5f5f5; padding: 10px; border-radius: 4px;">
+          ${resetUrl}
+        </p>
+        
+        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #856404; font-size: 14px;">
+            <strong>⚠️ Security Note:</strong> This link will expire in 1 hour. If you didn't request this password reset, you can safely ignore this email.
+          </p>
+        </div>
+        
+        <p style="font-size: 14px; color: #888; border-top: 1px solid #e5e5e5; padding-top: 20px; margin-top: 30px;">
+          For security reasons, we cannot reset your password for you. Only you can reset it using the link above.
+        </p>
+      </div>
+      
+      <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+        <p>PMY - Secure Title IX Consent Documentation</p>
+        <p>If you didn't request this, please contact support immediately.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const textContent = `
+Password Reset Request
+
+Hi ${name},
+
+We received a request to reset the password for your PMY account. Click the link below to create a new password:
+
+${resetUrl}
+
+⚠️ Security Note: This link will expire in 1 hour. If you didn't request this password reset, you can safely ignore this email.
+
+For security reasons, we cannot reset your password for you. Only you can reset it using the link above.
+
+---
+PMY - Secure Title IX Consent Documentation
+If you didn't request this, please contact support immediately.
+  `.trim();
+
+  const result = await resend.emails.send({
+    from: 'PMY Security <security@updates.pmy.app>',
+    to,
+    subject: 'Reset Your PMY Password',
+    html: htmlContent,
+    text: textContent,
+  });
+
+  return result;
+}
+
+/**
+ * Send password reset confirmation email
+ */
+export async function sendPasswordResetConfirmationEmail({
+  to,
+  name
+}: SendPasswordResetConfirmationParams) {
+  const appUrl = process.env.REPLIT_DOMAINS?.split(',')[0] || 'https://pmy.app';
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Password Reset Successful</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">✓ Password Reset Successful</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Your PMY Account is Secure</p>
+      </div>
+      
+      <div style="background: white; padding: 30px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #333; margin-top: 0;">Hi ${name},</h2>
+        
+        <p>Your PMY password has been successfully reset. You can now sign in with your new password.</p>
+        
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${appUrl}/auth" style="display: inline-block; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            Sign In to PMY
+          </a>
+        </div>
+        
+        <div style="background: #e8f5e9; border-left: 4px solid #16a34a; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #1b5e20; font-size: 14px;">
+            <strong>✓ Your account is secure.</strong> All active sessions have been logged out for your protection.
+          </p>
+        </div>
+        
+        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #856404; font-size: 14px;">
+            <strong>⚠️ Didn't reset your password?</strong> If you didn't make this change, contact our support team immediately as your account may be compromised.
+          </p>
+        </div>
+        
+        <p style="font-size: 14px; color: #888; border-top: 1px solid #e5e5e5; padding-top: 20px; margin-top: 30px;">
+          Need help? Visit our help center or reply to this email.
+        </p>
+      </div>
+      
+      <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
+        <p>PMY - Secure Title IX Consent Documentation</p>
+        <p>This is an automated security notification.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const textContent = `
+✓ Password Reset Successful
+
+Hi ${name},
+
+Your PMY password has been successfully reset. You can now sign in with your new password.
+
+Sign in: ${appUrl}/auth
+
+✓ Your account is secure. All active sessions have been logged out for your protection.
+
+⚠️ Didn't reset your password? If you didn't make this change, contact our support team immediately as your account may be compromised.
+
+Need help? Visit our help center or reply to this email.
+
+---
+PMY - Secure Title IX Consent Documentation
+This is an automated security notification.
+  `.trim();
+
+  const result = await resend.emails.send({
+    from: 'PMY Security <security@updates.pmy.app>',
+    to,
+    subject: 'Your PMY Password Has Been Reset',
+    html: htmlContent,
+    text: textContent,
+  });
 
   return result;
 }
