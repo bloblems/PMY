@@ -391,7 +391,7 @@ export default function ContractDurationStep({
       )}
 
       {/* Info Card */}
-      <Card className="border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
+      <Card className="border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20">
         <CardContent className="pt-6">
           <p className="text-sm text-muted-foreground">
             <strong className="font-medium text-foreground">Optional:</strong> Setting a duration helps establish clear boundaries and expectations. 
