@@ -9,7 +9,14 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-The application adheres to Apple Human Interface Guidelines, featuring a mobile-first, single-column responsive layout (max-width: 448px) with light and dark mode support. It uses a system font stack, a clear heading hierarchy, and Tailwind CSS with custom design tokens for styling. Core UI components include a bottom navigation bar, card-based layouts, accordions, and toast notifications. The primary action, consent creation, is immediately accessible from the homepage, emphasizing a consent-first approach.
+The application adheres to Apple Human Interface Guidelines, featuring a mobile-first, fully responsive layout with light and dark mode support. It uses a system font stack, a clear heading hierarchy, and Tailwind CSS with custom design tokens for styling. Core UI components include a bottom navigation bar, card-based layouts, inline confirmations (no modal dialogs), and iOS-standard toast notifications. The primary action, consent creation, is immediately accessible from the homepage, emphasizing a consent-first approach.
+
+**Responsive Design:** The layout adapts across all Apple devices using responsive breakpoints:
+- iPhone (default - 375px to 430px): Single-column, max-width 28rem (448px) with 4-6 padding
+- iPad Mini/Air (md - 768px+): Centered layout, max-width 42rem (672px) with increased content width
+- iPad Pro (lg - 1024px+): Centered layout, max-width 48rem (768px) for optimal reading width
+- Payment methods grid uses 2 columns on tablets (md+) for better space utilization
+- All inline confirmations and destructive actions remain iOS-native styled across all screen sizes
 
 ### Technical Implementations
 The frontend is built with React 18 and TypeScript, utilizing Vite, Wouter for routing, and TanStack Query for server state management. UI components are derived from shadcn/ui (Radix UI) and styled with Tailwind CSS. Form validation is handled by `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, providing RESTful API endpoints and handling file uploads via Multer. Drizzle ORM facilitates type-safe PostgreSQL interactions with Neon serverless.
