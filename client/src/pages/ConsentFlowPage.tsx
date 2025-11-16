@@ -135,31 +135,6 @@ export default function ConsentFlowPage() {
     }
   }, [selectedUniversity]);
 
-  // Handle encounter type changes
-  const prevEncounterTypeRef = useRef(state.encounterType);
-  useEffect(() => {
-    // Only run when encounter type actually changes (not on initial mount)
-    if (prevEncounterTypeRef.current && prevEncounterTypeRef.current !== state.encounterType) {
-      const newFlowSteps = getFlowSteps();
-      
-      // Clear all flow state when encounter type changes to ensure clean slate
-      updateFlowState({
-        universityId: "",
-        universityName: "",
-        parties: ["", ""],
-        intimateActs: [],
-      });
-      setSelectedUniversity(null);
-      
-      // Reset to next appropriate step after encounter type
-      // This prevents numeric step mismatch between 4-step and 5-step flows
-      setStep(newFlowSteps.university || newFlowSteps.parties);
-    }
-    
-    // Update ref for next comparison
-    prevEncounterTypeRef.current = state.encounterType;
-  }, [state.encounterType]);
-
   // Pre-fill first participant with logged-in user's name when available
   useEffect(() => {
     if (userData?.user?.name && state.parties[0] === "") {
@@ -233,6 +208,34 @@ export default function ConsentFlowPage() {
     console.log('[ConsentFlow] Initializing step:', initialStep, 'flowSteps:', getFlowSteps());
     return initialStep;
   });
+
+  // Handle encounter type changes (must be after step state declaration)
+  const prevEncounterTypeRef = useRef(state.encounterType);
+  useEffect(() => {
+    // Only run when encounter type actually changes (not on initial mount or during selection)
+    // Don't auto-advance if we're still on step 1 (encounter type selection)
+    if (prevEncounterTypeRef.current && 
+        prevEncounterTypeRef.current !== state.encounterType && 
+        step !== 1) {
+      const newFlowSteps = getFlowSteps();
+      
+      // Clear all flow state when encounter type changes to ensure clean slate
+      updateFlowState({
+        universityId: "",
+        universityName: "",
+        parties: ["", ""],
+        intimateActs: [],
+      });
+      setSelectedUniversity(null);
+      
+      // Reset to next appropriate step after encounter type
+      // This prevents numeric step mismatch between 4-step and 5-step flows
+      setStep(newFlowSteps.university || newFlowSteps.parties);
+    }
+    
+    // Update ref for next comparison
+    prevEncounterTypeRef.current = state.encounterType;
+  }, [state.encounterType, step]);
 
   const addParty = () => {
     updateFlowState({ parties: [...state.parties, ""] });
