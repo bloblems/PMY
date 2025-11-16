@@ -203,9 +203,9 @@ export default function ConsentVoicePage() {
 
           {isRecording && (
             <div className="text-center py-8">
-              <div className="inline-flex items-center gap-3 bg-red-600/10 dark:bg-red-400/10 border-2 border-red-600 dark:border-red-400 rounded-full px-6 py-3">
-                <div className="w-3 h-3 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
-                <span className="text-2xl font-mono font-bold text-red-600 dark:text-red-400">
+              <div className="inline-flex items-center gap-3 bg-destructive/10 border-2 border-destructive rounded-full px-6 py-3">
+                <div className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
+                <span className="text-2xl font-mono font-bold text-destructive">
                   {formatTime(duration)}
                 </span>
               </div>

@@ -591,7 +591,7 @@ export default function ConsentFlowPage() {
                     isYes
                       ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
                       : isNo
-                      ? "border-red-600 dark:border-red-400 bg-red-600/5 dark:bg-red-400/5"
+                      ? "border-destructive bg-destructive/5"
                       : ""
                   }`}
                   onClick={() => toggleIntimateAct(act)}
@@ -602,7 +602,7 @@ export default function ConsentFlowPage() {
                       isYes
                         ? "border-green-600 dark:border-green-400 bg-green-600 dark:bg-green-400"
                         : isNo
-                        ? "border-red-600 dark:border-red-400 bg-red-600 dark:bg-red-400"
+                        ? "border-destructive bg-destructive"
                         : "border-muted-foreground"
                     }`}>
                       {isYes && (

@@ -11,6 +11,14 @@ Preferred communication style: Simple, everyday language.
 ### UI/UX Decisions
 The application adheres to Apple Human Interface Guidelines, featuring a mobile-first, fully responsive layout with light and dark mode support. It uses a system font stack, a clear heading hierarchy, and Tailwind CSS with custom design tokens for styling. Core UI components include a bottom navigation bar, card-based layouts, inline confirmations (no modal dialogs), and iOS-standard toast notifications. The primary action, consent creation, is immediately accessible from the homepage, emphasizing a consent-first approach.
 
+**Color Policy - Unified Red (Destructive):**
+All red/error/destructive UI elements use the semantic `destructive` color variable defined in `index.css`:
+- Light mode: `--destructive: 0 84% 60%` (red-600 equivalent)
+- Dark mode: `--destructive: 0 91% 71%` (red-400 equivalent)
+- Usage: Always use `border-destructive`, `bg-destructive`, `text-destructive` classes
+- Never use: Hardcoded `red-500`, `red-600`, `red-400` or similar Tailwind color classes
+- Applies to: Error messages, destructive buttons, "NO" selections in consent forms, recording indicators, toast notifications, validation errors
+
 **Responsive Design:** The layout adapts across all Apple devices using responsive breakpoints:
 - iPhone (default - 375px to 430px): Single-column, max-width 28rem (448px) with 4-6 padding
 - iPad Mini/Air (md - 768px+): Centered layout, max-width 42rem (672px) with increased content width
@@ -22,7 +30,7 @@ The application adheres to Apple Human Interface Guidelines, featuring a mobile-
 The frontend is built with React 18 and TypeScript, utilizing Vite, Wouter for routing, and TanStack Query for server state management. UI components are derived from shadcn/ui (Radix UI) and styled with Tailwind CSS. Form validation is handled by `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, providing RESTful API endpoints and handling file uploads via Multer. Drizzle ORM facilitates type-safe PostgreSQL interactions with Neon serverless.
 
 ### Feature Specifications
-- **Consent Documentation**: Supports digital signature capture, audio recording, photo/selfie capture, and biometric authentication (WebAuthn). The consent flow dynamically adjusts between a 5-step or 6-step process based on encounter type and user selections, with an optional contract duration step (Step 5) that allows users to specify start time, duration (in hours and minutes), and automatically calculated end time using Apple-style date/time pickers. Duration fields are stored as `contractStartTime` (timestamp), `contractDuration` (integer minutes), and `contractEndTime` (timestamp). University selection is conditional. Contract generation includes both university-specific and generic Title IX-compliant language.
+- **Consent Documentation**: Supports digital signature capture, audio recording, photo/selfie capture, and biometric authentication (WebAuthn). The consent flow dynamically adjusts between a 5-step or 6-step process based on encounter type and user selections. Step 4 features a three-state intimate acts selection system (unselected, YES with green checkmark, NO with red X) that cycles through states on tap, making explicit consent and non-consent legally clear. The optional contract duration step (Step 5) uses an iOS-style circular graphical picker with day/night indicators, allowing users to specify start time and duration with automatic end time calculation. Duration fields are stored as `contractStartTime` (timestamp), `contractDuration` (integer minutes), and `contractEndTime` (timestamp). University selection is conditional. Contract generation includes both university-specific and generic Title IX-compliant language.
 - **Title IX Information**: Offers educational content about Title IX requirements, customized by university, accessible at `/titleix`. It includes a system for managing and verifying university Title IX policies, with OpenAI GPT-4o-mini used for policy summarization.
 - **Tools**: A quick access panel at `/tools` provides sections for Title IX policies, ID verification, and consent documentation status checks.
 - **Integrations Settings**: A dedicated page at `/settings/integrations` displays third-party ID and age verification services, currently featuring Stripe Identity with planned integrations for Persona, Onfido, Veriff, Sumsub, and iDenfy.
