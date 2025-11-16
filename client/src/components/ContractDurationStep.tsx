@@ -236,18 +236,25 @@ export default function ContractDurationStep({
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                    {durationPresets.map((preset) => (
-                      <Button
-                        key={preset.label}
-                        variant={duration === preset.minutes ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handlePresetClick(preset.minutes)}
-                        data-testid={`button-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
-                        className="h-auto py-2"
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
+                    {durationPresets.map((preset) => {
+                      const isSelected = duration === preset.minutes;
+                      return (
+                        <Card
+                          key={preset.label}
+                          className={`p-3 cursor-pointer hover-elevate active-elevate-2 transition-all ${
+                            isSelected
+                              ? "border-primary bg-primary/5"
+                              : ""
+                          }`}
+                          onClick={() => handlePresetClick(preset.minutes)}
+                          data-testid={`button-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        >
+                          <div className="text-center text-sm font-medium">
+                            {preset.label}
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
