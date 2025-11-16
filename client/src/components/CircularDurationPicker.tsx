@@ -223,6 +223,11 @@ export function CircularDurationPicker({
             );
           })}
 
+          {/* Moon icon for 12 AM (midnight/night) */}
+          <g transform={`translate(${centerX - 20}, ${centerY - 30})`}>
+            <circle cx="10" cy="10" r="8" fill="hsl(var(--muted-foreground))" opacity="0.6" />
+            <circle cx="13" cy="10" r="6.5" fill="hsl(var(--card))" opacity="1" />
+          </g>
           <text
             x={centerX}
             y={centerY - 10}
@@ -231,9 +236,34 @@ export function CircularDurationPicker({
           >
             12AM
           </text>
+
+          {/* Sun icon for 12 PM (noon/day) */}
+          <g transform={`translate(${centerX - 20}, ${centerY + 10})`}>
+            <circle cx="10" cy="10" r="6" fill="hsl(248 100% 70%)" opacity="0.8" />
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => {
+              const rad = (angle * Math.PI) / 180;
+              const x1 = 10 + Math.cos(rad) * 8;
+              const y1 = 10 + Math.sin(rad) * 8;
+              const x2 = 10 + Math.cos(rad) * 11;
+              const y2 = 10 + Math.sin(rad) * 11;
+              return (
+                <line
+                  key={angle}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="hsl(248 100% 70%)"
+                  strokeWidth="1.5"
+                  opacity="0.8"
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </g>
           <text
             x={centerX}
-            y={centerY + 20}
+            y={centerY + 30}
             textAnchor="middle"
             className="text-xs fill-muted-foreground"
           >
