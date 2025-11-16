@@ -37,7 +37,7 @@ export default function ConsentSignaturePage() {
     }
   }, [isHydrated, hasRequiredData, navigate, toast]);
   
-  const { universityId, universityName, encounterType, parties, intimateActs } = state;
+  const { universityId, universityName, encounterType, parties, intimateActs, contractStartTime, contractDuration, contractEndTime } = state;
 
   const { data: university } = useQuery<University>({
     queryKey: ["/api/universities", universityId],
@@ -183,6 +183,9 @@ The digital signatures below indicate that both parties have read, understood, a
         universityId: universityId || null,
         encounterType,
         parties,
+        contractStartTime,
+        contractDuration,
+        contractEndTime,
         method: "signature",
         contractText,
         signature1,

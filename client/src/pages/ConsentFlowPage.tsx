@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
 import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
+import ContractDurationStep from "@/components/ContractDurationStep";
 
 type University = {
   id: string;
@@ -27,6 +28,9 @@ interface ConsentFlowState {
   encounterType: string;
   parties: string[];
   intimateActs: string[];
+  contractStartTime?: string; // ISO string for start date/time
+  contractDuration?: number; // Duration in minutes
+  contractEndTime?: string; // ISO string for end date/time
   method: "signature" | "voice" | "photo" | "biometric" | null;
 }
 
@@ -154,8 +158,9 @@ export default function ConsentFlowPage() {
         university: 2,
         parties: 3,
         intimateActs: 4,
-        recordingMethod: 5,
-        totalSteps: 5,
+        duration: 5,
+        recordingMethod: 6,
+        totalSteps: 6,
       };
     } else {
       return {
@@ -163,8 +168,9 @@ export default function ConsentFlowPage() {
         university: null, // Skip university step
         parties: 2,
         intimateActs: 3,
-        recordingMethod: 4,
-        totalSteps: 4,
+        duration: 4,
+        recordingMethod: 5,
+        totalSteps: 5,
       };
     }
   };
@@ -181,13 +187,14 @@ export default function ConsentFlowPage() {
     // Calculate steps based on encounter type
     const requiresUniversity = doesEncounterTypeRequireUniversity(fromState.encounterType);
     const steps = requiresUniversity
-      ? { encounterType: 1, university: 2, parties: 3, intimateActs: 4, recordingMethod: 5, totalSteps: 5 }
-      : { encounterType: 1, university: null, parties: 2, intimateActs: 3, recordingMethod: 4, totalSteps: 4 };
+      ? { encounterType: 1, university: 2, parties: 3, intimateActs: 4, duration: 5, recordingMethod: 6, totalSteps: 6 }
+      : { encounterType: 1, university: null, parties: 2, intimateActs: 3, duration: 4, recordingMethod: 5, totalSteps: 5 };
     
     // Work backwards from most complete state to least complete
     // If something is SET, it means we've COMPLETED that step, so return the NEXT step
     if (fromState.method) return steps.recordingMethod; // User has selected method, show recordingMethod step
-    if (fromState.intimateActs.length > 0) return steps.recordingMethod; // Intimate acts completed, move to recording method
+    if (fromState.contractStartTime || fromState.contractDuration || fromState.contractEndTime) return steps.recordingMethod; // Duration completed, move to recording method
+    if (fromState.intimateActs.length > 0) return steps.duration; // Intimate acts completed, move to duration
     if (fromState.parties.some(p => p.trim() !== "")) return steps.intimateActs; // Parties completed, move to intimate acts
     
     // If university is set, we've completed that step, move to parties
@@ -270,6 +277,9 @@ export default function ConsentFlowPage() {
       return state.parties.some(p => p.trim() !== "");
     } else if (step === flowSteps.intimateActs) {
       return true; // Can proceed even with no acts selected
+    } else if (step === flowSteps.duration) {
+      // Duration step is optional - can proceed with or without setting duration
+      return true;
     } else if (step === flowSteps.recordingMethod) {
       return state.method !== null;
     }
@@ -310,6 +320,8 @@ export default function ConsentFlowPage() {
     } else if (step === flowSteps.parties) {
       setStep(flowSteps.intimateActs);
     } else if (step === flowSteps.intimateActs) {
+      setStep(flowSteps.duration);
+    } else if (step === flowSteps.duration) {
       setStep(flowSteps.recordingMethod);
     } else if (step === flowSteps.recordingMethod && state.method) {
       // Navigate to recording method page
@@ -326,6 +338,17 @@ export default function ConsentFlowPage() {
       params.set("parties", JSON.stringify(filteredParties));
       params.set("intimateActs", JSON.stringify(state.intimateActs));
       params.set("method", state.method);
+      
+      // Include duration fields if they exist
+      if (state.contractStartTime) {
+        params.set("contractStartTime", state.contractStartTime);
+      }
+      if (state.contractDuration) {
+        params.set("contractDuration", state.contractDuration.toString());
+      }
+      if (state.contractEndTime) {
+        params.set("contractEndTime", state.contractEndTime);
+      }
       
       if (state.method === "signature") {
         navigate(`/consent/signature?${params.toString()}`);
@@ -347,8 +370,10 @@ export default function ConsentFlowPage() {
       setStep(flowSteps.encounterType);
     } else if (step === flowSteps.intimateActs) {
       setStep(flowSteps.parties);
-    } else if (step === flowSteps.recordingMethod) {
+    } else if (step === flowSteps.duration) {
       setStep(flowSteps.intimateActs);
+    } else if (step === flowSteps.recordingMethod) {
+      setStep(flowSteps.duration);
     } else if (step > 1) {
       setStep(step - 1);
     }
@@ -589,6 +614,21 @@ export default function ConsentFlowPage() {
           >
             Advanced Options
           </Button>
+        </div>
+      )}
+
+      {step === flowSteps.duration && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.duration}: Contract Duration</h2>
+            <p className="text-sm text-muted-foreground">Define when consent starts and how long it's valid (optional)</p>
+          </div>
+          <ContractDurationStep
+            contractStartTime={state.contractStartTime}
+            contractDuration={state.contractDuration}
+            contractEndTime={state.contractEndTime}
+            onUpdate={(updates) => updateFlowState(updates)}
+          />
         </div>
       )}
 

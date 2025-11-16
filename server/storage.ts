@@ -264,6 +264,9 @@ export class MemStorage implements IStorage {
       universityId: insertContract.universityId ?? null,
       encounterType: insertContract.encounterType ?? null,
       parties: insertContract.parties ?? null,
+      contractStartTime: insertContract.contractStartTime ? new Date(insertContract.contractStartTime) : null,
+      contractDuration: insertContract.contractDuration ?? null,
+      contractEndTime: insertContract.contractEndTime ? new Date(insertContract.contractEndTime) : null,
       method: insertContract.method ?? null,
       contractText: insertContract.contractText ?? null,
       signature1: insertContract.signature1 ?? null,
@@ -752,6 +755,12 @@ export class DbStorage implements IStorage {
     }
     if (insertContract.verifiedAt) {
       values.verifiedAt = new Date(insertContract.verifiedAt);
+    }
+    if (insertContract.contractStartTime) {
+      values.contractStartTime = new Date(insertContract.contractStartTime);
+    }
+    if (insertContract.contractEndTime) {
+      values.contractEndTime = new Date(insertContract.contractEndTime);
     }
     const result = await db.insert(consentContracts).values(values).returning();
     return result[0];

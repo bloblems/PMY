@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, index, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -66,6 +66,9 @@ export const consentContracts = pgTable("consent_contracts", {
   universityId: varchar("university_id"),
   encounterType: text("encounter_type"),
   parties: text("parties").array(),
+  contractStartTime: timestamp("contract_start_time"),
+  contractDuration: integer("contract_duration"), // Duration in minutes
+  contractEndTime: timestamp("contract_end_time"),
   method: text("method"),
   contractText: text("contract_text"),
   signature1: text("signature1"),
@@ -150,6 +153,9 @@ export const insertConsentContractSchema = createInsertSchema(consentContracts).
 }).extend({
   encounterType: z.string().optional(),
   parties: z.array(z.string()).optional(),
+  contractStartTime: z.string().optional(),
+  contractDuration: z.number().optional(),
+  contractEndTime: z.string().optional(),
   method: z.enum(["signature", "voice", "photo", "biometric"]).optional(),
   contractText: z.string().optional(),
   signature1: z.string().optional(),

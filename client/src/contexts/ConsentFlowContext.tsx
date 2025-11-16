@@ -7,6 +7,9 @@ export interface ConsentFlowState {
   encounterType: string;
   parties: string[];
   intimateActs: string[];
+  contractStartTime?: string; // ISO string for start date/time
+  contractDuration?: number; // Duration in minutes
+  contractEndTime?: string; // ISO string for end date/time
   method: "signature" | "voice" | "photo" | "biometric" | null;
 }
 
@@ -24,6 +27,9 @@ const defaultState: ConsentFlowState = {
   encounterType: "",
   parties: ["", ""],
   intimateActs: [],
+  contractStartTime: undefined,
+  contractDuration: undefined,
+  contractEndTime: undefined,
   method: null,
 };
 
@@ -51,6 +57,9 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
             encounterType: typeof parsed.encounterType === 'string' ? parsed.encounterType : defaultState.encounterType,
             parties: Array.isArray(parsed.parties) ? parsed.parties : defaultState.parties,
             intimateActs: Array.isArray(parsed.intimateActs) ? parsed.intimateActs : defaultState.intimateActs,
+            contractStartTime: typeof parsed.contractStartTime === 'string' ? parsed.contractStartTime : defaultState.contractStartTime,
+            contractDuration: typeof parsed.contractDuration === 'number' ? parsed.contractDuration : defaultState.contractDuration,
+            contractEndTime: typeof parsed.contractEndTime === 'string' ? parsed.contractEndTime : defaultState.contractEndTime,
             method: validMethods.includes(parsed.method) ? parsed.method : defaultState.method,
           };
           
