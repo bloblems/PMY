@@ -7,17 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, Smartphone, DollarSign, Bitcoin, Trash2, Eye, EyeOff, Plus } from "lucide-react";
 import { SiPaypal, SiVenmo } from "react-icons/si";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 
@@ -76,6 +65,7 @@ function PaymentMethodCard({
   isDeleting: boolean;
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const getIcon = () => {
     switch (method.type) {
@@ -163,47 +153,66 @@ function PaymentMethodCard({
             </Button>
           </div>
 
-          <div className="flex gap-2">
-            {method.isDefault === "false" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onSetDefault}
-                disabled={isSettingDefault}
-                data-testid={`button-set-default-${method.id}`}
-              >
-                {isSettingDefault && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Set as Default
-              </Button>
-            )}
-            
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {method.isDefault === "false" && (
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={isDeleting}
-                  data-testid={`button-delete-${method.id}`}
+                  onClick={onSetDefault}
+                  disabled={isSettingDefault}
+                  data-testid={`button-set-default-${method.id}`}
                 >
-                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                  Remove
+                  {isSettingDefault && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Set as Default
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remove Payment Method</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to remove this payment method? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel data-testid={`button-cancel-delete-${method.id}`}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onDelete} data-testid={`button-confirm-delete-${method.id}`}>
+              )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+                data-testid={`button-delete-${method.id}`}
+              >
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Remove
+              </Button>
+            </div>
+
+            {showDeleteConfirm && (
+              <div className="rounded-lg border border-destructive bg-destructive/5 p-3 space-y-2">
+                <p className="text-xs font-semibold text-destructive">
+                  Remove Payment Method
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Are you sure you want to remove this payment method? This action cannot be undone.
+                </p>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      onDelete();
+                      setShowDeleteConfirm(false);
+                    }}
+                    data-testid={`button-confirm-delete-${method.id}`}
+                    className="flex-1"
+                  >
                     Remove
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    data-testid={`button-cancel-delete-${method.id}`}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
