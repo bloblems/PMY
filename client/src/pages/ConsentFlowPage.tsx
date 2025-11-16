@@ -99,13 +99,6 @@ export default function ConsentFlowPage() {
   const { data: userData } = useQuery<{ user: { id: string; email: string; name: string | null } }>({
     queryKey: ["/api/auth/me"],
   });
-  
-  // Always clear method when returning to flow page (allows reselection)
-  useEffect(() => {
-    if (state.method !== null) {
-      updateFlowState({ method: null });
-    }
-  }, []);
 
   // Track selected university object for the selector
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
