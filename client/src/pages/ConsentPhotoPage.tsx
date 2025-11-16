@@ -93,7 +93,7 @@ export default function ConsentPhotoPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/consent-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
       toast({
         title: "Photo Saved",
         description: "Your dual selfie consent has been saved successfully.",

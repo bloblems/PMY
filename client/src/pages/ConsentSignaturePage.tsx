@@ -192,7 +192,7 @@ The digital signatures below indicate that both parties have read, understood, a
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/consent-contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
       toast({
         title: "Contract Created",
         description: "Your consent contract has been saved successfully.",
