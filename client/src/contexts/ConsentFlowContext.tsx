@@ -6,7 +6,7 @@ export interface ConsentFlowState {
   universityName: string;
   encounterType: string;
   parties: string[];
-  intimateActs: string[];
+  intimateActs: Record<string, "yes" | "no">; // Three states: undefined (unselected), "yes" (green check), "no" (red X)
   contractStartTime?: string; // ISO string for start date/time
   contractDuration?: number; // Duration in minutes
   contractEndTime?: string; // ISO string for end date/time
@@ -26,7 +26,7 @@ const defaultState: ConsentFlowState = {
   universityName: "",
   encounterType: "",
   parties: ["", ""],
-  intimateActs: [],
+  intimateActs: {},
   contractStartTime: undefined,
   contractDuration: undefined,
   contractEndTime: undefined,
@@ -56,7 +56,7 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
             universityName: typeof parsed.universityName === 'string' ? parsed.universityName : defaultState.universityName,
             encounterType: typeof parsed.encounterType === 'string' ? parsed.encounterType : defaultState.encounterType,
             parties: Array.isArray(parsed.parties) ? parsed.parties : defaultState.parties,
-            intimateActs: Array.isArray(parsed.intimateActs) ? parsed.intimateActs : defaultState.intimateActs,
+            intimateActs: (parsed.intimateActs && typeof parsed.intimateActs === 'object' && !Array.isArray(parsed.intimateActs)) ? parsed.intimateActs : defaultState.intimateActs,
             contractStartTime: typeof parsed.contractStartTime === 'string' ? parsed.contractStartTime : defaultState.contractStartTime,
             contractDuration: typeof parsed.contractDuration === 'number' ? parsed.contractDuration : defaultState.contractDuration,
             contractEndTime: typeof parsed.contractEndTime === 'string' ? parsed.contractEndTime : defaultState.contractEndTime,

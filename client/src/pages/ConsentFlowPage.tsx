@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useConsentFlow } from "@/contexts/ConsentFlowContext";
+import { useConsentFlow, type ConsentFlowState } from "@/contexts/ConsentFlowContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,18 +21,6 @@ type University = {
   lastUpdated: string;
   verifiedAt: string | null;
 };
-
-interface ConsentFlowState {
-  universityId: string;
-  universityName: string;
-  encounterType: string;
-  parties: string[];
-  intimateActs: string[];
-  contractStartTime?: string; // ISO string for start date/time
-  contractDuration?: number; // Duration in minutes
-  contractEndTime?: string; // ISO string for end date/time
-  method: "signature" | "voice" | "photo" | "biometric" | null;
-}
 
 const intimateEncounterType = { id: "intimate", label: "Intimate Encounter", icon: Heart };
 
@@ -194,8 +182,8 @@ export default function ConsentFlowPage() {
     // If something is SET, it means we've COMPLETED that step, so return the NEXT step
     if (fromState.method) return steps.recordingMethod; // User has selected method, show recordingMethod step
     if (fromState.contractStartTime || fromState.contractDuration || fromState.contractEndTime) return steps.recordingMethod; // Duration completed, move to recording method
-    if (fromState.intimateActs.length > 0) return steps.duration; // Intimate acts completed, move to duration
-    if (fromState.parties.some(p => p.trim() !== "")) return steps.intimateActs; // Parties completed, move to intimate acts
+    if (Object.keys(fromState.intimateActs).length > 0) return steps.duration; // Intimate acts completed, move to duration
+    if (fromState.parties.some((p: string) => p.trim() !== "")) return steps.intimateActs; // Parties completed, move to intimate acts
     
     // If university is set, we've completed that step, move to parties
     if (fromState.universityId && steps.university) return steps.parties;
@@ -231,7 +219,7 @@ export default function ConsentFlowPage() {
         universityId: "",
         universityName: "",
         parties: ["", ""],
-        intimateActs: [],
+        intimateActs: {},
       });
       setSelectedUniversity(null);
       
@@ -260,9 +248,19 @@ export default function ConsentFlowPage() {
   };
 
   const toggleIntimateAct = (act: string) => {
-    const newActs = state.intimateActs.includes(act)
-      ? state.intimateActs.filter(a => a !== act)
-      : [...state.intimateActs, act];
+    const currentState = state.intimateActs[act];
+    const newActs = { ...state.intimateActs };
+    
+    // Cycle through: unselected → yes → no → unselected
+    if (!currentState) {
+      newActs[act] = "yes";
+    } else if (currentState === "yes") {
+      newActs[act] = "no";
+    } else {
+      // Remove from object when going back to unselected
+      delete newActs[act];
+    }
+    
     updateFlowState({ intimateActs: newActs });
   };
 
@@ -298,7 +296,7 @@ export default function ConsentFlowPage() {
     if (state.parties.some(p => p.trim() !== "")) {
       params.set("parties", JSON.stringify(state.parties.filter(p => p.trim() !== "")));
     }
-    if (state.intimateActs.length > 0) {
+    if (Object.keys(state.intimateActs).length > 0) {
       params.set("intimateActs", JSON.stringify(state.intimateActs));
     }
     if (state.method) {
@@ -576,36 +574,53 @@ export default function ConsentFlowPage() {
         <div className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold mb-1">Step {flowSteps.intimateActs}: Intimate Acts</h2>
-            <p className="text-sm text-muted-foreground">Select which activities require documented consent (optional)</p>
+            <p className="text-sm text-muted-foreground">
+              Tap once for YES (green ✓), twice for NO (red ✗), three times to unselect
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {intimateActOptions.map((act) => (
-              <Card
-                key={act}
-                className={`p-3 cursor-pointer hover-elevate active-elevate-2 transition-all ${
-                  state.intimateActs.includes(act)
-                    ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
-                    : ""
-                }`}
-                onClick={() => toggleIntimateAct(act)}
-                data-testid={`option-act-${act}`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                    state.intimateActs.includes(act)
-                      ? "border-green-600 dark:border-green-400 bg-green-600 dark:bg-green-400"
-                      : "border-muted-foreground"
-                  }`}>
-                    {state.intimateActs.includes(act) && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
+            {intimateActOptions.map((act) => {
+              const actState = state.intimateActs[act];
+              const isYes = actState === "yes";
+              const isNo = actState === "no";
+              
+              return (
+                <Card
+                  key={act}
+                  className={`p-3 cursor-pointer hover-elevate active-elevate-2 transition-all ${
+                    isYes
+                      ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                      : isNo
+                      ? "border-red-600 dark:border-red-400 bg-red-600/5 dark:bg-red-400/5"
+                      : ""
+                  }`}
+                  onClick={() => toggleIntimateAct(act)}
+                  data-testid={`option-act-${act}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                      isYes
+                        ? "border-green-600 dark:border-green-400 bg-green-600 dark:bg-green-400"
+                        : isNo
+                        ? "border-red-600 dark:border-red-400 bg-red-600 dark:bg-red-400"
+                        : "border-muted-foreground"
+                    }`}>
+                      {isYes && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {isNo && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-xs font-medium leading-tight">{act}</span>
                   </div>
-                  <span className="text-xs font-medium leading-tight">{act}</span>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
           <Button
             variant="outline"
