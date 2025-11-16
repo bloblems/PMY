@@ -157,7 +157,7 @@ export default function ConsentPhotoPage() {
 
           {photoPreview ? (
             <div className="space-y-4">
-              <div className="relative rounded-lg overflow-hidden border-2 border-green-600 dark:border-green-400">
+              <div className="relative rounded-lg overflow-hidden border-2 border-success">
                 <img
                   src={photoPreview}
                   alt="Consent photo preview"
@@ -176,7 +176,7 @@ export default function ConsentPhotoPage() {
               <Button
                 onClick={() => uploadMutation.mutate()}
                 disabled={uploadMutation.isPending}
-                className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+                className="w-full bg-success hover:bg-success/90"
                 data-testid="button-save-photo"
               >
                 <Upload className="w-4 h-4 mr-2" />
@@ -186,7 +186,7 @@ export default function ConsentPhotoPage() {
           ) : (
             <Button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+              className="w-full bg-success hover:bg-success/90"
               data-testid="button-select-photo"
             >
               <Camera className="w-4 h-4 mr-2" />

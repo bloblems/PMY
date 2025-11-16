@@ -73,7 +73,7 @@ export default function UniversityPolicyPreview({
                   Updated: <span className="font-medium text-foreground">{format(parseISO(lastUpdated), "MMM d, yyyy")}</span>
                 </p>
                 {verifiedAt && (
-                  <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <div className="flex items-center gap-1 text-success">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-xs">Verified</span>
                   </div>

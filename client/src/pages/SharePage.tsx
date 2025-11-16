@@ -421,7 +421,7 @@ export default function SharePage() {
                 <div className="text-xs text-muted-foreground">Total Invites</div>
               </Card>
               <Card className="p-4">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                <div className="text-2xl font-bold text-success">
                   {stats?.completed || 0}
                 </div>
                 <div className="text-xs text-muted-foreground">Completed</div>
@@ -482,9 +482,9 @@ export default function SharePage() {
               </div>
             </Card>
 
-            <Card className="p-4 bg-gradient-to-br from-green-500/10 to-green-600/10 border-green-500/20">
+            <Card className="p-4 bg-gradient-to-br from-success/10 to-success/15 border-success/20">
               <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <Trophy className="h-4 w-4 text-success" />
                 Referral Rewards
               </h3>
               <p className="text-sm text-muted-foreground mb-3">

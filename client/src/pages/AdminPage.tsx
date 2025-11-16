@@ -222,7 +222,7 @@ export default function AdminPage() {
                 <div className="flex items-center gap-2">
                   <p className="font-medium truncate">{uni.name}</p>
                   {uni.verifiedAt && (
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <CheckCircle className="h-4 w-4 text-success" />
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">

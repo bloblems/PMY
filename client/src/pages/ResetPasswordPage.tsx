@@ -92,8 +92,8 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-3">
-          <div className="mx-auto w-24 h-24 bg-green-600/10 dark:bg-green-400/10 rounded-2xl flex items-center justify-center">
-            <PMYLogo className="text-4xl text-green-600 dark:text-green-400" />
+          <div className="mx-auto w-24 h-24 bg-success/10 rounded-2xl flex items-center justify-center">
+            <PMYLogo className="text-4xl text-success" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
             Set new password
@@ -111,7 +111,7 @@ export default function ResetPasswordPage() {
         )}
 
         {successMessage && (
-          <Alert className="border-green-600/20 bg-green-600/10 text-green-600 dark:border-green-400/20 dark:bg-green-400/10 dark:text-green-400" data-testid="alert-success">
+          <Alert className="border-success/20 bg-success/10 text-success" data-testid="alert-success">
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>{successMessage}</AlertDescription>
           </Alert>

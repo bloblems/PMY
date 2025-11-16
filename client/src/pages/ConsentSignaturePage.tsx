@@ -323,17 +323,17 @@ The digital signatures below indicate that both parties have read, understood, a
           </div>
 
           {currentSigner === 1 && signature1 ? (
-            <div className="border-2 border-green-600 dark:border-green-400 rounded-lg p-4 bg-green-600/5 dark:bg-green-400/5">
+            <div className="border-2 border-success rounded-lg p-4 bg-success/5">
               <img src={signature1} alt="Party 1 signature" className="max-h-32 mx-auto" />
-              <p className="text-sm text-center text-green-600 dark:text-green-400 mt-2 font-medium">
+              <p className="text-sm text-center text-success mt-2 font-medium">
                 <Check className="w-4 h-4 inline mr-1" />
                 Signature Saved
               </p>
             </div>
           ) : currentSigner === 2 && signature2 ? (
-            <div className="border-2 border-green-600 dark:border-green-400 rounded-lg p-4 bg-green-600/5 dark:bg-green-400/5">
+            <div className="border-2 border-success rounded-lg p-4 bg-success/5">
               <img src={signature2} alt="Party 2 signature" className="max-h-32 mx-auto" />
-              <p className="text-sm text-center text-green-600 dark:text-green-400 mt-2 font-medium">
+              <p className="text-sm text-center text-success mt-2 font-medium">
                 <Check className="w-4 h-4 inline mr-1" />
                 Signature Saved
               </p>
@@ -359,7 +359,7 @@ The digital signatures below indicate that both parties have read, understood, a
                 </Button>
                 <Button
                   onClick={saveSignature}
-                  className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+                  className="flex-1 bg-success hover:bg-success/90"
                   data-testid="button-save-signature"
                 >
                   <Check className="w-4 h-4 mr-2" />
@@ -381,7 +381,7 @@ The digital signatures below indicate that both parties have read, understood, a
             <Button
               onClick={handleSubmit}
               disabled={createContractMutation.isPending}
-              className="bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+              className="bg-success hover:bg-success/90"
               data-testid="button-create-contract"
             >
               {createContractMutation.isPending ? "Creating..." : "Create Contract"}

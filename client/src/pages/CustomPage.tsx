@@ -14,7 +14,7 @@ export default function CustomPage() {
       <Card className="p-12">
         <div className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-            <Sparkles className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <Sparkles className="h-8 w-8 text-success" />
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-semibold">Custom Templates Coming Soon</h3>

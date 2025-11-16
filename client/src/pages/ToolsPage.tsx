@@ -32,7 +32,7 @@ const toolPanels: ToolPanel[] = [
     title: "ID Verify",
     description: "Verify identity and age using third-party verification services for enhanced security.",
     icon: <Shield className="h-6 w-6" />,
-    iconBgColor: "bg-green-500/10 dark:bg-green-400/10",
+    iconBgColor: "bg-success/10",
     action: {
       label: "Get Verified",
       path: "/settings/integrations"

@@ -402,9 +402,9 @@ export default function ConsentFlowPage() {
             key={s}
             className={`h-2 rounded-full transition-all ${
               s === step
-                ? "w-8 bg-green-600 dark:bg-green-400"
+                ? "w-8 bg-success"
                 : s < step
-                ? "w-2 bg-green-600/50 dark:bg-green-400/50"
+                ? "w-2 bg-success/50"
                 : "w-2 bg-muted"
             }`}
             data-testid={`progress-step-${s}`}
@@ -421,14 +421,14 @@ export default function ConsentFlowPage() {
           <Card
             className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
               state.encounterType === intimateEncounterType.id
-                ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                ? "border-success bg-success/5"
                 : ""
             }`}
             onClick={() => updateFlowState({ encounterType: intimateEncounterType.id })}
             data-testid={`option-encounter-${intimateEncounterType.id}`}
           >
             <div className="flex flex-col items-center text-center gap-2">
-              <intimateEncounterType.icon className={`h-6 w-6 ${state.encounterType === intimateEncounterType.id ? "text-green-600 dark:text-green-400" : ""}`} />
+              <intimateEncounterType.icon className={`h-6 w-6 ${state.encounterType === intimateEncounterType.id ? "text-success" : ""}`} />
               <span className="text-sm font-medium">{intimateEncounterType.label}</span>
             </div>
           </Card>
@@ -440,14 +440,14 @@ export default function ConsentFlowPage() {
                   key={type.id}
                   className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
                     state.encounterType === type.id
-                      ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                      ? "border-success bg-success/5"
                       : ""
                   }`}
                   onClick={() => updateFlowState({ encounterType: type.id })}
                   data-testid={`option-encounter-${type.id}`}
                 >
                   <div className="flex flex-col items-center text-center gap-2">
-                    <Icon className={`h-6 w-6 ${state.encounterType === type.id ? "text-green-600 dark:text-green-400" : ""}`} />
+                    <Icon className={`h-6 w-6 ${state.encounterType === type.id ? "text-success" : ""}`} />
                     <span className="text-sm font-medium">{type.label}</span>
                   </div>
                 </Card>
@@ -457,14 +457,14 @@ export default function ConsentFlowPage() {
           <Card
             className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
               state.encounterType === otherEncounterType.id
-                ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                ? "border-success bg-success/5"
                 : ""
             }`}
             onClick={() => updateFlowState({ encounterType: otherEncounterType.id })}
             data-testid={`option-encounter-${otherEncounterType.id}`}
           >
             <div className="flex items-center justify-center gap-3">
-              <otherEncounterType.icon className={`h-6 w-6 ${state.encounterType === otherEncounterType.id ? "text-green-600 dark:text-green-400" : ""}`} />
+              <otherEncounterType.icon className={`h-6 w-6 ${state.encounterType === otherEncounterType.id ? "text-success" : ""}`} />
               <span className="text-sm font-medium">{otherEncounterType.label}</span>
             </div>
           </Card>
@@ -589,7 +589,7 @@ export default function ConsentFlowPage() {
                   key={act}
                   className={`p-3 cursor-pointer hover-elevate active-elevate-2 transition-all ${
                     isYes
-                      ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                      ? "border-success bg-success/5"
                       : isNo
                       ? "border-destructive bg-destructive/5"
                       : ""
@@ -600,7 +600,7 @@ export default function ConsentFlowPage() {
                   <div className="flex items-center gap-2">
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
                       isYes
-                        ? "border-green-600 dark:border-green-400 bg-green-600 dark:bg-green-400"
+                        ? "border-success bg-success"
                         : isNo
                         ? "border-destructive bg-destructive"
                         : "border-muted-foreground"
@@ -661,14 +661,14 @@ export default function ConsentFlowPage() {
                   key={method.id}
                   className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
                     state.method === method.id
-                      ? "border-green-600 dark:border-green-400 bg-green-600/5 dark:bg-green-400/5"
+                      ? "border-success bg-success/5"
                       : ""
                   }`}
                   onClick={() => updateFlowState({ method: method.id })}
                   data-testid={`option-method-${method.id}`}
                 >
                   <div className="flex items-center gap-4">
-                    <Icon className={`h-6 w-6 ${state.method === method.id ? "text-green-600 dark:text-green-400" : ""}`} />
+                    <Icon className={`h-6 w-6 ${state.method === method.id ? "text-success" : ""}`} />
                     <div className="flex-1">
                       <div className="font-semibold text-sm">{method.label}</div>
                       <div className="text-xs text-muted-foreground">{method.description}</div>
@@ -696,7 +696,7 @@ export default function ConsentFlowPage() {
         <Button
           onClick={handleNext}
           disabled={!canProceed()}
-          className={step > flowSteps.encounterType ? "flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500" : "w-full bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"}
+          className={step > flowSteps.encounterType ? "flex-1 bg-success hover:bg-success/90" : "w-full bg-success hover:bg-success/90"}
           data-testid="button-next"
         >
           {step === flowSteps.recordingMethod ? "Continue" : "Next"}

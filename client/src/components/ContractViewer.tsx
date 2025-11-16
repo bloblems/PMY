@@ -169,7 +169,7 @@ export default function ContractViewer() {
             </div>
             <h3 className="text-lg font-semibold">Your Signature</h3>
             {signature1 && (
-              <Check className="h-5 w-5 text-green-600 dark:text-green-400 ml-auto" data-testid="check-signature-1" />
+              <Check className="h-5 w-5 text-success ml-auto" data-testid="check-signature-1" />
             )}
           </div>
           <SignatureInput
@@ -197,7 +197,7 @@ export default function ContractViewer() {
             </div>
             <h3 className="text-lg font-semibold">Partner's Signature</h3>
             {signature2 && (
-              <Check className="h-5 w-5 text-green-600 dark:text-green-400 ml-auto" data-testid="check-signature-2" />
+              <Check className="h-5 w-5 text-success ml-auto" data-testid="check-signature-2" />
             )}
           </div>
           <SignatureInput

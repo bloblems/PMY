@@ -253,7 +253,7 @@ export default function ConsentVoicePage() {
             {!audioBlob && !isRecording && (
               <Button
                 onClick={startRecording}
-                className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+                className="flex-1 bg-success hover:bg-success/90"
                 data-testid="button-start-recording"
               >
                 <Mic className="w-4 h-4 mr-2" />
@@ -275,7 +275,7 @@ export default function ConsentVoicePage() {
               <Button
                 onClick={() => uploadMutation.mutate()}
                 disabled={uploadMutation.isPending}
-                className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+                className="flex-1 bg-success hover:bg-success/90"
                 data-testid="button-save-recording"
               >
                 <Upload className="w-4 h-4 mr-2" />

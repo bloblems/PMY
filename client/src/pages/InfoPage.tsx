@@ -163,8 +163,8 @@ export default function InfoPage() {
       </div>
 
       {successMessage && (
-        <Alert className="border-green-600/20 bg-green-600/10 dark:border-green-400/20 dark:bg-green-400/10" data-testid="alert-success">
-          <AlertDescription className="text-green-900 dark:text-green-100">{successMessage}</AlertDescription>
+        <Alert className="border-success/20 bg-success/10" data-testid="alert-success">
+          <AlertDescription className="text-success-foreground">{successMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -175,7 +175,7 @@ export default function InfoPage() {
       />
       {selectedUniversity && (
         <Card 
-          className="relative p-8 border-2 border-green-600 dark:border-green-400 cursor-pointer transition-transform overflow-hidden select-none" 
+          className="relative p-8 border-2 border-success cursor-pointer transition-transform overflow-hidden select-none" 
           onMouseDown={startHold}
           onMouseUp={stopHold}
           onMouseLeave={stopHold}
@@ -185,7 +185,7 @@ export default function InfoPage() {
         >
           {/* Green fill overlay */}
           <div 
-            className="absolute inset-0 bg-green-600/20 dark:bg-green-400/20 pointer-events-none"
+            className="absolute inset-0 bg-success/20 pointer-events-none"
             style={{
               width: `${holdProgress}%`,
               transition: isHolding ? 'none' : `width ${RETREAT_DURATION}ms ease-out`,
@@ -193,7 +193,7 @@ export default function InfoPage() {
           />
           
           <div className="relative text-center space-y-2">
-            <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
+            <h2 className="text-2xl font-bold text-success">
               {holdProgress >= 100 ? "Yes!" : holdProgress > 0 ? "Hold..." : "Press for Yes"}
             </h2>
             <p className="text-muted-foreground text-sm">

@@ -181,11 +181,11 @@ export default function ConsentBiometricPage() {
           <div className="flex justify-center">
             <div className={`rounded-full p-4 ${
               status === "verified" 
-                ? "bg-green-600/10 dark:bg-green-400/10" 
+                ? "bg-success/10" 
                 : "bg-primary/10"
             }`}>
               {status === "verified" ? (
-                <Shield className="h-12 w-12 text-green-600 dark:text-green-400" />
+                <Shield className="h-12 w-12 text-success" />
               ) : (
                 <Fingerprint className="h-12 w-12 text-primary" />
               )}
@@ -238,7 +238,7 @@ export default function ConsentBiometricPage() {
           {status === "idle" && (
             <Button
               onClick={handleBiometricAuth}
-              className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+              className="w-full bg-success hover:bg-success/90"
               size="lg"
               data-testid="button-authenticate"
             >
@@ -266,7 +266,7 @@ export default function ConsentBiometricPage() {
             <Button
               onClick={() => createConsentMutation.mutate()}
               disabled={createConsentMutation.isPending}
-              className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-400 dark:hover:bg-green-500"
+              className="w-full bg-success hover:bg-success/90"
               size="lg"
               data-testid="button-save-consent"
             >

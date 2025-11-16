@@ -24,7 +24,7 @@ export default function IconBottomNav() {
               onClick={() => setLocation(item.path)}
               className={`flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-0 hover-elevate active-elevate-2 ${
                 isActive
-                  ? "text-green-600 dark:text-green-400"
+                  ? "text-success"
                   : "text-muted-foreground"
               }`}
               data-testid={item.testId}

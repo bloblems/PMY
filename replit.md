@@ -11,13 +11,29 @@ Preferred communication style: Simple, everyday language.
 ### UI/UX Decisions
 The application adheres to Apple Human Interface Guidelines, featuring a mobile-first, fully responsive layout with light and dark mode support. It uses a system font stack, a clear heading hierarchy, and Tailwind CSS with custom design tokens for styling. Core UI components include a bottom navigation bar, card-based layouts, inline confirmations (no modal dialogs), and iOS-standard toast notifications. The primary action, consent creation, is immediately accessible from the homepage, emphasizing a consent-first approach.
 
-**Color Policy - Unified Red (Destructive):**
-All red/error/destructive UI elements use the semantic `destructive` color variable defined in `index.css`:
-- Light mode: `--destructive: 0 84% 60%` (red-600 equivalent)
-- Dark mode: `--destructive: 0 91% 71%` (red-400 equivalent)
-- Usage: Always use `border-destructive`, `bg-destructive`, `text-destructive` classes
-- Never use: Hardcoded `red-500`, `red-600`, `red-400` or similar Tailwind color classes
-- Applies to: Error messages, destructive buttons, "NO" selections in consent forms, recording indicators, toast notifications, validation errors
+**Color Policy - Unified Semantic Colors:**
+
+All color usage follows a semantic color system with no hardcoded Tailwind color classes:
+
+*Red/Destructive (Errors, Warnings, Negative States):*
+- Variable: `--destructive`
+- Light mode: `0 84% 60%` (red-600 equivalent)
+- Dark mode: `0 91% 71%` (red-400 equivalent)
+- Usage: `border-destructive`, `bg-destructive`, `text-destructive`
+- Applies to: Error messages, destructive buttons, "NO" selections in consent forms, recording indicators, validation errors
+
+*Green/Success (Affirmative, Positive States):*
+- Variable: `--success`
+- Light mode: `142 71% 45%` (green-600 equivalent, matches primary)
+- Dark mode: `142 71% 55%` (green-400 equivalent, slightly lighter)
+- Usage: `border-success`, `bg-success`, `text-success`
+- Applies to: "YES" selections, checkmarks, success alerts, verification badges, affirmative states, positive feedback
+
+*Green/Primary (Brand, Main Actions):*
+- Variable: `--primary` (already semantic)
+- Used for: Primary buttons, branding, main CTAs, navigation highlights
+
+**Policy:** Never use hardcoded color classes (`red-600`, `green-500`, etc.). Always use semantic variables (`destructive`, `success`, `primary`). This ensures consistent visual language, automatic dark mode support, and single-source-of-truth maintenance.
 
 **Responsive Design:** The layout adapts across all Apple devices using responsive breakpoints:
 - iPhone (default - 375px to 430px): Single-column, max-width 28rem (448px) with 4-6 padding

@@ -178,7 +178,7 @@ export default function TitleIXInfo({
                   Last updated: <span className="font-medium text-foreground">{lastUpdated}</span>
                 </p>
                 {verifiedAt && (
-                  <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <div className="flex items-center gap-1 text-success">
                     <CheckCircle2 className="h-3 w-3" />
                     <span className="text-xs">Verified</span>
                   </div>
@@ -216,7 +216,7 @@ export default function TitleIXInfo({
                   variant="outline"
                   size="sm"
                   onClick={() => setShowVerifyDialog(true)}
-                  className="w-full border-green-600 dark:border-green-400 text-green-600 dark:text-green-400"
+                  className="w-full border-success text-success"
                   data-testid="button-verify-policy"
                 >
                   <BadgeCheck className="w-4 h-4 mr-2" />
