@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import Stripe from "stripe";
 import passport from "passport";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
-import { isAuthenticated } from "./auth";
+import { isAuthenticated, hashResetToken, verifyResetToken } from "./auth";
 import { sendInvitationEmail, sendDocumentEmail, sendWelcomeEmail, sendPasswordResetEmail, sendPasswordResetConfirmationEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { csrfProtection, setCsrfToken } from "./csrf";
@@ -245,10 +245,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const expiryDate = new Date();
         expiryDate.setHours(expiryDate.getHours() + 1);
         
-        // Save token to database
-        await storage.setPasswordResetToken(user.id, resetToken, expiryDate);
+        // Hash token before storing (security best practice)
+        const hashedToken = hashResetToken(resetToken);
         
-        // Send reset email
+        // Save hashed token to database
+        await storage.setPasswordResetToken(user.id, hashedToken, expiryDate);
+        
+        // Send reset email with unhashed token
         await sendPasswordResetEmail({
           to: user.email!,
           name: user.name || 'User',
@@ -279,10 +282,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Password must be at least 8 characters" });
       }
 
-      // Find user by reset token
-      const user = await storage.getUserByResetToken(token);
+      // Hash the provided token to search for it
+      const hashedToken = hashResetToken(token);
+      
+      // Find user by hashed reset token
+      const user = await storage.getUserByResetToken(hashedToken);
       
       if (!user) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+
+      // Verify token matches stored hash (additional security check)
+      if (!user.passwordResetToken || !verifyResetToken(token, user.passwordResetToken)) {
         return res.status(400).json({ error: "Invalid or expired reset token" });
       }
 

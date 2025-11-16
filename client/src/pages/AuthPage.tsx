@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -196,7 +196,20 @@ export default function AuthPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                {mode === "login" && (
+                  <Link href="/auth/reset-request">
+                    <button
+                      type="button"
+                      className="text-sm text-green-600 dark:text-green-400 hover:underline"
+                      data-testid="link-forgot-password"
+                    >
+                      Forgot password?
+                    </button>
+                  </Link>
+                )}
+              </div>
               <Input
                 id="password"
                 type="password"

@@ -21,11 +21,15 @@ import ConsentVoicePage from "@/pages/ConsentVoicePage";
 import ConsentPhotoPage from "@/pages/ConsentPhotoPage";
 import ConsentBiometricPage from "@/pages/ConsentBiometricPage";
 import AuthPage from "@/pages/AuthPage";
+import ResetRequestPage from "@/pages/ResetRequestPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 
 function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/auth/reset-request" component={ResetRequestPage} />
+      <Route path="/auth/reset-password" component={ResetPasswordPage} />
       <Route path="/" component={ConsentFlowPage} />
       <Route path="/titleix" component={InfoPage} />
       <Route path="/files" component={FilesPage} />
@@ -44,7 +48,7 @@ function Router() {
 
 function App() {
   const [location] = useLocation();
-  const isAuthPage = location === "/auth";
+  const isAuthPage = location === "/auth" || location.startsWith("/auth/reset");
 
   // Initialize CSRF token when app loads
   useEffect(() => {

@@ -4,7 +4,7 @@ import { type Express } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { storage } from "./storage";
-import { randomBytes, pbkdf2Sync } from "crypto";
+import { randomBytes, pbkdf2Sync, createHash, timingSafeEqual } from "crypto";
 import { pool } from "./db";
 import { logAuthEvent } from "./securityLogger";
 
@@ -17,6 +17,21 @@ function hashPassword(password: string, salt?: string): { hash: string; salt: st
 function verifyPassword(password: string, hash: string, salt: string): boolean {
   const verifyHash = pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex");
   return hash === verifyHash;
+}
+
+function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function verifyResetToken(providedToken: string, storedHash: string): boolean {
+  const providedHash = hashResetToken(providedToken);
+  // Use constant-time comparison to prevent timing attacks
+  try {
+    return timingSafeEqual(Buffer.from(providedHash, "hex"), Buffer.from(storedHash, "hex"));
+  } catch {
+    // If buffers are different lengths, return false
+    return false;
+  }
 }
 
 export function setupAuth(app: Express) {
@@ -168,3 +183,5 @@ export function isAuthenticated(req: any, res: any, next: any) {
   // User is authenticated (either email/password or valid OIDC) with valid database record
   return next();
 }
+
+export { hashPassword, verifyPassword, hashResetToken, verifyResetToken };
