@@ -135,6 +135,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ error: "Login after signup failed" });
         }
         
+        // Set CSRF token for the new session
+        setCsrfToken(req, res, () => {});
+        
         // Send welcome email (don't block response on email delivery)
         if (user.email && user.name) {
           sendWelcomeEmail({
@@ -162,6 +165,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (loginErr) {
           return res.status(500).json({ error: "Login failed" });
         }
+        
+        // Set CSRF token for the new session
+        setCsrfToken(req, res, () => {});
+        
         return res.json({ user: { id: user.id, email: user.email, name: user.name } });
       });
     })(req, res, next);

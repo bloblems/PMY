@@ -74,8 +74,19 @@ export default function AccountSettingsPage() {
       });
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    onSuccess: (_, policy) => {
+      // Update the cache directly instead of invalidating to prevent refetch issues
+      queryClient.setQueryData(["/api/auth/me"], (old: UserData | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          user: {
+            ...old.user,
+            dataRetentionPolicy: policy,
+          },
+        };
+      });
+      
       toast({
         title: "Settings saved",
         description: "Your data retention policy has been updated",

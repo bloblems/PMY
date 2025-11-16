@@ -33,12 +33,19 @@ The frontend is built with React 18 and TypeScript, using Vite, Wouter for routi
 - **Integrations Settings**: Comprehensive integrations page (accessible at /settings/integrations) showcasing third-party ID verification and age verification services. Currently features Stripe Identity (available for configuration) and displays upcoming integrations including Persona, Onfido, Veriff, Sumsub, and iDenfy. Each integration card displays status, features, pricing, and documentation links. Accessible via Settings menu.
 - **University Policy Preview**: When selecting a university during consent flow, displays AI-generated policy summary, verification status, and last updated date to help users make informed decisions.
 - **User Management**: Secure user authentication with email/password, PBKDF2 hashing, and session management using Express-session and Passport.js.
+- **Data Retention Controls**: Comprehensive data retention management system accessible via Settings → Account (/settings/account):
+  - **Customizable Retention Policies**: Users can choose how long to keep consent documentation (30 days, 90 days, 1 year, or forever)
+  - **Automatic Cleanup**: Background service runs every 24 hours to delete expired consent data based on each user's policy
+  - **Manual Data Deletion**: One-click deletion of all consent data (recordings, contracts, photos) with confirmation dialog
+  - **Policy Hydration Protection**: Save button disabled until retention policy loads from backend to prevent accidental overwrites
+  - **Singleton Guard**: Cleanup service protected against duplicate initialization in dev environment
+  - **Audit Logging**: All retention policy updates and manual deletions logged for security monitoring
 - **University Data**: Automatically seeds a database with 287 US universities, including detailed Title IX information.
 - **Paid Verification**: Users can pay via Stripe to have university Title IX policies verified using advanced AI models (GPT-4, GPT-4 Turbo, GPT-4o).
 - **Sharing & Referrals**: Dropbox-style referral program with email invitations via Resend API. Users can share consent documents via email with professional HTML templates. Rate limiting prevents abuse (10 referral invitations/hour, 20 document shares/hour per user). All sharing operations verify ownership before allowing access to prevent data leakage.
 
 ### System Design Choices
-- **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`.
+- **Database Schema**: Includes tables for `universities`, `consentRecordings`, `consentContracts`, `universityReports`, `users`, and `verificationPayments`. Users table includes `dataRetentionPolicy` column (30days, 90days, 1year, forever) with default value "forever" for backward compatibility.
 - **API Design**: RESTful APIs for CRUD operations on core entities, supporting multipart form data for uploads.
 - **State Management**: Frontend uses TanStack Query for server state and React Context API with cross-platform storage abstraction for maintaining state across multi-step consent flows. The ConsentFlowContext provides centralized state management with automatic persistence, supporting browser back/forward navigation, page refreshes, and iOS WebView compatibility. All consent method pages implement defensive routing with isHydrated flag to prevent access before async storage loads.
 - **iOS-Ready Secure Storage**: Implemented production-ready storage abstraction layer (`client/src/services/storage.ts`):
