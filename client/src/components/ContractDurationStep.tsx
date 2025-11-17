@@ -117,10 +117,9 @@ export default function ContractDurationStep({
   // Duration presets in minutes
   const durationPresets = [
     { label: "1 Hour", minutes: 60 },
-    { label: "4 Hours", minutes: 240 },
-    { label: "1 Day", minutes: 1440 },
-    { label: "3 Days", minutes: 4320 },
-    { label: "1 Week", minutes: 10080 },
+    { label: "3 Hours", minutes: 180 },
+    { label: "Overnight", minutes: 720 },
+    { label: "Weekend", minutes: 2880 },
   ];
 
   // Format duration for display
