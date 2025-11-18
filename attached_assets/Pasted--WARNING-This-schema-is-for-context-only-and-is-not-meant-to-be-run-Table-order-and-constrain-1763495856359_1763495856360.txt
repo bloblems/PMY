@@ -1,0 +1,77 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.consent_contracts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  university_id uuid,
+  encounter_type text,
+  parties ARRAY,
+  method text CHECK (method = ANY (ARRAY['signature'::text, 'voice'::text, 'photo'::text, 'biometric'::text])),
+  contract_text text,
+  signature1 text,
+  signature2 text,
+  photo_url text,
+  credential_id text,
+  credential_public_key text,
+  credential_counter text,
+  credential_device_type text,
+  credential_backed_up text,
+  authenticated_at timestamp with time zone,
+  verified_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT consent_contracts_pkey PRIMARY KEY (id),
+  CONSTRAINT consent_contracts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT consent_contracts_university_id_fkey FOREIGN KEY (university_id) REFERENCES public.universities(id)
+);
+CREATE TABLE public.consent_recordings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  university_id uuid,
+  encounter_type text,
+  parties ARRAY,
+  filename text NOT NULL,
+  file_url text NOT NULL,
+  duration text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT consent_recordings_pkey PRIMARY KEY (id),
+  CONSTRAINT consent_recordings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT consent_recordings_university_id_fkey FOREIGN KEY (university_id) REFERENCES public.universities(id)
+);
+CREATE TABLE public.universities (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  state text NOT NULL,
+  title_ix_info text NOT NULL,
+  title_ix_url text,
+  last_updated timestamp with time zone NOT NULL DEFAULT now(),
+  verified_at timestamp with time zone,
+  CONSTRAINT universities_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.university_reports (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  university_id uuid NOT NULL,
+  report_type text NOT NULL CHECK (report_type = ANY (ARRAY['outdated_info'::text, 'incorrect_url'::text, 'missing_info'::text, 'other'::text])),
+  description text NOT NULL,
+  reported_at timestamp with time zone NOT NULL DEFAULT now(),
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'reviewing'::text, 'resolved'::text])),
+  resolved_at timestamp with time zone,
+  CONSTRAINT university_reports_pkey PRIMARY KEY (id),
+  CONSTRAINT university_reports_university_id_fkey FOREIGN KEY (university_id) REFERENCES public.universities(id)
+);
+CREATE TABLE public.verification_payments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  university_id uuid NOT NULL,
+  stripe_session_id text NOT NULL UNIQUE,
+  stripe_payment_status text NOT NULL DEFAULT 'pending'::text CHECK (stripe_payment_status = ANY (ARRAY['pending'::text, 'paid'::text, 'failed'::text])),
+  amount text NOT NULL,
+  verification_status text NOT NULL DEFAULT 'pending'::text CHECK (verification_status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'failed'::text])),
+  verification_result text,
+  gpu_model text NOT NULL CHECK (gpu_model = ANY (ARRAY['gpt-4'::text, 'gpt-4-turbo'::text, 'gpt-4o'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  completed_at timestamp with time zone,
+  CONSTRAINT verification_payments_pkey PRIMARY KEY (id),
+  CONSTRAINT verification_payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT verification_payments_university_id_fkey FOREIGN KEY (university_id) REFERENCES public.universities(id)
+);
