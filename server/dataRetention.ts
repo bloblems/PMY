@@ -4,7 +4,7 @@
  * Supports policies: 30days, 90days, 1year, forever
  */
 
-import { storage } from "./storage";
+import storage from "./storage";
 
 interface RetentionPolicy {
   value: string;
@@ -51,8 +51,8 @@ export async function cleanupExpiredData(): Promise<{
   let totalContractsDeleted = 0;
 
   try {
-    // Get all users (we could optimize this to only fetch users with non-forever policies)
-    const users = await storage.getAllUsers();
+    // Get all user profiles (bypasses RLS using service-role credentials)
+    const users = await storage.getAllUserProfiles();
     
     for (const user of users) {
       // Skip users with "forever" retention policy

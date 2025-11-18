@@ -1,62 +1,35 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import storage from "./storage";
 import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema } from "@shared/schema";
 import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
-import passport from "passport";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
-import { isAuthenticated, hashResetToken, verifyResetToken } from "./auth";
-import { sendInvitationEmail, sendDocumentEmail, sendWelcomeEmail, sendPasswordResetEmail, sendPasswordResetConfirmationEmail } from "./email";
+import { sendDocumentEmail } from "./email";
 import rateLimit from "express-rate-limit";
-import { csrfProtection, setCsrfToken } from "./csrf";
 import { validateFileUpload } from "./fileValidation";
-import { logAuthEvent, logConsentEvent, logRateLimitViolation } from "./securityLogger";
+import { logConsentEvent, logRateLimitViolation } from "./securityLogger";
+import { requireAuth } from "./supabaseAuth";
+import { supabaseAdmin } from "./supabase";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Rate limiting configuration for sharing endpoints
+// Rate limiting configuration for document sharing endpoint
 // Prevents abuse of email-sending functionality
-const referralRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour window
-  max: 10, // Limit each user to 10 referral invitations per hour
-  message: "Too many invitation emails sent. Please try again later.",
-  standardHeaders: true, // Return rate limit info in RateLimit-* headers
-  legacyHeaders: false, // Disable X-RateLimit-* headers
-  // Use user ID from session - these endpoints require authentication
-  keyGenerator: (req) => {
-    const user = req.user as any;
-    return user?.id || 'unauthenticated';
-  },
-  skipFailedRequests: true, // Don't count failed requests (auth errors, etc.)
-  handler: (req, res) => {
-    const user = req.user as any;
-    logRateLimitViolation(
-      req,
-      "referral_invitation",
-      user?.id
-    );
-    res.status(429).json({
-      error: "Too many invitation emails sent. Please try again in an hour.",
-    });
-  },
-});
-
 const documentShareRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour window
   max: 20, // Limit each user to 20 document shares per hour
   message: "Too many documents shared. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
-  // Use user ID from session - these endpoints require authentication
   keyGenerator: (req) => {
-    const user = req.user as any;
+    const user = req.user;
     return user?.id || 'unauthenticated';
   },
-  skipFailedRequests: true, // Don't count failed requests (auth errors, etc.)
+  skipFailedRequests: true,
   handler: (req, res) => {
-    const user = req.user as any;
+    const user = req.user;
     logRateLimitViolation(
       req,
       "document_share",
@@ -118,235 +91,49 @@ const stripe = new Stripe(getStripeKey(), {
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Authentication routes
-  app.post("/api/auth/signup", (req, res, next) => {
-    passport.authenticate("local-signup", (err: any, user: any, info: any) => {
-      if (err) {
-        console.error("Signup error:", err);
-        return res.status(500).json({ error: "Signup failed" });
-      }
-      if (!user) {
-        console.error("Signup failed - no user:", info);
-        return res.status(400).json({ error: info?.message || "Signup failed" });
-      }
-      req.login(user, async (loginErr) => {
-        if (loginErr) {
-          console.error("Login after signup error:", loginErr);
-          return res.status(500).json({ error: "Login after signup failed" });
-        }
-        
-        // Set CSRF token for the new session
-        setCsrfToken(req, res, () => {});
-        
-        // Send welcome email (don't block response on email delivery)
-        if (user.email && user.name) {
-          sendWelcomeEmail({
-            to: user.email,
-            name: user.name
-          }).catch(err => {
-            console.error("Failed to send welcome email:", err);
-          });
-        }
-        
-        return res.json({ user: { id: user.id, email: user.email, name: user.name } });
-      });
-    })(req, res, next);
+  // Supabase Auth handles signup/login/password-reset on the client side
+  // We only need server endpoints for logout and fetching user data
+  
+  // Logout endpoint - Supabase handles actual logout on client
+  app.post("/api/auth/logout", (req, res) => {
+    res.json({ success: true });
   });
 
-  app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local-login", (err: any, user: any, info: any) => {
-      if (err) {
-        return res.status(500).json({ error: "Login failed" });
-      }
-      if (!user) {
-        return res.status(401).json({ error: info?.message || "Invalid credentials" });
-      }
-      req.login(user, (loginErr) => {
-        if (loginErr) {
-          return res.status(500).json({ error: "Login failed" });
-        }
-        
-        // Set CSRF token for the new session
-        setCsrfToken(req, res, () => {});
-        
-        return res.json({ user: { id: user.id, email: user.email, name: user.name } });
-      });
-    })(req, res, next);
-  });
-
-  app.post("/api/auth/logout", csrfProtection, (req, res) => {
-    const user = req.user as any;
-    const email = user?.email;
-    const userId = user?.id;
-    
-    // Log before logout
-    logAuthEvent(req, "logout", userId, email, { method: "email" });
-    
-    req.logout((err) => {
-      // Clear OIDC tokens if present (handles auth method switches)
-      if (req.session?.oidc_tokens) {
-        delete req.session.oidc_tokens;
-      }
-      
-      if (err) {
-        logAuthEvent(req, "logout_failure", userId, email, { error: err.message });
-        return res.status(500).json({ error: "Logout failed" });
-      }
-      res.json({ success: true });
-    });
-  });
-
-  app.get("/api/auth/me", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const user = req.user as any;
-    const oidcTokens = req.session?.oidc_tokens;
-    
-    // Check if OIDC by presence of tokens in session
-    const authMethod = oidcTokens ? "oidc" : "email";
-    
-    // Construct name from firstName/lastName if available (OIDC users)
-    const name = user.firstName && user.lastName 
-      ? `${user.firstName} ${user.lastName}` 
-      : user.firstName || user.lastName || user.name || null;
-    
-    return res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name,
-        firstName: user.firstName || null,
-        lastName: user.lastName || null,
-        profilePictureUrl: user.profilePictureUrl || null,
-        savedSignature: user.savedSignature || null,
-        savedSignatureType: user.savedSignatureType || null,
-        savedSignatureText: user.savedSignatureText || null,
-        authMethod,
-      }
-    });
-  });
-
-  // Password reset endpoints
-  app.post("/api/auth/request-reset", async (req, res) => {
+  // Get current user profile
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
     try {
-      const { email } = req.body;
+      const userId = req.user!.id;
       
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-      }
-
-      // Find user by email
-      const user = await storage.getUserByEmail(email);
+      // Fetch user profile from database
+      const profile = await storage.getUserProfile(userId);
       
-      // Always return success to prevent email enumeration
-      // But only send email if user exists and uses email/password auth
-      if (user && user.passwordHash) {
-        // Generate secure reset token (32 random bytes = 64 hex characters)
-        const resetToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-          .map(b => b.toString(16).padStart(2, '0'))
-          .join('');
-        
-        // Token expires in 1 hour
-        const expiryDate = new Date();
-        expiryDate.setHours(expiryDate.getHours() + 1);
-        
-        // Hash token before storing (security best practice)
-        const hashedToken = hashResetToken(resetToken);
-        
-        // Save hashed token to database
-        await storage.setPasswordResetToken(user.id, hashedToken, expiryDate);
-        
-        // Send reset email with unhashed token
-        await sendPasswordResetEmail({
-          to: user.email!,
-          name: user.name || 'User',
-          resetToken
-        });
-      }
-      
-      // Always return success to prevent email enumeration
-      return res.json({ 
-        success: true, 
-        message: "If an account exists with that email, a password reset link has been sent." 
+      return res.json({
+        user: {
+          id: userId,
+          email: req.user!.email,
+          savedSignature: profile?.savedSignature || null,
+          savedSignatureType: profile?.savedSignatureType || null,
+          savedSignatureText: profile?.savedSignatureText || null,
+        }
       });
     } catch (error) {
-      console.error("Password reset request error:", error);
-      return res.status(500).json({ error: "Failed to process password reset request" });
-    }
-  });
-
-  app.post("/api/auth/reset-password", async (req, res) => {
-    try {
-      const { token, newPassword } = req.body;
-      
-      if (!token || !newPassword) {
-        return res.status(400).json({ error: "Token and new password are required" });
-      }
-
-      if (newPassword.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters" });
-      }
-
-      // Hash the provided token to search for it
-      const hashedToken = hashResetToken(token);
-      
-      // Find user by hashed reset token
-      const user = await storage.getUserByResetToken(hashedToken);
-      
-      if (!user) {
-        return res.status(400).json({ error: "Invalid or expired reset token" });
-      }
-
-      // Verify token matches stored hash (additional security check)
-      if (!user.passwordResetToken || !verifyResetToken(token, user.passwordResetToken)) {
-        return res.status(400).json({ error: "Invalid or expired reset token" });
-      }
-
-      // Check if token is expired
-      if (!user.passwordResetTokenExpiry || user.passwordResetTokenExpiry < new Date()) {
-        return res.status(400).json({ error: "Reset token has expired" });
-      }
-
-      // Hash new password
-      const crypto = await import('crypto');
-      const salt = crypto.randomBytes(16).toString('hex');
-      const hash = crypto.pbkdf2Sync(newPassword, salt, 100000, 64, 'sha512').toString('hex');
-
-      // Update password and clear reset token
-      await storage.updatePassword(user.id, hash, salt);
-      await storage.clearPasswordResetToken(user.id);
-
-      // Send confirmation email
-      await sendPasswordResetConfirmationEmail({
-        to: user.email!,
-        name: user.name || 'User'
-      });
-
-      return res.json({ success: true, message: "Password has been reset successfully" });
-    } catch (error) {
-      console.error("Password reset error:", error);
-      return res.status(500).json({ error: "Failed to reset password" });
+      console.error("Error fetching user profile:", error);
+      return res.status(500).json({ error: "Failed to fetch user profile" });
     }
   });
 
   // Update user data retention policy
-  app.patch("/api/auth/retention-policy", csrfProtection, isAuthenticated, async (req, res) => {
+  app.patch("/api/auth/retention-policy", requireAuth, async (req, res) => {
     try {
       const { dataRetentionPolicy } = req.body;
-      const user = req.user as any;
+      const userId = req.user!.id;
       
       const validPolicies = ["30days", "90days", "1year", "forever"];
       if (!dataRetentionPolicy || !validPolicies.includes(dataRetentionPolicy)) {
         return res.status(400).json({ error: "Invalid retention policy" });
       }
 
-      await storage.updateUserRetentionPolicy(user.id, dataRetentionPolicy);
-      
-      logAuthEvent(req, "retention_policy_updated", user.id, undefined, {
-        newPolicy: dataRetentionPolicy
-      });
+      await storage.updateUserRetentionPolicy(userId, dataRetentionPolicy);
 
       return res.json({ success: true, message: "Retention policy updated successfully" });
     } catch (error) {
@@ -355,34 +142,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Change user email
-  app.patch("/api/auth/change-email", csrfProtection, isAuthenticated, async (req, res) => {
+  // Change user email - updates both Supabase Auth and user profile
+  app.patch("/api/auth/change-email", requireAuth, async (req, res) => {
     try {
       const { newEmail } = req.body;
-      const user = req.user as any;
+      const userId = req.user!.id;
       
       if (!newEmail || typeof newEmail !== "string") {
         return res.status(400).json({ error: "Valid email is required" });
       }
 
-      // Normalize email (trim and lowercase) for consistent comparison
+      // Normalize email (trim and lowercase)
       const normalizedEmail = newEmail.trim().toLowerCase();
       
       if (!normalizedEmail) {
         return res.status(400).json({ error: "Valid email is required" });
       }
 
-      // Check if email is already in use (case-insensitive)
-      const existingUser = await storage.getUserByEmail(normalizedEmail);
-      if (existingUser && existingUser.id !== user.id) {
-        return res.status(400).json({ error: "Email already in use" });
-      }
+      // Update email in Supabase Auth using Admin API
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { email: normalizedEmail }
+      );
 
-      await storage.updateUserEmail(user.id, normalizedEmail);
-      
-      logAuthEvent(req, "email_changed", user.id, normalizedEmail, {
-        oldEmail: user.email
-      });
+      if (error) {
+        console.error("Failed to update email in Supabase Auth:", error);
+        return res.status(400).json({ error: error.message });
+      }
 
       return res.json({ success: true, message: "Email updated successfully" });
     } catch (error) {
@@ -392,16 +178,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete all user data (contracts, recordings)
-  app.delete("/api/auth/delete-all-data", csrfProtection, isAuthenticated, async (req, res) => {
+  app.delete("/api/auth/delete-all-data", requireAuth, async (req, res) => {
     try {
-      const user = req.user as any;
+      const userId = req.user!.id;
       
       // Delete all recordings and contracts for this user
-      await storage.deleteAllUserData(user.id);
-      
-      logAuthEvent(req, "user_data_deleted", user.id, undefined, {
-        action: "manual_deletion"
-      });
+      await storage.deleteAllUserData(userId);
 
       return res.json({ 
         success: true, 
@@ -413,47 +195,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete entire user account
-  app.delete("/api/auth/delete-account", csrfProtection, isAuthenticated, async (req, res) => {
+  // Delete entire user account - removes from Supabase Auth and database
+  app.delete("/api/auth/delete-account", requireAuth, async (req, res) => {
     try {
-      const user = req.user as any;
-      const userId = user.id;
-      const email = user.email;
+      const userId = req.user!.id;
       
-      // Delete the user account and all associated data
-      await storage.deleteUser(userId);
+      // Delete user profile and all associated data from database
+      await storage.deleteUserProfile(userId);
       
-      logAuthEvent(req, "account_deleted", userId, email, {
-        action: "user_initiated_deletion"
-      });
+      // Delete user from Supabase Auth using Admin API
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      
+      if (error) {
+        console.error("Failed to delete user from Supabase Auth:", error);
+        return res.status(500).json({ error: "Failed to delete account" });
+      }
 
-      // Logout and destroy session
-      req.logout((logoutErr) => {
-        if (logoutErr) {
-          console.error("Logout error after account deletion:", logoutErr);
-        }
-        
-        // Destroy the session completely
-        req.session.destroy((sessionErr) => {
-          if (sessionErr) {
-            console.error("Session destruction error after account deletion:", sessionErr);
-          }
-          
-          // Clear the session cookie
-          res.clearCookie('connect.sid');
-          return res.json({ success: true, message: "Account deleted successfully" });
-        });
-      });
+      return res.json({ success: true, message: "Account deleted successfully" });
     } catch (error) {
       console.error("Delete account error:", error);
       return res.status(500).json({ error: "Failed to delete account" });
     }
-  });
-
-  // CSRF token endpoint - sets CSRF token in cookie and session
-  app.get("/api/csrf-token", setCsrfToken, (req, res) => {
-    // Token is already set in cookie by setCsrfToken middleware
-    res.json({ success: true });
   });
 
   // WebAuthn endpoints for secure biometric authentication
@@ -544,10 +306,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user's recordings (requires authentication)
-  app.get("/api/recordings", isAuthenticated, setCsrfToken, async (req, res) => {
+  app.get("/api/recordings", requireAuth, async (req, res) => {
     try {
-      const user = req.user as any;
-      const recordings = await storage.getRecordingsByUserId(user.id);
+      const userId = req.user!.id;
+      const recordings = await storage.getRecordingsByUserId(userId);
       res.json(recordings);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recordings" });
@@ -555,7 +317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload a new recording (requires authentication)
-  app.post("/api/recordings", isAuthenticated, csrfProtection, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
+  app.post("/api/recordings", requireAuth, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -571,11 +333,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
-      const user = req.user as any;
+      const userId = req.user!.id;
 
       // Save to storage
       const recording = await storage.createRecording({
-        userId: user.id,
+        userId,
         filename,
         fileUrl,
         duration,
@@ -589,11 +351,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a recording (requires authentication)
-  app.delete("/api/recordings/:id", isAuthenticated, csrfProtection, async (req, res) => {
+  app.delete("/api/recordings/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const user = req.user as any;
-      const deleted = await storage.deleteRecording(id, user.id);
+      const userId = req.user!.id;
+      const deleted = await storage.deleteRecording(id, userId);
       if (!deleted) {
         return res.status(404).json({ error: "Recording not found or unauthorized" });
       }
@@ -604,10 +366,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user's contracts (requires authentication)
-  app.get("/api/contracts", isAuthenticated, setCsrfToken, async (req, res) => {
+  app.get("/api/contracts", requireAuth, async (req, res) => {
     try {
-      const user = req.user as any;
-      const contracts = await storage.getContractsByUserId(user.id);
+      const userId = req.user!.id;
+      const contracts = await storage.getContractsByUserId(userId);
       res.json(contracts);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch contracts" });
@@ -615,11 +377,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a single contract (requires authentication and ownership)
-  app.get("/api/contracts/:id", isAuthenticated, setCsrfToken, async (req, res) => {
+  app.get("/api/contracts/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const user = req.user as any;
-      const contract = await storage.getContract(id, user.id);
+      const userId = req.user!.id;
+      const contract = await storage.getContract(id, userId);
       
       if (!contract) {
         return res.status(404).json({ error: "Contract not found" });
@@ -632,7 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new contract (requires authentication)
-  app.post("/api/contracts", isAuthenticated, csrfProtection, async (req, res) => {
+  app.post("/api/contracts", requireAuth, async (req, res) => {
     try {
       const { shouldSave, signatureType, signatureText, ...contractData } = req.body;
       const parsed = insertConsentContractSchema.safeParse(contractData);
@@ -660,19 +422,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
-      const user = req.user as any;
+      const userId = req.user!.id;
       const contract = await storage.createContract({
         ...parsed.data,
-        userId: user.id
+        userId
       });
       
       // Save user's OWN signature (signature1) if requested
       // This ensures we never accidentally save the partner's signature
       if (shouldSave === true && parsed.data.signature1) {
-        const user = req.user as any;
-        
         await storage.updateUserSignature(
-          user.id,
+          userId,
           parsed.data.signature1,
           signatureType || "draw",
           signatureText || null
@@ -687,11 +447,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a contract
-  app.delete("/api/contracts/:id", isAuthenticated, csrfProtection, async (req, res) => {
+  app.delete("/api/contracts/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const user = req.user as any;
-      const deleted = await storage.deleteContract(id, user.id);
+      const userId = req.user!.id;
+      const deleted = await storage.deleteContract(id, userId);
       if (!deleted) {
         return res.status(404).json({ error: "Contract not found or unauthorized" });
       }
@@ -702,7 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // New consent creation endpoints with enhanced fields (requires authentication)
-  app.post("/api/consent-contracts", isAuthenticated, csrfProtection, async (req, res) => {
+  app.post("/api/consent-contracts", requireAuth, async (req, res) => {
     try {
       console.log("[ConsentContract] Received request body duration fields:", {
         contractStartTime: req.body.contractStartTime,
@@ -753,10 +513,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
-      const user = req.user as any;
+      const userId = req.user!.id;
       const contract = await storage.createContract({
         ...parsed.data,
-        userId: user.id
+        userId
       });
       
       // Log consent creation
@@ -765,27 +525,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create_contract",
         "contract",
         contract.id,
-        user.id,
+        userId,
         { method: parsed.data.method }
       );
       
       res.json(contract);
     } catch (error) {
       console.error("Error creating consent contract:", error);
-      const user = req.user as any;
+      const userId = req.user?.id;
       logConsentEvent(
         req,
         "create_failure",
         "contract",
         undefined,
-        user?.id,
+        userId,
         { method: req.body.method, error: (error as Error).message }
       );
       res.status(500).json({ error: "Failed to create contract" });
     }
   });
 
-  app.post("/api/consent-recordings", isAuthenticated, csrfProtection, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
+  app.post("/api/consent-recordings", requireAuth, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No audio file provided" });
@@ -805,11 +565,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = `consent-${Date.now()}.webm`;
 
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
-      const user = req.user as any;
+      const userId = req.user!.id;
 
       // Save to storage with enhanced fields
       const recording = await storage.createRecording({
-        userId: user.id,
+        userId,
         universityId: universityId || undefined,
         encounterType: encounterType || undefined,
         parties: parsedParties,
@@ -824,27 +584,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create_recording",
         "recording",
         recording.id,
-        user.id,
+        userId,
         { duration, encounterType }
       );
 
       res.json(recording);
     } catch (error) {
       console.error("Error uploading consent recording:", error);
-      const user = req.user as any;
+      const userId = req.user?.id;
       logConsentEvent(
         req,
         "create_failure",
         "recording",
         undefined,
-        user?.id,
+        userId,
         { error: (error as Error).message }
       );
       res.status(500).json({ error: "Failed to upload recording" });
     }
   });
 
-  app.post("/api/consent-photos", isAuthenticated, csrfProtection, upload.single("photo"), validateFileUpload("photo"), async (req, res) => {
+  app.post("/api/consent-photos", requireAuth, upload.single("photo"), validateFileUpload("photo"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No photo file provided" });
@@ -859,11 +619,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
-      const user = req.user as any;
+      const userId = req.user!.id;
 
       // Create a contract with the photo
       const contract = await storage.createContract({
-        userId: user.id,
+        userId,
         universityId: universityId || undefined,
         encounterType: encounterType || undefined,
         parties: parsedParties,
@@ -880,27 +640,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create_photo",
         "contract",
         contract.id,
-        user.id,
+        userId,
         { method: "photo", encounterType }
       );
 
       res.json(contract);
     } catch (error) {
       console.error("Error uploading consent photo:", error);
-      const user = req.user as any;
+      const userId = req.user?.id;
       logConsentEvent(
         req,
         "create_failure",
         "contract",
         undefined,
-        user?.id,
+        userId,
         { method: "photo", error: (error as Error).message }
       );
       res.status(500).json({ error: "Failed to upload photo" });
     }
   });
 
-  app.post("/api/consent-biometric", isAuthenticated, csrfProtection, async (req, res) => {
+  app.post("/api/consent-biometric", requireAuth, async (req, res) => {
     try {
       const { 
         universityId, 
@@ -952,12 +712,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
-      const user = req.user as any;
+      const userId = req.user!.id;
 
       // Create contract with verified biometric data
       const contract = await storage.createContract({
         ...parsed.data,
-        userId: user.id
+        userId
       });
 
       // Log consent creation
@@ -966,20 +726,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "create_biometric",
         "contract",
         contract.id,
-        user.id,
+        userId,
         { method: "biometric", encounterType: parsed.data.encounterType }
       );
 
       res.json(contract);
     } catch (error) {
       console.error("Error creating biometric consent:", error);
-      const user = req.user as any;
+      const userId = req.user?.id;
       logConsentEvent(
         req,
         "create_failure",
         "contract",
         undefined,
-        user?.id,
+        userId,
         { method: "biometric", error: (error as Error).message }
       );
       res.status(500).json({ error: "Failed to create biometric consent" });
@@ -1254,435 +1014,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Payment method routes
-  app.get("/api/payment-methods", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const paymentMethods = await storage.getPaymentMethodsByUserId(user.id);
-      res.json(paymentMethods);
-    } catch (error) {
-      console.error("Error fetching payment methods:", error);
-      res.status(500).json({ error: "Failed to fetch payment methods" });
-    }
-  });
-
-  app.post("/api/payment-methods/sync-from-stripe", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const userData = await storage.getUser(user.id);
-      
-      if (!userData || !userData.stripeCustomerId) {
-        return res.status(400).json({ error: "User not setup for payments" });
-      }
-
-      const paymentMethodsFromStripe = await stripe.paymentMethods.list({
-        customer: userData.stripeCustomerId,
-        type: "card",
-      });
-
-      const customer = await stripe.customers.retrieve(userData.stripeCustomerId);
-      const defaultPaymentMethodId = (customer as any).invoice_settings?.default_payment_method;
-
-      const existingMethods = await storage.getPaymentMethodsByUserId(user.id);
-      const existingMethodIds = new Set(existingMethods.map(m => m.stripePaymentMethodId));
-
-      for (const pm of paymentMethodsFromStripe.data) {
-        if (!existingMethodIds.has(pm.id)) {
-          try {
-            await storage.createPaymentMethod({
-              userId: user.id,
-              stripePaymentMethodId: pm.id,
-              type: "card",
-              last4: pm.card?.last4 || null,
-              brand: pm.card?.brand || null,
-              expiryMonth: pm.card?.exp_month?.toString() || null,
-              expiryYear: pm.card?.exp_year?.toString() || null,
-              email: null,
-              walletAddress: null,
-              isDefault: pm.id === defaultPaymentMethodId ? "true" : "false",
-            });
-          } catch (error) {
-            console.error("Error syncing payment method from Stripe:", error);
-          }
-        }
-      }
-
-      const stripeMethodIds = new Set(paymentMethodsFromStripe.data.map(pm => pm.id));
-      for (const method of existingMethods) {
-        if (!stripeMethodIds.has(method.stripePaymentMethodId)) {
-          try {
-            await storage.deletePaymentMethod(method.id, user.id);
-          } catch (error) {
-            console.error("Error removing orphaned payment method from database:", error);
-          }
-        }
-      }
-
-      if (defaultPaymentMethodId) {
-        const defaultMethod = existingMethods.find(m => m.stripePaymentMethodId === defaultPaymentMethodId);
-        if (defaultMethod && defaultMethod.isDefault !== "true") {
-          try {
-            await storage.setDefaultPaymentMethod(defaultMethod.id, user.id);
-          } catch (error) {
-            console.error("Error updating default payment method in database:", error);
-          }
-        }
-      }
-
-      const updatedMethods = await storage.getPaymentMethodsByUserId(user.id);
-      res.json({ success: true, paymentMethods: updatedMethods });
-    } catch (error) {
-      console.error("Error syncing payment methods from Stripe:", error);
-      res.status(500).json({ error: "Failed to sync payment methods" });
-    }
-  });
-
-  app.post("/api/payment-methods", isAuthenticated, csrfProtection, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { stripePaymentMethodId } = req.body;
-
-      if (!stripePaymentMethodId) {
-        return res.status(400).json({ error: "Missing payment method ID" });
-      }
-
-      const userData = await storage.getUser(user.id);
-      if (!userData || !userData.stripeCustomerId) {
-        return res.status(400).json({ error: "User not setup for payments" });
-      }
-
-      const stripePaymentMethod = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
-      
-      if (stripePaymentMethod.customer !== userData.stripeCustomerId) {
-        await stripe.paymentMethods.attach(stripePaymentMethodId, {
-          customer: userData.stripeCustomerId,
-        });
-      }
-
-      const existingMethods = await storage.getPaymentMethodsByUserId(user.id);
-      const isFirstMethod = existingMethods.length === 0;
-
-      if (isFirstMethod) {
-        await stripe.customers.update(userData.stripeCustomerId, {
-          invoice_settings: {
-            default_payment_method: stripePaymentMethodId,
-          },
-        });
-      }
-
-      try {
-        const paymentMethod = await storage.createPaymentMethod({
-          userId: user.id,
-          stripePaymentMethodId,
-          type: "card",
-          last4: stripePaymentMethod.card?.last4 || null,
-          brand: stripePaymentMethod.card?.brand || null,
-          expiryMonth: stripePaymentMethod.card?.exp_month?.toString() || null,
-          expiryYear: stripePaymentMethod.card?.exp_year?.toString() || null,
-          email: null,
-          walletAddress: null,
-          isDefault: isFirstMethod ? "true" : "false",
-        });
-        res.json(paymentMethod);
-      } catch (dbError) {
-        console.error("CRITICAL: Payment method created in Stripe but failed to save to database. User can sync from Stripe. Details:", {
-          userId: user.id,
-          stripeCustomerId: userData.stripeCustomerId,
-          stripePaymentMethodId,
-          error: dbError
-        });
-        res.json({
-          id: stripePaymentMethodId,
-          userId: user.id,
-          stripePaymentMethodId,
-          type: "card",
-          last4: stripePaymentMethod.card?.last4 || null,
-          brand: stripePaymentMethod.card?.brand || null,
-          expiryMonth: stripePaymentMethod.card?.exp_month?.toString() || null,
-          expiryYear: stripePaymentMethod.card?.exp_year?.toString() || null,
-          email: null,
-          walletAddress: null,
-          isDefault: isFirstMethod ? "true" : "false",
-        });
-      }
-    } catch (error) {
-      console.error("Error creating payment method:", error);
-      res.status(500).json({ error: "Failed to create payment method" });
-    }
-  });
-
-  app.post("/api/payment-methods/:id/set-default", isAuthenticated, csrfProtection, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { id } = req.params;
-
-      const paymentMethod = await storage.getPaymentMethod(id, user.id);
-      if (!paymentMethod) {
-        return res.status(404).json({ error: "Payment method not found" });
-      }
-
-      const userData = await storage.getUser(user.id);
-      if (!userData || !userData.stripeCustomerId) {
-        return res.status(400).json({ error: "User not setup for payments" });
-      }
-
-      await stripe.customers.update(userData.stripeCustomerId, {
-        invoice_settings: {
-          default_payment_method: paymentMethod.stripePaymentMethodId,
-        },
-      });
-
-      try {
-        const success = await storage.setDefaultPaymentMethod(id, user.id);
-        if (!success) {
-          return res.status(404).json({ error: "Payment method not found" });
-        }
-        res.json({ success: true });
-      } catch (dbError) {
-        console.error("CRITICAL: Default payment method set in Stripe but failed to update database. User can sync from Stripe. Details:", {
-          userId: user.id,
-          stripeCustomerId: userData.stripeCustomerId,
-          paymentMethodId: id,
-          error: dbError
-        });
-        res.json({ success: true });
-      }
-    } catch (error) {
-      console.error("Error setting default payment method:", error);
-      res.status(500).json({ error: "Failed to set default payment method" });
-    }
-  });
-
-  app.delete("/api/payment-methods/:id", isAuthenticated, csrfProtection, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { id } = req.params;
-
-      const paymentMethod = await storage.getPaymentMethod(id, user.id);
-      if (!paymentMethod) {
-        return res.status(404).json({ error: "Payment method not found" });
-      }
-
-      const userData = await storage.getUser(user.id);
-      if (!userData || !userData.stripeCustomerId) {
-        return res.status(400).json({ error: "User not setup for payments" });
-      }
-
-      const isDefault = paymentMethod.isDefault === "true";
-      
-      if (isDefault) {
-        const allMethods = await storage.getPaymentMethodsByUserId(user.id);
-        const otherMethods = allMethods.filter(m => m.id !== id);
-        
-        if (otherMethods.length > 0) {
-          const newDefault = otherMethods[0];
-          await stripe.customers.update(userData.stripeCustomerId, {
-            invoice_settings: {
-              default_payment_method: newDefault.stripePaymentMethodId,
-            },
-          });
-          try {
-            await storage.setDefaultPaymentMethod(newDefault.id, user.id);
-          } catch (dbError) {
-            console.error("CRITICAL: New default set in Stripe but failed to update database. User can sync from Stripe. Details:", {
-              userId: user.id,
-              newDefaultId: newDefault.id,
-              error: dbError
-            });
-          }
-        } else {
-          await stripe.customers.update(userData.stripeCustomerId, {
-            invoice_settings: {
-              default_payment_method: null,
-            },
-          });
-        }
-      }
-
-      await stripe.paymentMethods.detach(paymentMethod.stripePaymentMethodId);
-      
-      try {
-        const success = await storage.deletePaymentMethod(id, user.id);
-        if (!success) {
-          console.error("Payment method deleted from Stripe but not found in database. Likely already deleted.");
-        }
-      } catch (dbError) {
-        console.error("CRITICAL: Payment method deleted from Stripe but failed to delete from database. User can sync from Stripe. Details:", {
-          userId: user.id,
-          paymentMethodId: id,
-          error: dbError
-        });
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting payment method:", error);
-      res.status(500).json({ error: "Failed to delete payment method" });
-    }
-  });
-
-  app.post("/api/payment-methods/setup-intent", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const userData = await storage.getUser(user.id);
-      
-      if (!userData) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      let customerId = userData.stripeCustomerId;
-      
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: userData.email || undefined,
-          metadata: {
-            userId: user.id,
-          },
-        });
-        customerId = customer.id;
-        await storage.updateUserStripeCustomerId(user.id, customerId);
-      }
-
-      const setupIntent = await stripe.setupIntents.create({
-        customer: customerId,
-        payment_method_types: ["card"],
-      });
-
-      res.json({ clientSecret: setupIntent.client_secret, customerId });
-    } catch (error) {
-      console.error("Error creating setup intent:", error);
-      res.status(500).json({ error: "Failed to create setup intent" });
-    }
-  });
-
-  // Referral routes
-  app.post("/api/referrals", isAuthenticated, csrfProtection, referralRateLimiter, async (req, res) => {
-    try {
-      if (!req.isAuthenticated || !req.isAuthenticated()) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = req.user as any;
-      const { refereeEmail, invitationMessage } = req.body;
-
-      if (!refereeEmail) {
-        return res.status(400).json({ error: "Referee email is required" });
-      }
-
-      // Get referrer's user data for name and referral code
-      const referrer = await storage.getUser(user.id);
-      if (!referrer) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Ensure user has a referral code
-      let referralCode = referrer.referralCode;
-      if (!referralCode) {
-        referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-        await storage.updateUserReferralCode(user.id, referralCode);
-      }
-
-      // Create referral record
-      const referral = await storage.createReferral({
-        referrerId: user.id,
-        refereeEmail,
-        invitationMessage,
-        status: "pending",
-      });
-
-      // Send invitation email via Resend with error handling
-      // Note: We still return success even if email fails, since referral is created
-      try {
-        const referrerName = referrer.email 
-          ? referrer.email.split('@')[0]
-          : referrer.firstName || referrer.lastName 
-            ? `${referrer.firstName || ''} ${referrer.lastName || ''}`.trim()
-            : 'PMY User';
-            
-        await sendInvitationEmail({
-          to: refereeEmail,
-          referrerName,
-          referralCode,
-          personalMessage: invitationMessage || undefined,
-        });
-      } catch (emailError) {
-        console.error("Error sending invitation email via Resend:", emailError);
-        // Don't fail the whole request if email fails - referral is still created
-        // User will see success message, and we can retry email sending later if needed
-      }
-
-      res.json(referral);
-    } catch (error) {
-      console.error("Error creating referral:", error);
-      res.status(500).json({ error: "Failed to create referral" });
-    }
-  });
-
-  app.get("/api/referrals", async (req, res) => {
-    try {
-      if (!req.isAuthenticated || !req.isAuthenticated()) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = req.user as any;
-      const referrals = await storage.getReferralsByUserId(user.id);
-      res.json(referrals);
-    } catch (error) {
-      console.error("Error getting referrals:", error);
-      res.status(500).json({ error: "Failed to get referrals" });
-    }
-  });
-
-  app.get("/api/referrals/stats", async (req, res) => {
-    try {
-      if (!req.isAuthenticated || !req.isAuthenticated()) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = req.user as any;
-      const stats = await storage.getReferralStats(user.id);
-      res.json(stats);
-    } catch (error) {
-      console.error("Error getting referral stats:", error);
-      res.status(500).json({ error: "Failed to get referral stats" });
-    }
-  });
-
-  app.get("/api/user/referral-code", async (req, res) => {
-    try {
-      if (!req.isAuthenticated || !req.isAuthenticated()) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = req.user as any;
-      const dbUser = await storage.getUser(user.id);
-      
-      if (!dbUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Generate referral code if user doesn't have one
-      if (!dbUser.referralCode) {
-        const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-        await storage.updateUserReferralCode(user.id, referralCode);
-        return res.json({ referralCode });
-      }
-
-      res.json({ referralCode: dbUser.referralCode });
-    } catch (error) {
-      console.error("Error getting referral code:", error);
-      res.status(500).json({ error: "Failed to get referral code" });
-    }
-  });
-
   // Share document via email
-  app.post("/api/share-document", isAuthenticated, csrfProtection, documentShareRateLimiter, async (req, res) => {
+  app.post("/api/share-document", requireAuth, documentShareRateLimiter, async (req, res) => {
     try {
-      if (!req.isAuthenticated || !req.isAuthenticated()) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = req.user as any;
+      const user = req.user!;
       const { documentId, documentType, recipientEmail } = req.body;
 
       if (!documentId || !documentType || !recipientEmail) {
@@ -1696,8 +1031,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid document type" });
       }
 
-      // Get user data
-      const sender = await storage.getUser(user.id);
+      // Get user profile
+      const sender = await storage.getUserProfile(user.id);
       if (!sender) {
         return res.status(404).json({ error: "User not found" });
       }

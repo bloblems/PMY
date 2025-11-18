@@ -1,29 +1,12 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { setupAuth } from "./auth";
-import { setupOidcAuth, getOidcSession } from "./replitAuth";
 import { initializeDataRetention } from "./dataRetention";
-import passport from "passport";
 
 const app = express();
 
-// Setup session middleware (shared by both auth systems)
-// OIDC requires this to be set up first
+// Trust proxy for production deployments
 app.set("trust proxy", 1);
-app.use(getOidcSession());
-
-// Initialize passport (shared by both email/password and OIDC)
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Setup email/password authentication strategies
-setupAuth(app);
-
-// Setup OIDC authentication (must be async)
-(async () => {
-  await setupOidcAuth(app);
-})();
 
 declare module 'http' {
   interface IncomingMessage {

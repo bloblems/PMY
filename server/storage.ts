@@ -1,8 +1,28 @@
 import { randomUUID } from "crypto";
-import { type University, type InsertUniversity, type ConsentRecording, type InsertConsentRecording, type ConsentContract, type InsertConsentContract, type UniversityReport, type InsertUniversityReport, type VerificationPayment, type InsertVerificationPayment, type User, type InsertUser, type UpsertUser, type Referral, type InsertReferral, type PaymentMethod, type InsertPaymentMethod } from "@shared/schema";
+import {
+  type University,
+  type InsertUniversity,
+  type ConsentRecording,
+  type InsertConsentRecording,
+  type ConsentContract,
+  type InsertConsentContract,
+  type UniversityReport,
+  type InsertUniversityReport,
+  type VerificationPayment,
+  type InsertVerificationPayment,
+  type UserProfile,
+  type InsertUserProfile,
+} from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
-import { universities, consentRecordings, consentContracts, universityReports, verificationPayments, users, referrals, paymentMethods } from "@shared/schema";
+import {
+  universities,
+  consentRecordings,
+  consentContracts,
+  universityReports,
+  verificationPayments,
+  userProfiles,
+} from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
@@ -37,38 +57,16 @@ export interface IStorage {
   createContract(contract: InsertConsentContract): Promise<ConsentContract>;
   deleteContract(id: string, userId: string): Promise<boolean>;
 
-  // User methods
-  getAllUsers(): Promise<User[]>;
-  getUser(id: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  getUserByReferralCode(referralCode: string): Promise<User | undefined>;
-  getUserByResetToken(token: string): Promise<User | undefined>;
-  createUser(user: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User>;
-  upsertUser(user: UpsertUser): Promise<User>; // OIDC - upsert user by id
-  updateUserLastLogin(id: string): Promise<User | undefined>;
-  updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined>;
-  updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined>;
-  setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void>;
-  clearPasswordResetToken(userId: string): Promise<void>;
-  updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void>;
-  updateUserRetentionPolicy(userId: string, dataRetentionPolicy: string): Promise<void>;
+  // User profile methods (Supabase auth.users managed separately)
+  getUserProfile(id: string): Promise<UserProfile | undefined>;
+  getAllUserProfiles(batch?: { limit: number; offset: number }): Promise<UserProfile[]>;
+  createUserProfile(profile: InsertUserProfile & { id: string }): Promise<UserProfile>;
+  updateUserProfile(id: string, updates: Partial<InsertUserProfile>): Promise<UserProfile | undefined>;
+  updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<UserProfile | undefined>;
+  updateUserRetentionPolicy(id: string, dataRetentionPolicy: string): Promise<void>;
+  updateUserStripeCustomerId(id: string, stripeCustomerId: string): Promise<UserProfile | undefined>;
+  deleteUserProfile(id: string): Promise<void>;
   deleteAllUserData(userId: string): Promise<void>;
-  updateUserEmail(userId: string, newEmail: string): Promise<void>;
-  deleteUser(userId: string): Promise<void>;
-
-  // Referral methods
-  createReferral(referral: InsertReferral): Promise<Referral>;
-  getReferralsByUserId(userId: string): Promise<Referral[]>;
-  getReferralStats(userId: string): Promise<{ total: number; completed: number; pending: number }>;
-  updateReferralStatus(id: string, status: string, refereeId?: string): Promise<Referral | undefined>;
-
-  // Payment method methods
-  getPaymentMethodsByUserId(userId: string): Promise<PaymentMethod[]>;
-  getPaymentMethod(id: string, userId: string): Promise<PaymentMethod | undefined>;
-  createPaymentMethod(paymentMethod: InsertPaymentMethod): Promise<PaymentMethod>;
-  setDefaultPaymentMethod(id: string, userId: string): Promise<boolean>;
-  deletePaymentMethod(id: string, userId: string): Promise<boolean>;
-  updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -76,18 +74,16 @@ export class MemStorage implements IStorage {
   private recordings: Map<string, ConsentRecording>;
   private contracts: Map<string, ConsentContract>;
   private reports: Map<string, UniversityReport>;
-  private users: Map<string, User>;
   private verificationPayments: Map<string, VerificationPayment>;
-  private referrals: Map<string, Referral>;
+  private userProfiles: Map<string, UserProfile>;
 
   constructor() {
     this.universities = new Map();
     this.recordings = new Map();
     this.contracts = new Map();
     this.reports = new Map();
-    this.users = new Map();
     this.verificationPayments = new Map();
-    this.referrals = new Map();
+    this.userProfiles = new Map();
 
     // Seed with initial universities
     this.seedUniversities();
@@ -96,16 +92,15 @@ export class MemStorage implements IStorage {
   private seedUniversities() {
     universityData.forEach((uni, index) => {
       const id = randomUUID();
-      
-      // Add real Title IX policy for MIT (first university) to demonstrate AI summarization
+
       let titleIXInfo = "Title IX information will be populated soon. Please check your university's official website for the most current Title IX policies and procedures.";
       let titleIXUrl = null;
-      
-      if (index === 0) { // Massachusetts Institute of Technology
+
+      if (index === 0) {
         titleIXInfo = "MIT's Title IX policy requires affirmative consent for all sexual activity. Consent must be informed, voluntary, and active, meaning all parties must communicate their willingness to engage in sexual activity through clear, unambiguous words or actions. Silence or lack of resistance does not constitute consent. Consent cannot be obtained through force, threat, coercion, or intimidation. A person who is incapacitated due to alcohol, drugs, sleep, or other factors cannot give consent. Incapacitation is defined as a state where an individual lacks the physical or mental capacity to make informed, rational judgments. Past consent does not imply future consent, and consent to one form of sexual activity does not imply consent to other forms. Consent can be withdrawn at any time, and all parties must immediately cease the activity when consent is revoked. Students are encouraged to document consent through written agreements or recordings when appropriate. All students must complete annual Title IX training covering these consent requirements. The Title IX office provides confidential support and resources for students who wish to report violations or seek assistance.";
         titleIXUrl = "https://idhr.mit.edu";
       }
-      
+
       const university: University = {
         id,
         name: uni.name,
@@ -113,7 +108,7 @@ export class MemStorage implements IStorage {
         titleIXInfo,
         titleIXUrl,
         lastUpdated: new Date(),
-        verifiedAt: index === 0 ? new Date() : null, // Mark MIT as verified
+        verifiedAt: index === 0 ? new Date() : null,
       };
       this.universities.set(id, university);
     });
@@ -203,20 +198,6 @@ export class MemStorage implements IStorage {
     return resolved;
   }
 
-  async getRecordingsByUserId(userId: string): Promise<ConsentRecording[]> {
-    return Array.from(this.recordings.values())
-      .filter(r => r.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }
-
-  async getRecording(id: string, userId: string): Promise<ConsentRecording | undefined> {
-    const recording = this.recordings.get(id);
-    if (!recording || recording.userId !== userId) {
-      return undefined;
-    }
-    return recording;
-  }
-
   async createRecording(insertRecording: InsertConsentRecording): Promise<ConsentRecording> {
     const id = randomUUID();
     const recording: ConsentRecording = {
@@ -232,27 +213,22 @@ export class MemStorage implements IStorage {
     return recording;
   }
 
-  async deleteRecording(id: string, userId: string): Promise<boolean> {
-    const recording = this.recordings.get(id);
-    if (recording && recording.userId === userId) {
-      this.recordings.delete(id);
-      return true;
-    }
-    return false;
-  }
-
-  async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
-    return Array.from(this.contracts.values())
-      .filter(c => c.userId === userId)
+  async getRecordingsByUserId(userId: string): Promise<ConsentRecording[]> {
+    return Array.from(this.recordings.values())
+      .filter(r => r.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async getContract(id: string, userId: string): Promise<ConsentContract | undefined> {
-    const contract = this.contracts.get(id);
-    if (!contract || contract.userId !== userId) {
-      return undefined;
-    }
-    return contract;
+  async getRecording(id: string, userId: string): Promise<ConsentRecording | undefined> {
+    const recording = this.recordings.get(id);
+    if (!recording || recording.userId !== userId) return undefined;
+    return recording;
+  }
+
+  async deleteRecording(id: string, userId: string): Promise<boolean> {
+    const recording = this.recordings.get(id);
+    if (!recording || recording.userId !== userId) return false;
+    return this.recordings.delete(id);
   }
 
   async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {
@@ -285,225 +261,22 @@ export class MemStorage implements IStorage {
     return contract;
   }
 
+  async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
+    return Array.from(this.contracts.values())
+      .filter(c => c.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getContract(id: string, userId: string): Promise<ConsentContract | undefined> {
+    const contract = this.contracts.get(id);
+    if (!contract || contract.userId !== userId) return undefined;
+    return contract;
+  }
+
   async deleteContract(id: string, userId: string): Promise<boolean> {
     const contract = this.contracts.get(id);
-    if (contract && contract.userId === userId) {
-      this.contracts.delete(id);
-      return true;
-    }
-    return false;
-  }
-
-  async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(u => u.email === email);
-  }
-
-  async createUser(insertUser: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User> {
-    const user: User = {
-      ...insertUser,
-      email: insertUser.email ?? null,
-      name: insertUser.name ?? null,
-      firstName: insertUser.firstName ?? null,
-      lastName: insertUser.lastName ?? null,
-      profilePictureUrl: insertUser.profilePictureUrl ?? null,
-      referralCode: insertUser.referralCode ?? null,
-      savedSignature: null,
-      savedSignatureType: null,
-      savedSignatureText: null,
-      passwordResetToken: null,
-      passwordResetTokenExpiry: null,
-      dataRetentionPolicy: "forever",
-      stripeCustomerId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastLoginAt: new Date(),
-    };
-    this.users.set(user.id, user);
-    return user;
-  }
-
-  async upsertUser(upsertData: UpsertUser): Promise<User> {
-    const existingUser = this.users.get(upsertData.id);
-    
-    if (existingUser) {
-      // Update existing OIDC user
-      const updated: User = {
-        ...existingUser,
-        email: upsertData.email,
-        firstName: upsertData.firstName,
-        lastName: upsertData.lastName,
-        profilePictureUrl: upsertData.profileImageUrl,
-        updatedAt: new Date(),
-        lastLoginAt: new Date(),
-      };
-      this.users.set(upsertData.id, updated);
-      return updated;
-    } else {
-      // Create new OIDC user
-      const newUser: User = {
-        id: upsertData.id,
-        email: upsertData.email,
-        name: null, // OIDC users don't use the name field
-        firstName: upsertData.firstName,
-        lastName: upsertData.lastName,
-        profilePictureUrl: upsertData.profileImageUrl,
-        passwordHash: null, // OIDC users don't have passwords
-        passwordSalt: null,
-        passwordResetToken: null,
-        passwordResetTokenExpiry: null,
-        referralCode: null,
-        savedSignature: null,
-        savedSignatureType: null,
-        savedSignatureText: null,
-        dataRetentionPolicy: "forever",
-        stripeCustomerId: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastLoginAt: new Date(),
-      };
-      this.users.set(newUser.id, newUser);
-      return newUser;
-    }
-  }
-
-  async updateUserLastLogin(id: string): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (user) {
-      user.lastLoginAt = new Date();
-      this.users.set(id, user);
-    }
-    return user;
-  }
-
-  async updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (user) {
-      const updated = { ...user, referralCode };
-      this.users.set(id, updated);
-      return updated;
-    }
-    return undefined;
-  }
-
-  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(u => u.referralCode === referralCode);
-  }
-
-  async updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (user) {
-      const updated = { 
-        ...user, 
-        savedSignature: signature,
-        savedSignatureType: signatureType,
-        savedSignatureText: signatureText || null,
-      };
-      this.users.set(id, updated);
-      return updated;
-    }
-    return undefined;
-  }
-
-  async getUserByResetToken(token: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(u => u.passwordResetToken === token);
-  }
-
-  async setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void> {
-    const user = this.users.get(userId);
-    if (user) {
-      const updated = { 
-        ...user, 
-        passwordResetToken: token,
-        passwordResetTokenExpiry: expiry,
-      };
-      this.users.set(userId, updated);
-    }
-  }
-
-  async clearPasswordResetToken(userId: string): Promise<void> {
-    const user = this.users.get(userId);
-    if (user) {
-      const updated = { 
-        ...user, 
-        passwordResetToken: null,
-        passwordResetTokenExpiry: null,
-      };
-      this.users.set(userId, updated);
-    }
-  }
-
-  async updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void> {
-    const user = this.users.get(userId);
-    if (user) {
-      const updated = { 
-        ...user, 
-        passwordHash,
-        passwordSalt,
-      };
-      this.users.set(userId, updated);
-    }
-  }
-
-  async updateUserRetentionPolicy(userId: string, dataRetentionPolicy: string): Promise<void> {
-    const user = this.users.get(userId);
-    if (user) {
-      const updated = { 
-        ...user, 
-        dataRetentionPolicy,
-        updatedAt: new Date(),
-      };
-      this.users.set(userId, updated);
-    }
-  }
-
-  async deleteAllUserData(userId: string): Promise<void> {
-    // Delete all recordings for this user
-    const userRecordings = Array.from(this.recordings.values())
-      .filter(r => r.userId === userId);
-    userRecordings.forEach(r => this.recordings.delete(r.id));
-    
-    // Delete all contracts for this user
-    const userContracts = Array.from(this.contracts.values())
-      .filter(c => c.userId === userId);
-    userContracts.forEach(c => this.contracts.delete(c.id));
-  }
-
-  async updateUserEmail(userId: string, newEmail: string): Promise<void> {
-    const user = this.users.get(userId);
-    if (user) {
-      const updated = { 
-        ...user, 
-        email: newEmail,
-        updatedAt: new Date(),
-      };
-      this.users.set(userId, updated);
-    }
-  }
-
-  async deleteUser(userId: string): Promise<void> {
-    // Delete all consent data (recordings, contracts)
-    await this.deleteAllUserData(userId);
-    
-    // Delete any referrals made by this user
-    const userReferrals = Array.from(this.referrals.values())
-      .filter(r => r.referrerId === userId);
-    userReferrals.forEach(r => this.referrals.delete(r.id));
-    
-    // Delete any verification payments for this user
-    const userPayments = Array.from(this.verificationPayments.values())
-      .filter(p => p.userId === userId);
-    userPayments.forEach(p => this.verificationPayments.delete(p.id));
-    
-    // Finally delete the user account itself
-    this.users.delete(userId);
+    if (!contract || contract.userId !== userId) return false;
+    return this.contracts.delete(id);
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -513,8 +286,8 @@ export class MemStorage implements IStorage {
       id,
       userId: insertPayment.userId ?? null,
       verificationResult: insertPayment.verificationResult ?? null,
-      completedAt: null,
       createdAt: new Date(),
+      completedAt: null,
     };
     this.verificationPayments.set(id, payment);
     return payment;
@@ -535,88 +308,98 @@ export class MemStorage implements IStorage {
     verificationResult?: string
   ): Promise<VerificationPayment | undefined> {
     const payment = this.verificationPayments.get(id);
-    if (payment) {
-      payment.stripePaymentStatus = stripePaymentStatus;
-      payment.verificationStatus = verificationStatus;
-      if (verificationResult !== undefined) {
-        payment.verificationResult = verificationResult;
-      }
-      this.verificationPayments.set(id, payment);
-    }
-    return payment;
-  }
+    if (!payment) return undefined;
 
-  async createReferral(insertReferral: InsertReferral): Promise<Referral> {
-    const id = randomUUID();
-    const referral: Referral = {
-      ...insertReferral,
-      id,
-      refereeId: insertReferral.refereeId ?? null,
-      invitationMessage: insertReferral.invitationMessage ?? null,
-      completedAt: null,
-      createdAt: new Date(),
+    const updated: VerificationPayment = {
+      ...payment,
+      stripePaymentStatus,
+      verificationStatus,
+      verificationResult: verificationResult ?? payment.verificationResult,
+      completedAt: verificationStatus === "completed" ? new Date() : payment.completedAt,
     };
-    this.referrals.set(id, referral);
-    return referral;
+    this.verificationPayments.set(id, updated);
+    return updated;
   }
 
-  async getReferralsByUserId(userId: string): Promise<Referral[]> {
-    return Array.from(this.referrals.values())
-      .filter(r => r.referrerId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  async getUserProfile(id: string): Promise<UserProfile | undefined> {
+    return this.userProfiles.get(id);
   }
 
-  async getReferralStats(userId: string): Promise<{ total: number; completed: number; pending: number }> {
-    const allReferrals = await this.getReferralsByUserId(userId);
-    const total = allReferrals.length;
-    const completed = allReferrals.filter(r => r.status === "completed").length;
-    const pending = allReferrals.filter(r => r.status === "pending").length;
-    return { total, completed, pending };
+  async getAllUserProfiles(_batch?: { limit: number; offset: number }): Promise<UserProfile[]> {
+    return Array.from(this.userProfiles.values());
   }
 
-  async updateReferralStatus(id: string, status: string, refereeId?: string): Promise<Referral | undefined> {
-    const referral = this.referrals.get(id);
-    if (referral) {
-      const updated = {
-        ...referral,
-        status,
-        refereeId: refereeId || referral.refereeId,
-        completedAt: status === "completed" ? new Date() : referral.completedAt,
-      };
-      this.referrals.set(id, updated);
-      return updated;
-    }
-    return undefined;
+  async createUserProfile(profile: InsertUserProfile & { id: string }): Promise<UserProfile> {
+    const userProfile: UserProfile = {
+      ...profile,
+      savedSignature: profile.savedSignature ?? null,
+      savedSignatureType: profile.savedSignatureType ?? null,
+      savedSignatureText: profile.savedSignatureText ?? null,
+      dataRetentionPolicy: profile.dataRetentionPolicy ?? "forever",
+      stripeCustomerId: profile.stripeCustomerId ?? null,
+      referralCode: profile.referralCode ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.userProfiles.set(profile.id, userProfile);
+    return userProfile;
   }
 
-  // Payment method stub implementations
-  async getPaymentMethodsByUserId(_userId: string): Promise<PaymentMethod[]> {
-    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  async updateUserProfile(id: string, updates: Partial<InsertUserProfile>): Promise<UserProfile | undefined> {
+    const profile = this.userProfiles.get(id);
+    if (!profile) return undefined;
+
+    const updated: UserProfile = {
+      ...profile,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.userProfiles.set(id, updated);
+    return updated;
   }
 
-  async getPaymentMethod(_id: string, _userId: string): Promise<PaymentMethod | undefined> {
-    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  async updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<UserProfile | undefined> {
+    return this.updateUserProfile(id, {
+      savedSignature: signature,
+      savedSignatureType: signatureType,
+      savedSignatureText: signatureText ?? null,
+    });
   }
 
-  async createPaymentMethod(_paymentMethod: InsertPaymentMethod): Promise<PaymentMethod> {
-    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  async updateUserRetentionPolicy(id: string, dataRetentionPolicy: string): Promise<void> {
+    await this.updateUserProfile(id, { 
+      dataRetentionPolicy: dataRetentionPolicy as "30days" | "90days" | "1year" | "forever"
+    });
   }
 
-  async setDefaultPaymentMethod(_id: string, _userId: string): Promise<boolean> {
-    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  async updateUserStripeCustomerId(id: string, stripeCustomerId: string): Promise<UserProfile | undefined> {
+    return this.updateUserProfile(id, { stripeCustomerId });
   }
 
-  async deletePaymentMethod(_id: string, _userId: string): Promise<boolean> {
-    throw new Error("Payment methods not supported in MemStorage. Use DbStorage.");
+  async deleteUserProfile(id: string): Promise<void> {
+    this.userProfiles.delete(id);
   }
 
-  async updateUserStripeCustomerId(_userId: string, _stripeCustomerId: string): Promise<User | undefined> {
-    throw new Error("Stripe customer ID not supported in MemStorage. Use DbStorage.");
+  async deleteAllUserData(userId: string): Promise<void> {
+    // Delete all user-related data (recordings, contracts)
+    Array.from(this.recordings.values())
+      .filter(r => r.userId === userId)
+      .forEach(r => this.recordings.delete(r.id));
+
+    Array.from(this.contracts.values())
+      .filter(c => c.userId === userId)
+      .forEach(c => this.contracts.delete(c.id));
+
+    Array.from(this.verificationPayments.values())
+      .filter(p => p.userId === userId)
+      .forEach(p => this.verificationPayments.delete(p.id));
+
+    this.userProfiles.delete(userId);
   }
 }
 
+// Database storage implementation
 export class DbStorage implements IStorage {
-  // University methods
   async getAllUniversities(): Promise<University[]> {
     return await db.select().from(universities);
   }
@@ -632,21 +415,18 @@ export class DbStorage implements IStorage {
   }
 
   async updateUniversityTitleIX(id: string, titleIXInfo: string, titleIXUrl?: string): Promise<University | undefined> {
-    const values: any = {
+    const updates: any = {
       titleIXInfo,
       lastUpdated: new Date(),
     };
-    
     if (titleIXUrl !== undefined) {
-      values.titleIXUrl = titleIXUrl;
+      updates.titleIXUrl = titleIXUrl;
     }
-
     const result = await db
       .update(universities)
-      .set(values)
+      .set(updates)
       .where(eq(universities.id, id))
       .returning();
-    
     return result[0];
   }
 
@@ -656,11 +436,9 @@ export class DbStorage implements IStorage {
       .set({ verifiedAt: new Date() })
       .where(eq(universities.id, id))
       .returning();
-    
     return result[0];
   }
 
-  // University report methods
   async createReport(insertReport: InsertUniversityReport): Promise<UniversityReport> {
     const result = await db.insert(universityReports).values(insertReport).returning();
     return result[0];
@@ -681,17 +459,17 @@ export class DbStorage implements IStorage {
   async resolveReport(id: string): Promise<UniversityReport | undefined> {
     const result = await db
       .update(universityReports)
-      .set({
-        status: "resolved",
-        resolvedAt: new Date(),
-      })
+      .set({ status: "resolved", resolvedAt: new Date() })
       .where(eq(universityReports.id, id))
       .returning();
-    
     return result[0];
   }
 
-  // Recording methods
+  async createRecording(insertRecording: InsertConsentRecording): Promise<ConsentRecording> {
+    const result = await db.insert(consentRecordings).values(insertRecording).returning();
+    return result[0];
+  }
+
   async getRecordingsByUserId(userId: string): Promise<ConsentRecording[]> {
     return await db
       .select()
@@ -704,17 +482,7 @@ export class DbStorage implements IStorage {
     const result = await db
       .select()
       .from(consentRecordings)
-      .where(and(
-        eq(consentRecordings.id, id),
-        eq(consentRecordings.userId, userId)
-      ))
-      .limit(1);
-    
-    return result[0]; // Already filtered by userId at DB level
-  }
-
-  async createRecording(insertRecording: InsertConsentRecording): Promise<ConsentRecording> {
-    const result = await db.insert(consentRecordings).values(insertRecording).returning();
+      .where(and(eq(consentRecordings.id, id), eq(consentRecordings.userId, userId)));
     return result[0];
   }
 
@@ -726,7 +494,18 @@ export class DbStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Contract methods
+  async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {
+    const contractData: any = {
+      ...insertContract,
+      contractStartTime: insertContract.contractStartTime ? new Date(insertContract.contractStartTime) : null,
+      contractEndTime: insertContract.contractEndTime ? new Date(insertContract.contractEndTime) : null,
+      authenticatedAt: insertContract.authenticatedAt ? new Date(insertContract.authenticatedAt) : null,
+      verifiedAt: insertContract.verifiedAt ? new Date(insertContract.verifiedAt) : null,
+    };
+    const result = await db.insert(consentContracts).values(contractData).returning();
+    return result[0];
+  }
+
   async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
     return await db
       .select()
@@ -739,30 +518,7 @@ export class DbStorage implements IStorage {
     const result = await db
       .select()
       .from(consentContracts)
-      .where(and(
-        eq(consentContracts.id, id),
-        eq(consentContracts.userId, userId)
-      ))
-      .limit(1);
-    
-    return result[0]; // Already filtered by userId at DB level
-  }
-
-  async createContract(insertContract: InsertConsentContract): Promise<ConsentContract> {
-    const values: any = { ...insertContract };
-    if (insertContract.authenticatedAt) {
-      values.authenticatedAt = new Date(insertContract.authenticatedAt);
-    }
-    if (insertContract.verifiedAt) {
-      values.verifiedAt = new Date(insertContract.verifiedAt);
-    }
-    if (insertContract.contractStartTime) {
-      values.contractStartTime = new Date(insertContract.contractStartTime);
-    }
-    if (insertContract.contractEndTime) {
-      values.contractEndTime = new Date(insertContract.contractEndTime);
-    }
-    const result = await db.insert(consentContracts).values(values).returning();
+      .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)));
     return result[0];
   }
 
@@ -774,7 +530,6 @@ export class DbStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Verification payment methods
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
     const result = await db.insert(verificationPayments).values(insertPayment).returning();
     return result[0];
@@ -786,7 +541,10 @@ export class DbStorage implements IStorage {
   }
 
   async getVerificationPaymentBySessionId(sessionId: string): Promise<VerificationPayment | undefined> {
-    const result = await db.select().from(verificationPayments).where(eq(verificationPayments.stripeSessionId, sessionId));
+    const result = await db
+      .select()
+      .from(verificationPayments)
+      .where(eq(verificationPayments.stripeSessionId, sessionId));
     return result[0];
   }
 
@@ -796,306 +554,85 @@ export class DbStorage implements IStorage {
     verificationStatus: string,
     verificationResult?: string
   ): Promise<VerificationPayment | undefined> {
-    const values: any = {
+    const updates: any = {
       stripePaymentStatus,
       verificationStatus,
     };
-
-    if (verificationResult !== undefined) {
-      values.verificationResult = verificationResult;
+    if (verificationResult) {
+      updates.verificationResult = verificationResult;
     }
-
-    if (verificationStatus === "completed" || verificationStatus === "failed") {
-      values.completedAt = new Date();
+    if (verificationStatus === "completed") {
+      updates.completedAt = new Date();
     }
-
     const result = await db
       .update(verificationPayments)
-      .set(values)
+      .set(updates)
       .where(eq(verificationPayments.id, id))
       .returning();
-
     return result[0];
   }
 
-  // User methods
-  async getAllUsers(): Promise<User[]> {
-    const result = await db.select().from(users);
-    return result;
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id));
+  async getUserProfile(id: string): Promise<UserProfile | undefined> {
+    const result = await db.select().from(userProfiles).where(eq(userProfiles.id, id));
     return result[0];
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email));
+  async getAllUserProfiles(batch?: { limit: number; offset: number }): Promise<UserProfile[]> {
+    const { data, error } = await supabaseAdmin
+      .from('user_profiles')
+      .select('*')
+      .order('created_at')
+      .range(batch?.offset ?? 0, (batch?.offset ?? 0) + (batch?.limit ?? 1000) - 1);
+    if (error) throw error;
+    return data || [];
+  }
+
+  async createUserProfile(profile: InsertUserProfile & { id: string }): Promise<UserProfile> {
+    const result = await db.insert(userProfiles).values(profile).returning();
     return result[0];
   }
 
-  async createUser(insertUser: InsertUser & { passwordHash: string; passwordSalt: string }): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
-    return result[0];
-  }
-
-  async upsertUser(upsertData: UpsertUser): Promise<User> {
+  async updateUserProfile(id: string, updates: Partial<InsertUserProfile>): Promise<UserProfile | undefined> {
     const result = await db
-      .insert(users)
-      .values({
-        id: upsertData.id,
-        email: upsertData.email,
-        firstName: upsertData.firstName,
-        lastName: upsertData.lastName,
-        profilePictureUrl: upsertData.profileImageUrl,
-        name: null,
-        passwordHash: null,
-        passwordSalt: null,
-        referralCode: null,
-        savedSignature: null,
-        savedSignatureType: null,
-        savedSignatureText: null,
-        passwordResetToken: null,
-        passwordResetTokenExpiry: null,
-        dataRetentionPolicy: "forever",
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          email: upsertData.email,
-          firstName: upsertData.firstName,
-          lastName: upsertData.lastName,
-          profilePictureUrl: upsertData.profileImageUrl,
-          updatedAt: new Date(),
-          lastLoginAt: new Date(),
-        },
-      })
+      .update(userProfiles)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userProfiles.id, id))
       .returning();
     return result[0];
   }
 
-  async updateUserLastLogin(id: string): Promise<User | undefined> {
-    const result = await db
-      .update(users)
-      .set({ lastLoginAt: new Date() })
-      .where(eq(users.id, id))
-      .returning();
-    return result[0];
+  async updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<UserProfile | undefined> {
+    return this.updateUserProfile(id, {
+      savedSignature: signature,
+      savedSignatureType: signatureType,
+      savedSignatureText: signatureText,
+    });
   }
 
-  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.referralCode, referralCode));
-    return result[0];
-  }
-
-  async updateUserReferralCode(id: string, referralCode: string): Promise<User | undefined> {
-    const result = await db
-      .update(users)
-      .set({ referralCode })
-      .where(eq(users.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<User | undefined> {
-    const result = await db
-      .update(users)
-      .set({ 
-        savedSignature: signature,
-        savedSignatureType: signatureType,
-        savedSignatureText: signatureText || null,
-      })
-      .where(eq(users.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async getUserByResetToken(token: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.passwordResetToken, token));
-    return result[0];
-  }
-
-  async setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void> {
+  async updateUserRetentionPolicy(id: string, dataRetentionPolicy: string): Promise<void> {
     await db
-      .update(users)
-      .set({ 
-        passwordResetToken: token,
-        passwordResetTokenExpiry: expiry,
-      })
-      .where(eq(users.id, userId));
+      .update(userProfiles)
+      .set({ dataRetentionPolicy, updatedAt: new Date() })
+      .where(eq(userProfiles.id, id));
   }
 
-  async clearPasswordResetToken(userId: string): Promise<void> {
-    await db
-      .update(users)
-      .set({ 
-        passwordResetToken: null,
-        passwordResetTokenExpiry: null,
-      })
-      .where(eq(users.id, userId));
+  async updateUserStripeCustomerId(id: string, stripeCustomerId: string): Promise<UserProfile | undefined> {
+    return this.updateUserProfile(id, { stripeCustomerId });
   }
 
-  async updatePassword(userId: string, passwordHash: string, passwordSalt: string): Promise<void> {
-    await db
-      .update(users)
-      .set({ 
-        passwordHash,
-        passwordSalt,
-      })
-      .where(eq(users.id, userId));
-  }
-
-  async updateUserRetentionPolicy(userId: string, dataRetentionPolicy: string): Promise<void> {
-    await db
-      .update(users)
-      .set({ 
-        dataRetentionPolicy,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId));
+  async deleteUserProfile(id: string): Promise<void> {
+    await db.delete(userProfiles).where(eq(userProfiles.id, id));
   }
 
   async deleteAllUserData(userId: string): Promise<void> {
-    // Delete all recordings for this user
-    await db
-      .delete(consentRecordings)
-      .where(eq(consentRecordings.userId, userId));
-    
-    // Delete all contracts for this user
-    await db
-      .delete(consentContracts)
-      .where(eq(consentContracts.userId, userId));
-  }
-
-  async updateUserEmail(userId: string, newEmail: string): Promise<void> {
-    await db
-      .update(users)
-      .set({ 
-        email: newEmail,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId));
-  }
-
-  async deleteUser(userId: string): Promise<void> {
-    // Delete all consent data (recordings, contracts)
-    await this.deleteAllUserData(userId);
-    
-    // Delete any referrals made by this user
-    await db
-      .delete(referrals)
-      .where(eq(referrals.referrerId, userId));
-    
-    // Delete any verification payments for this user
-    await db
-      .delete(verificationPayments)
-      .where(eq(verificationPayments.userId, userId));
-    
-    // Finally delete the user account itself
-    await db
-      .delete(users)
-      .where(eq(users.id, userId));
-  }
-
-  // Referral methods
-  async createReferral(insertReferral: InsertReferral): Promise<Referral> {
-    const result = await db.insert(referrals).values(insertReferral).returning();
-    return result[0];
-  }
-
-  async getReferralsByUserId(userId: string): Promise<Referral[]> {
-    return await db.select().from(referrals).where(eq(referrals.referrerId, userId)).orderBy(desc(referrals.createdAt));
-  }
-
-  async getReferralStats(userId: string): Promise<{ total: number; completed: number; pending: number }> {
-    const allReferrals = await this.getReferralsByUserId(userId);
-    const total = allReferrals.length;
-    const completed = allReferrals.filter(r => r.status === "completed").length;
-    const pending = allReferrals.filter(r => r.status === "pending").length;
-    return { total, completed, pending };
-  }
-
-  async updateReferralStatus(id: string, status: string, refereeId?: string): Promise<Referral | undefined> {
-    const values: any = { status };
-    if (refereeId) {
-      values.refereeId = refereeId;
-    }
-    if (status === "completed") {
-      values.completedAt = new Date();
-    }
-    const result = await db
-      .update(referrals)
-      .set(values)
-      .where(eq(referrals.id, id))
-      .returning();
-    return result[0];
-  }
-
-  // Payment method methods
-  async getPaymentMethodsByUserId(userId: string): Promise<PaymentMethod[]> {
-    return await db
-      .select()
-      .from(paymentMethods)
-      .where(eq(paymentMethods.userId, userId))
-      .orderBy(desc(paymentMethods.createdAt));
-  }
-
-  async getPaymentMethod(id: string, userId: string): Promise<PaymentMethod | undefined> {
-    const result = await db
-      .select()
-      .from(paymentMethods)
-      .where(and(eq(paymentMethods.id, id), eq(paymentMethods.userId, userId)));
-    return result[0];
-  }
-
-  async createPaymentMethod(insertPaymentMethod: InsertPaymentMethod): Promise<PaymentMethod> {
-    const result = await db.insert(paymentMethods).values(insertPaymentMethod).returning();
-    return result[0];
-  }
-
-  async setDefaultPaymentMethod(id: string, userId: string): Promise<boolean> {
-    const paymentMethod = await this.getPaymentMethod(id, userId);
-    if (!paymentMethod) {
-      return false;
-    }
-
-    await db
-      .update(paymentMethods)
-      .set({ isDefault: "false", updatedAt: new Date() })
-      .where(eq(paymentMethods.userId, userId));
-
-    await db
-      .update(paymentMethods)
-      .set({ isDefault: "true", updatedAt: new Date() })
-      .where(eq(paymentMethods.id, id));
-
-    return true;
-  }
-
-  async deletePaymentMethod(id: string, userId: string): Promise<boolean> {
-    const paymentMethod = await this.getPaymentMethod(id, userId);
-    if (!paymentMethod) {
-      return false;
-    }
-
-    await db
-      .delete(paymentMethods)
-      .where(eq(paymentMethods.id, id));
-
-    return true;
-  }
-
-  async updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<User | undefined> {
-    const result = await db
-      .update(users)
-      .set({ 
-        stripeCustomerId,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    return result[0];
+    // Delete all user-related data (cascading deletes handled by database)
+    await db.delete(consentRecordings).where(eq(consentRecordings.userId, userId));
+    await db.delete(consentContracts).where(eq(consentContracts.userId, userId));
+    await db.delete(verificationPayments).where(eq(verificationPayments.userId, userId));
+    await db.delete(userProfiles).where(eq(userProfiles.id, userId));
   }
 }
 
-export const storage = new DbStorage();
+// Export storage instance
+const storage: IStorage = process.env.NODE_ENV === "test" ? new MemStorage() : new DbStorage();
+export default storage;

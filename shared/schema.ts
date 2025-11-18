@@ -1,74 +1,55 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, index, jsonb, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Universities table - public reference data
 export const universities = pgTable("universities", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   state: text("state").notNull(),
   titleIXInfo: text("title_ix_info").notNull(),
   titleIXUrl: text("title_ix_url"),
-  lastUpdated: timestamp("last_updated").notNull().defaultNow(),
-  verifiedAt: timestamp("verified_at"),
+  lastUpdated: timestamp("last_updated", { withTimezone: true }).notNull().defaultNow(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
 });
 
-// OIDC session storage table (required by Replit Auth)
-// IMPORTANT: Do not drop this table - mandatory for OIDC authentication
-export const sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)],
-);
-
-// Users table - supports both OIDC and email/password authentication
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  email: text("email").unique(), // Nullable for OIDC users without email
-  name: text("name"), // Legacy field for email/password users
-  firstName: text("first_name"), // OIDC field
-  lastName: text("last_name"), // OIDC field
-  profilePictureUrl: text("profile_picture_url"),
-  passwordHash: text("password_hash"), // Nullable - only for email/password users
-  passwordSalt: text("password_salt"), // Nullable - only for email/password users
-  passwordResetToken: text("password_reset_token"), // Nullable - temporary reset token
-  passwordResetTokenExpiry: timestamp("password_reset_token_expiry"), // Nullable - token expiration
-  referralCode: text("referral_code").unique(),
+// User profiles table - links to auth.users (managed by Supabase Auth)
+export const userProfiles = pgTable("user_profiles", {
+  id: uuid("id").primaryKey(), // References auth.users(id)
   savedSignature: text("saved_signature"),
   savedSignatureType: text("saved_signature_type"),
   savedSignatureText: text("saved_signature_text"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(), // Required by OIDC
-  lastLoginAt: timestamp("last_login_at").notNull().defaultNow(),
-  dataRetentionPolicy: text("data_retention_policy").notNull().default("forever"), // Options: "30days", "90days", "1year", "forever"
-  stripeCustomerId: text("stripe_customer_id"), // Stripe customer ID for payment methods
+  dataRetentionPolicy: text("data_retention_policy").notNull().default("forever"),
+  stripeCustomerId: text("stripe_customer_id"),
+  referralCode: text("referral_code"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Consent recordings table
 export const consentRecordings = pgTable("consent_recordings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: text("user_id"),
-  universityId: varchar("university_id"),
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id"), // References auth.users(id)
+  universityId: uuid("university_id"), // References universities(id)
   encounterType: text("encounter_type"),
   parties: text("parties").array(),
   filename: text("filename").notNull(),
   fileUrl: text("file_url").notNull(),
   duration: text("duration").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Consent contracts table
 export const consentContracts = pgTable("consent_contracts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: text("user_id"),
-  universityId: varchar("university_id"),
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id"), // References auth.users(id)
+  universityId: uuid("university_id"), // References universities(id)
   encounterType: text("encounter_type"),
   parties: text("parties").array(),
-  contractStartTime: timestamp("contract_start_time"),
+  contractStartTime: timestamp("contract_start_time", { withTimezone: true }),
   contractDuration: integer("contract_duration"), // Duration in minutes
-  contractEndTime: timestamp("contract_end_time"),
+  contractEndTime: timestamp("contract_end_time", { withTimezone: true }),
   method: text("method"),
   contractText: text("contract_text"),
   signature1: text("signature1"),
@@ -79,64 +60,51 @@ export const consentContracts = pgTable("consent_contracts", {
   credentialCounter: text("credential_counter"),
   credentialDeviceType: text("credential_device_type"),
   credentialBackedUp: text("credential_backed_up"),
-  authenticatedAt: timestamp("authenticated_at"),
-  verifiedAt: timestamp("verified_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  authenticatedAt: timestamp("authenticated_at", { withTimezone: true }),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// University reports table
 export const universityReports = pgTable("university_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  universityId: varchar("university_id").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  universityId: uuid("university_id").notNull(), // References universities(id)
   reportType: text("report_type").notNull(),
   description: text("description").notNull(),
-  reportedAt: timestamp("reported_at").notNull().defaultNow(),
+  reportedAt: timestamp("reported_at", { withTimezone: true }).notNull().defaultNow(),
   status: text("status").notNull().default("pending"),
-  resolvedAt: timestamp("resolved_at"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 
+// Verification payments table
 export const verificationPayments = pgTable("verification_payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: text("user_id"),
-  universityId: varchar("university_id").notNull(),
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id"), // References auth.users(id)
+  universityId: uuid("university_id").notNull(), // References universities(id)
   stripeSessionId: text("stripe_session_id").notNull(),
   stripePaymentStatus: text("stripe_payment_status").notNull().default("pending"),
   amount: text("amount").notNull(),
   verificationStatus: text("verification_status").notNull().default("pending"),
   verificationResult: text("verification_result"),
   gpuModel: text("gpu_model").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
 });
 
-export const referrals = pgTable("referrals", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  referrerId: text("referrer_id").notNull(),
-  refereeEmail: text("referee_email").notNull(),
-  refereeId: text("referee_id"),
-  status: text("status").notNull().default("pending"),
-  invitationMessage: text("invitation_message"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  completedAt: timestamp("completed_at"),
-});
-
-export const paymentMethods = pgTable("payment_methods", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: text("user_id").notNull(),
-  stripePaymentMethodId: text("stripe_payment_method_id").notNull(),
-  type: text("type").notNull(), // "card", "apple_pay", "paypal", "venmo", "bitcoin"
-  isDefault: text("is_default").notNull().default("false"),
-  last4: text("last4"), // Last 4 digits for cards
-  brand: text("brand"), // Card brand (visa, mastercard, etc.)
-  expiryMonth: text("expiry_month"), // Card expiry month
-  expiryYear: text("expiry_year"), // Card expiry year
-  email: text("email"), // For PayPal, Venmo
-  walletAddress: text("wallet_address"), // For Bitcoin
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+// ================================================================
+// INSERT SCHEMAS AND TYPES
+// ================================================================
 
 export const insertUniversitySchema = createInsertSchema(universities).omit({
   id: true,
+});
+
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  dataRetentionPolicy: z.enum(["30days", "90days", "1year", "forever"]).default("forever"),
 });
 
 export const insertConsentRecordingSchema = createInsertSchema(consentRecordings).omit({
@@ -179,18 +147,6 @@ export const insertUniversityReportSchema = createInsertSchema(universityReports
   reportType: z.enum(["outdated_info", "incorrect_url", "missing_info", "other"]),
 });
 
-export type InsertUniversity = z.infer<typeof insertUniversitySchema>;
-export type University = typeof universities.$inferSelect;
-
-export type InsertConsentRecording = z.infer<typeof insertConsentRecordingSchema>;
-export type ConsentRecording = typeof consentRecordings.$inferSelect;
-
-export type InsertConsentContract = z.infer<typeof insertConsentContractSchema>;
-export type ConsentContract = typeof consentContracts.$inferSelect;
-
-export type InsertUniversityReport = z.infer<typeof insertUniversityReportSchema>;
-export type UniversityReport = typeof universityReports.$inferSelect;
-
 export const insertVerificationPaymentSchema = createInsertSchema(verificationPayments).omit({
   id: true,
   createdAt: true,
@@ -201,50 +157,24 @@ export const insertVerificationPaymentSchema = createInsertSchema(verificationPa
   gpuModel: z.enum(["gpt-4", "gpt-4-turbo", "gpt-4o"]),
 });
 
+// ================================================================
+// TYPESCRIPT TYPES
+// ================================================================
+
+export type InsertUniversity = z.infer<typeof insertUniversitySchema>;
+export type University = typeof universities.$inferSelect;
+
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+export type UserProfile = typeof userProfiles.$inferSelect;
+
+export type InsertConsentRecording = z.infer<typeof insertConsentRecordingSchema>;
+export type ConsentRecording = typeof consentRecordings.$inferSelect;
+
+export type InsertConsentContract = z.infer<typeof insertConsentContractSchema>;
+export type ConsentContract = typeof consentContracts.$inferSelect;
+
+export type InsertUniversityReport = z.infer<typeof insertUniversityReportSchema>;
+export type UniversityReport = typeof universityReports.$inferSelect;
+
 export type InsertVerificationPayment = z.infer<typeof insertVerificationPaymentSchema>;
 export type VerificationPayment = typeof verificationPayments.$inferSelect;
-
-export const insertUserSchema = createInsertSchema(users).omit({
-  createdAt: true,
-  lastLoginAt: true,
-  updatedAt: true,
-  passwordHash: true,
-  passwordSalt: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-// OIDC upsert user schema (for Replit Auth)
-export const upsertUserSchema = z.object({
-  id: z.string(),
-  email: z.string().nullable(),
-  firstName: z.string().nullable(),
-  lastName: z.string().nullable(),
-  profileImageUrl: z.string().nullable(),
-});
-
-export type UpsertUser = z.infer<typeof upsertUserSchema>;
-
-export const insertReferralSchema = createInsertSchema(referrals).omit({
-  id: true,
-  createdAt: true,
-  completedAt: true,
-}).extend({
-  status: z.enum(["pending", "completed", "cancelled"]).default("pending"),
-});
-
-export type InsertReferral = z.infer<typeof insertReferralSchema>;
-export type Referral = typeof referrals.$inferSelect;
-
-export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  type: z.enum(["card", "apple_pay", "paypal", "venmo", "bitcoin"]),
-  isDefault: z.enum(["true", "false"]).default("false"),
-});
-
-export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
-export type PaymentMethod = typeof paymentMethods.$inferSelect;
