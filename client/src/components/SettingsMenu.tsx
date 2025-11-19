@@ -9,36 +9,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsMenu() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { user, signOut } = useAuth();
   
-  // Fetch current user
+  // Fetch user profile data
   const { data: userData } = useQuery<{ user: { id: string; email: string; name: string | null } } | null>({
     queryKey: ["/api/auth/me"],
     retry: false,
+    enabled: !!user,
   });
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/auth/logout", {});
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      toast({
-        title: "Logged out",
-        description: "You've been successfully logged out.",
-      });
-      navigate("/auth");
-    },
-  });
+  const handleLogout = async () => {
+    await signOut();
+    queryClient.clear();
+    toast({
+      title: "Logged out",
+      description: "You've been successfully logged out.",
+    });
+    navigate("/auth");
+  };
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -68,12 +66,12 @@ export default function SettingsMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {userData?.user ? (
+        {user ? (
           <>
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{userData.user.name || "User"}</p>
-                <p className="text-xs text-muted-foreground truncate">{userData.user.email}</p>
+                <p className="text-sm font-medium">{userData?.user?.name || user.email?.split('@')[0] || "User"}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -109,8 +107,7 @@ export default function SettingsMenu() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
-              onClick={() => logoutMutation.mutate()} 
-              disabled={logoutMutation.isPending}
+              onClick={handleLogout}
               data-testid="menu-item-logout"
             >
               <LogOut className="mr-2 h-4 w-4" />

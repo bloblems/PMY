@@ -1,42 +1,39 @@
 import { useState } from "react";
-import { useLocation, Link } from "wouter";
+import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import PMYLogo from "@/components/PMYLogo";
 import { AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
 
 export default function ResetRequestPage() {
-  const [, navigate] = useLocation();
   const [email, setEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const resetRequestMutation = useMutation({
-    mutationFn: async (data: { email: string }) => {
-      const response = await apiRequest("POST", "/api/auth/request-reset", data);
-      return await response.json();
+    mutationFn: async (email: string) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) throw error;
+      return { success: true };
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       setErrorMessage(null);
-      setSuccessMessage(data.message || "Password reset email sent! Check your inbox for instructions.");
+      setSuccessMessage("Password reset email sent! Check your inbox for instructions.");
       setEmail("");
     },
     onError: (error: any) => {
       let parsedErrorMessage = "Failed to send reset email. Please try again.";
       
-      try {
-        const match = error.message?.match(/\{.*\}/);
-        if (match) {
-          const errorData = JSON.parse(match[0]);
-          parsedErrorMessage = errorData.error || parsedErrorMessage;
-        }
-      } catch (e) {
-        // If parsing fails, use default message
+      if (error.message) {
+        parsedErrorMessage = error.message;
       }
 
       setErrorMessage(parsedErrorMessage);
@@ -60,7 +57,7 @@ export default function ResetRequestPage() {
       return;
     }
 
-    resetRequestMutation.mutate({ email });
+    resetRequestMutation.mutate(email);
   };
 
   return (

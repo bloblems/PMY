@@ -1,57 +1,47 @@
-import { useState, useEffect } from "react";
-import { useLocation, Link, useSearch } from "wouter";
+import { useState } from "react";
+import { useLocation, Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import PMYLogo from "@/components/PMYLogo";
 import { AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const [, navigate] = useLocation();
-  const searchParams = useSearch();
-  const token = new URLSearchParams(searchParams).get("token");
   
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!token) {
-      setErrorMessage("Invalid reset link. Please request a new password reset.");
-    }
-  }, [token]);
-
   const resetPasswordMutation = useMutation({
-    mutationFn: async (data: { token: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/auth/reset-password", data);
-      return await response.json();
+    mutationFn: async (password: string) => {
+      const { error } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      if (error) throw error;
+      return { success: true };
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       setErrorMessage(null);
-      setSuccessMessage(data.message || "Password reset successful! You can now login with your new password.");
+      setSuccessMessage("Password reset successful! You can now login with your new password.");
       setPassword("");
       setConfirmPassword("");
       
       setTimeout(() => {
-        navigate("/auth?tab=login");
+        navigate("/auth");
       }, 3000);
     },
     onError: (error: any) => {
       let parsedErrorMessage = "Failed to reset password. Please try again.";
       
-      try {
-        const match = error.message?.match(/\{.*\}/);
-        if (match) {
-          const errorData = JSON.parse(match[0]);
-          parsedErrorMessage = errorData.error || parsedErrorMessage;
-        }
-      } catch (e) {
-        // If parsing fails, use default message
+      if (error.message) {
+        parsedErrorMessage = error.message;
       }
 
       setErrorMessage(parsedErrorMessage);
@@ -80,12 +70,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (!token) {
-      setErrorMessage("Invalid reset link. Please request a new password reset.");
-      return;
-    }
-
-    resetPasswordMutation.mutate({ token, password });
+    resetPasswordMutation.mutate(password);
   };
 
   return (
@@ -128,7 +113,7 @@ export default function ResetPasswordPage() {
                 placeholder="Enter new password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={resetPasswordMutation.isPending || !token}
+                disabled={resetPasswordMutation.isPending}
               />
             </div>
 
@@ -141,7 +126,7 @@ export default function ResetPasswordPage() {
                 placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={resetPasswordMutation.isPending || !token}
+                disabled={resetPasswordMutation.isPending}
               />
             </div>
 
@@ -149,7 +134,7 @@ export default function ResetPasswordPage() {
               type="submit"
               data-testid="button-reset-password"
               className="w-full"
-              disabled={resetPasswordMutation.isPending || !token}
+              disabled={resetPasswordMutation.isPending}
             >
               {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
             </Button>
