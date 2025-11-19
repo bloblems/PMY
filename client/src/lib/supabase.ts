@@ -23,20 +23,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Global session reference that gets updated by onAuthStateChange
-let currentSession: Session | null = null;
-
-// Initialize session on app load
-supabase.auth.getSession().then(({ data: { session } }) => {
-  currentSession = session;
-});
-
-// Listen for auth state changes and update global session
-supabase.auth.onAuthStateChange((_event, session) => {
-  currentSession = session;
-});
-
-// Get current session (automatically refreshed by Supabase)
-export function getCurrentSession(): Session | null {
-  return currentSession;
+// Get current session (awaits fresh session, handles auto-refresh)
+export async function getFreshSession(): Promise<Session | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
 }
