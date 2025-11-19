@@ -107,10 +107,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch user profile from database
       const profile = await storage.getUserProfile(userId);
       
+      // Name comes from Supabase user_metadata (stored during signup)
+      const name = req.user!.name || null;
+      
       return res.json({
         user: {
           id: userId,
           email: req.user!.email,
+          name: name,
           savedSignature: profile?.savedSignature || null,
           savedSignatureType: profile?.savedSignatureType || null,
           savedSignatureText: profile?.savedSignatureText || null,
@@ -1052,7 +1056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send document email via Resend with error handling
         try {
-          const senderEmail = sender.email || 'noreply@pmy-consent.app';
+          const senderEmail = user.email || 'noreply@pmy-consent.app';
           
           await sendDocumentEmail({
             to: recipientEmail,
@@ -1084,7 +1088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send document email via Resend with error handling
         try {
-          const senderEmail = sender.email || 'noreply@pmy-consent.app';
+          const senderEmail = user.email || 'noreply@pmy-consent.app';
           
           await sendDocumentEmail({
             to: recipientEmail,

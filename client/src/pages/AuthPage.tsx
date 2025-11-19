@@ -11,8 +11,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import PMYLogo from "@/components/PMYLogo";
 import { AlertCircle } from "lucide-react";
-import { SiGoogle, SiApple } from "react-icons/si";
-import { FaXTwitter } from "react-icons/fa6";
 
 type AuthMode = "login" | "signup";
 
@@ -43,26 +41,27 @@ export default function AuthPage() {
             data: {
               name: data.name,
             },
+            emailRedirectTo: window.location.origin,
           },
         });
 
         if (error) throw error;
-
-        if (authData.user && data.name) {
-          await apiRequest("POST", "/api/user-profile", {
-            name: data.name,
-          });
-        }
-
         return authData;
       }
     },
-    onSuccess: () => {
+    onSuccess: (authData) => {
       setErrorMessage(null);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       
-      const successType = mode === "login" ? "login" : "signup";
-      navigate(`/?success=${successType}`);
+      if (authData.session) {
+        const successType = mode === "login" ? "login" : "signup";
+        navigate(`/?success=${successType}`);
+      } else if (mode === "signup") {
+        toast({
+          title: "Check your email",
+          description: "We sent you a confirmation link. Please check your inbox to complete signup.",
+        });
+      }
     },
     onError: (error: any) => {
       let parsedErrorMessage = "Please check your credentials and try again.";
@@ -128,53 +127,6 @@ export default function AuthPage() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
-        )}
-
-        {/* Social Login - Only show for login mode */}
-        {mode === "login" && (
-          <Card className="p-8">
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <Button
-                  onClick={() => window.location.href = "/api/login"}
-                  variant="outline"
-                  className="h-12 font-semibold"
-                  data-testid="button-login-google"
-                >
-                  <SiGoogle className="mr-2 h-5 w-5" />
-                  Google
-                </Button>
-                <Button
-                  onClick={() => window.location.href = "/api/login"}
-                  variant="outline"
-                  className="h-12 font-semibold"
-                  data-testid="button-login-apple"
-                >
-                  <SiApple className="mr-2 h-5 w-5" />
-                  Apple
-                </Button>
-                <Button
-                  onClick={() => window.location.href = "/api/login"}
-                  variant="outline"
-                  className="h-12 font-semibold"
-                  data-testid="button-login-x"
-                >
-                  <FaXTwitter className="mr-2 h-5 w-5" />
-                  X
-                </Button>
-              </div>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Or continue with email
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
         )}
 
         <Card className="p-8">
