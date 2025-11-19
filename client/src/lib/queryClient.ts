@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { supabase } from "./supabase";
+import { getCurrentSession } from "./supabase";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -9,7 +9,8 @@ async function throwIfResNotOk(res: Response) {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
+  // Use global session that's automatically refreshed by Supabase
+  const session = getCurrentSession();
   
   if (session?.access_token) {
     return {

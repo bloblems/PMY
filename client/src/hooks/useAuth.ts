@@ -23,9 +23,15 @@ export function useAuth(): UseAuthReturn {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Handle all auth state changes including token refresh
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setSession(session);
+        setUser(session?.user ?? null);
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+      }
       setLoading(false);
     });
 
@@ -33,7 +39,7 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: 'global' });
     setUser(null);
     setSession(null);
   };
