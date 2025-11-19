@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import PMYLogo from "@/components/PMYLogo";
 import { AlertCircle } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
@@ -26,37 +27,50 @@ export default function AuthPage() {
 
   const authMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; name?: string }) => {
-      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/signup";
-      const response = await apiRequest("POST", endpoint, data);
-      return await response.json();
+      if (mode === "login") {
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
+
+        if (error) throw error;
+        return authData;
+      } else {
+        const { data: authData, error } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              name: data.name,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        if (authData.user && data.name) {
+          await apiRequest("POST", "/api/user-profile", {
+            name: data.name,
+          });
+        }
+
+        return authData;
+      }
     },
-    onSuccess: (data) => {
-      // Clear any error messages
+    onSuccess: () => {
       setErrorMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       
-      // Set the user data directly instead of invalidating/refetching
-      queryClient.setQueryData(["/api/auth/me"], data);
-      
-      // Navigate immediately with success parameter
       const successType = mode === "login" ? "login" : "signup";
       navigate(`/?success=${successType}`);
     },
     onError: (error: any) => {
-      // Parse the error message from the backend
       let parsedErrorMessage = "Please check your credentials and try again.";
       
-      try {
-        // Error format from apiRequest is: "400: {"error":"Email already exists"}"
-        const match = error.message?.match(/\{.*\}/);
-        if (match) {
-          const errorData = JSON.parse(match[0]);
-          parsedErrorMessage = errorData.error || parsedErrorMessage;
-        }
-      } catch (e) {
-        // If parsing fails, use default message
+      if (error.message) {
+        parsedErrorMessage = error.message;
       }
 
-      // Display error inline instead of toast
       setErrorMessage(parsedErrorMessage);
     },
   });
