@@ -105,7 +105,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       
       // Fetch user profile from database
-      const profile = await storage.getUserProfile(userId);
+      let profile = await storage.getUserProfile(userId);
+      
+      // If profile doesn't exist, create it (happens for newly confirmed signups)
+      if (!profile) {
+        await storage.createUserProfile({
+          id: userId,
+          savedSignature: null,
+          savedSignatureType: null,
+          savedSignatureText: null,
+          dataRetentionPolicy: "forever",
+          stripeCustomerId: null,
+          referralCode: null,
+        });
+        profile = await storage.getUserProfile(userId);
+      }
       
       // Name comes from Supabase user_metadata (stored during signup)
       const name = req.user!.name || null;

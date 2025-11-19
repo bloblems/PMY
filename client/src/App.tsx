@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ConsentFlowProvider } from "@/contexts/ConsentFlowContext";
+import { useAuth } from "@/hooks/useAuth";
 import IconBottomNav from "@/components/IconBottomNav";
 import SettingsMenu from "@/components/SettingsMenu";
 import PMYLogo from "@/components/PMYLogo";
@@ -51,30 +52,40 @@ function Router() {
 
 function App() {
   const [location] = useLocation();
+  const { loading } = useAuth();
   const isAuthPage = location === "/auth" || location.startsWith("/auth/reset");
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ConsentFlowProvider>
-          <div className="flex flex-col min-h-screen bg-background">
-            {!isAuthPage && (
-              <header className="sticky top-0 z-40 bg-card border-b border-card-border">
-                <div className="w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-                  <PMYLogo className="text-2xl text-foreground" />
-                  <SettingsMenu />
-                </div>
-              </header>
-            )}
-
-            <main className={`flex-1 overflow-auto ${!isAuthPage ? "pb-20" : ""}`}>
-              <div className={`w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto ${!isAuthPage ? "px-4 sm:px-6 py-8" : ""}`}>
-                <Router />
+          {loading ? (
+            <div className="flex items-center justify-center min-h-screen bg-background">
+              <div className="text-center">
+                <PMYLogo className="text-4xl text-primary mb-4" />
+                <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
-            </main>
+            </div>
+          ) : (
+            <div className="flex flex-col min-h-screen bg-background">
+              {!isAuthPage && (
+                <header className="sticky top-0 z-40 bg-card border-b border-card-border">
+                  <div className="w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+                    <PMYLogo className="text-2xl text-foreground" />
+                    <SettingsMenu />
+                  </div>
+                </header>
+              )}
 
-            {!isAuthPage && <IconBottomNav />}
-          </div>
+              <main className={`flex-1 overflow-auto ${!isAuthPage ? "pb-20" : ""}`}>
+                <div className={`w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto ${!isAuthPage ? "px-4 sm:px-6 py-8" : ""}`}>
+                  <Router />
+                </div>
+              </main>
+
+              {!isAuthPage && <IconBottomNav />}
+            </div>
+          )}
           <Toaster />
         </ConsentFlowProvider>
       </TooltipProvider>
