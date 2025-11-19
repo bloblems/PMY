@@ -24,6 +24,7 @@ import {
   userProfiles,
 } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
+import { supabaseAdmin } from "./supabase";
 
 export interface IStorage {
   // University methods
