@@ -1,19 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase project URL and keys
-const supabaseUrl = process.env.SUPABASE_URL || 'https://cizdnssfldrfwuxarcrf.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+// Supabase V3 API (2025) - Updated environment variable names
+const supabaseUrl = process.env.SUPABASE_PROJECT_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_PUBLIC;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_SECRET;
+
+if (!supabaseUrl) {
+  throw new Error('SUPABASE_PROJECT_URL environment variable is required');
+}
 
 if (!supabaseAnonKey) {
-  throw new Error('SUPABASE_ANON_KEY environment variable is required');
+  throw new Error('SUPABASE_ANON_PUBLIC environment variable is required');
 }
 
 if (!supabaseServiceKey) {
-  throw new Error('SUPABASE_SERVICE_KEY environment variable is required');
+  throw new Error('SUPABASE_SERVICE_ROLE_SECRET environment variable is required');
 }
 
-// Client for server-side operations with service role (bypasses RLS)
+// Admin client for server-side operations with service role (bypasses RLS)
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
@@ -21,9 +25,10 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
-// Client for server-side operations with anon key (respects RLS)
+// Client for server-side operations with anon key (respects RLS, uses PKCE)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    flowType: 'pkce',
     autoRefreshToken: false,
     persistSession: false,
   },
