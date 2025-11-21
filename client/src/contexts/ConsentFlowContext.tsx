@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { storage } from "@/services/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 
 export interface ConsentFlowState {
   universityId: string;
@@ -47,18 +48,41 @@ const STORAGE_KEY = "pmy_consent_flow_state";
 const ConsentFlowContext = createContext<ConsentFlowContextType | undefined>(undefined);
 
 export function ConsentFlowProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [state, setState] = useState<ConsentFlowState>(getDefaultState());
   const [isHydrated, setIsHydrated] = useState(false);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   // Fetch user preferences if authenticated
-  const { data: preferences } = useQuery<UserPreferences>({
+  const { data: preferences, isFetched: preferencesFetched, isError: preferencesError } = useQuery<UserPreferences>({
     queryKey: ['/api/profile/preferences'],
     enabled: !!user,
   });
 
-  // Hydrate state from storage on mount (async)
+  // Track when preferences have loaded (or when user is not authenticated)
+  // Wait for auth to be ready, then check if preferences are loaded
+  // Treat errors and null responses as "loaded" to prevent hydration hang
   useEffect(() => {
+    // Don't proceed until auth state is known
+    if (authLoading) return;
+    
+    // If no user, preferences are "loaded" (none to fetch)
+    if (!user) {
+      setPreferencesLoaded(true);
+      return;
+    }
+    
+    // If user exists, wait for preferences fetch to complete or error
+    if (preferencesFetched || preferencesError) {
+      setPreferencesLoaded(true);
+    }
+  }, [authLoading, user, preferencesFetched, preferencesError]);
+
+  // Hydrate state from storage on mount (async) - wait for preferences to load first
+  useEffect(() => {
+    // Don't hydrate until preferences are loaded (or user is not authenticated)
+    if (!preferencesLoaded) return;
+
     async function loadState() {
       try {
         const saved = await storage.getItem(STORAGE_KEY);
@@ -66,22 +90,25 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
           const parsed = JSON.parse(saved);
           
           // Validate and merge with default state to handle corrupt/incomplete data
+          // Treat blank/empty values as missing to allow preferences to fill them
           const defaultStateWithPrefs = getDefaultState(preferences);
           const validMethods: Array<ConsentFlowState["method"]> = ["signature", "voice", "photo", "biometric", null];
+          
           const validatedState: ConsentFlowState = {
-            universityId: typeof parsed.universityId === 'string' ? parsed.universityId : defaultStateWithPrefs.universityId,
-            universityName: typeof parsed.universityName === 'string' ? parsed.universityName : defaultStateWithPrefs.universityName,
-            encounterType: typeof parsed.encounterType === 'string' ? parsed.encounterType : defaultStateWithPrefs.encounterType,
-            parties: Array.isArray(parsed.parties) ? parsed.parties : defaultStateWithPrefs.parties,
-            intimateActs: (parsed.intimateActs && typeof parsed.intimateActs === 'object' && !Array.isArray(parsed.intimateActs)) ? parsed.intimateActs : defaultStateWithPrefs.intimateActs,
-            contractStartTime: typeof parsed.contractStartTime === 'string' ? parsed.contractStartTime : defaultStateWithPrefs.contractStartTime,
-            contractDuration: typeof parsed.contractDuration === 'number' ? parsed.contractDuration : defaultStateWithPrefs.contractDuration,
-            contractEndTime: typeof parsed.contractEndTime === 'string' ? parsed.contractEndTime : defaultStateWithPrefs.contractEndTime,
+            // Use saved value only if it's non-empty, otherwise use preference default
+            universityId: (typeof parsed.universityId === 'string' && parsed.universityId !== '') ? parsed.universityId : defaultStateWithPrefs.universityId,
+            universityName: (typeof parsed.universityName === 'string' && parsed.universityName !== '') ? parsed.universityName : defaultStateWithPrefs.universityName,
+            encounterType: (typeof parsed.encounterType === 'string' && parsed.encounterType !== '') ? parsed.encounterType : defaultStateWithPrefs.encounterType,
+            parties: (Array.isArray(parsed.parties) && parsed.parties.length > 0) ? parsed.parties : defaultStateWithPrefs.parties,
+            intimateActs: (parsed.intimateActs && typeof parsed.intimateActs === 'object' && !Array.isArray(parsed.intimateActs) && Object.keys(parsed.intimateActs).length > 0) ? parsed.intimateActs : defaultStateWithPrefs.intimateActs,
+            contractStartTime: (typeof parsed.contractStartTime === 'string' && parsed.contractStartTime !== '') ? parsed.contractStartTime : defaultStateWithPrefs.contractStartTime,
+            contractDuration: (typeof parsed.contractDuration === 'number' && parsed.contractDuration > 0) ? parsed.contractDuration : defaultStateWithPrefs.contractDuration,
+            contractEndTime: (typeof parsed.contractEndTime === 'string' && parsed.contractEndTime !== '') ? parsed.contractEndTime : defaultStateWithPrefs.contractEndTime,
             method: validMethods.includes(parsed.method) ? parsed.method : defaultStateWithPrefs.method,
           };
           
           setState(validatedState);
-          console.log("[ConsentFlowContext] Restored from storage:", validatedState);
+          console.log("[ConsentFlowContext] Restored from storage with preferences fallback:", validatedState);
         } else {
           // No saved flow - use preferences to prepopulate
           const defaultStateWithPrefs = getDefaultState(preferences);
@@ -96,7 +123,7 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
       }
     }
     loadState();
-  }, [preferences]);
+  }, [preferencesLoaded, preferences]);
 
   // Persist state to storage whenever it changes (after initial hydration)
   useEffect(() => {
@@ -118,15 +145,19 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetState = useCallback(async () => {
-    const defaultStateWithPrefs = getDefaultState(preferences);
+    // Refetch preferences to get latest values (in case updated in another tab)
+    await queryClient.invalidateQueries({ queryKey: ['/api/profile/preferences'] });
+    const latestPrefs = queryClient.getQueryData<UserPreferences>(['/api/profile/preferences']);
+    
+    const defaultStateWithPrefs = getDefaultState(latestPrefs);
     setState(defaultStateWithPrefs);
     try {
       await storage.removeItem(STORAGE_KEY);
-      console.log("[ConsentFlowContext] State reset to preferences:", defaultStateWithPrefs);
+      console.log("[ConsentFlowContext] State reset to latest preferences:", defaultStateWithPrefs);
     } catch (e) {
       console.error("[ConsentFlowContext] Failed to clear storage:", e);
     }
-  }, [preferences]);
+  }, []);
 
   const hasRequiredData = useCallback(() => {
     // Check that we have an encounter type
