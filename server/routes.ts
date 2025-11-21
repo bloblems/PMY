@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import storage from "./storage";
-import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema } from "@shared/schema";
+import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema, type ConsentContract } from "@shared/schema";
 import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
@@ -683,14 +683,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating consent contract:", error);
       const userId = req.user?.id;
-      logConsentEvent(
-        req,
-        "create_failure",
-        "contract",
-        undefined,
-        userId,
-        { method: req.body.method, error: (error as Error).message }
-      );
+      if (userId) {
+        logConsentEvent(
+          req,
+          "create_failure",
+          "contract",
+          undefined,
+          userId,
+          { method: req.body.method, error: (error as Error).message }
+        );
+      }
       res.status(500).json({ error: "Failed to create contract" });
     }
   });
@@ -742,14 +744,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading consent recording:", error);
       const userId = req.user?.id;
-      logConsentEvent(
-        req,
-        "create_failure",
-        "recording",
-        undefined,
-        userId,
-        { error: (error as Error).message }
-      );
+      if (userId) {
+        logConsentEvent(
+          req,
+          "create_failure",
+          "recording",
+          undefined,
+          userId,
+          { error: (error as Error).message }
+        );
+      }
       res.status(500).json({ error: "Failed to upload recording" });
     }
   });
@@ -782,6 +786,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         signature1: "Photo upload by party 1",
         signature2: "Mutual consent shown in photo",
         photoUrl,
+        status: "active",
+        isCollaborative: "false",
       });
 
       // Log consent creation
@@ -798,14 +804,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading consent photo:", error);
       const userId = req.user?.id;
-      logConsentEvent(
-        req,
-        "create_failure",
-        "contract",
-        undefined,
-        userId,
-        { method: "photo", error: (error as Error).message }
-      );
+      if (userId) {
+        logConsentEvent(
+          req,
+          "create_failure",
+          "contract",
+          undefined,
+          userId,
+          { method: "photo", error: (error as Error).message }
+        );
+      }
       res.status(500).json({ error: "Failed to upload photo" });
     }
   });
@@ -884,14 +892,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating biometric consent:", error);
       const userId = req.user?.id;
-      logConsentEvent(
-        req,
-        "create_failure",
-        "contract",
-        undefined,
-        userId,
-        { method: "biometric", error: (error as Error).message }
-      );
+      if (userId) {
+        logConsentEvent(
+          req,
+          "create_failure",
+          "contract",
+          undefined,
+          userId,
+          { method: "biometric", error: (error as Error).message }
+        );
+      }
       res.status(500).json({ error: "Failed to create biometric consent" });
     }
   });
@@ -1262,6 +1272,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error sharing document:", error);
       res.status(500).json({ error: "Failed to share document" });
+    }
+  });
+
+  // ===== Collaborative Contract Endpoints =====
+  
+  // Get user's draft contracts
+  app.get("/api/contracts/drafts", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const drafts = await storage.getDraftsByUserId(userId);
+      res.json(drafts);
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+      res.status(500).json({ error: "Failed to fetch drafts" });
+    }
+  });
+
+  // Get contracts user is collaborating on
+  app.get("/api/contracts/shared", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const sharedContracts = await storage.getSharedContractsByUserId(userId);
+      res.json(sharedContracts);
+    } catch (error) {
+      console.error("Error fetching shared contracts:", error);
+      res.status(500).json({ error: "Failed to fetch shared contracts" });
+    }
+  });
+
+  // Share a contract with another user via email invitation
+  app.post("/api/contracts/:id/share", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { recipientEmail } = req.body;
+      const userId = req.user!.id;
+      const userEmail = req.user!.email || '';
+
+      // Validate input
+      if (!recipientEmail || typeof recipientEmail !== 'string') {
+        return res.status(400).json({ error: "Recipient email is required" });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(recipientEmail)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+
+      // Verify ownership and draft status before sharing
+      const contract = await storage.getContract(id, userId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found or unauthorized" });
+      }
+
+      // Only draft or pending_approval contracts can be shared
+      if (contract.status !== 'draft' && contract.status !== 'pending_approval') {
+        return res.status(400).json({ 
+          error: `Cannot share ${contract.status} contracts. Only draft or pending contracts can be shared.` 
+        });
+      }
+
+      // Share contract and create invitation (storage layer has additional validation)
+      const result = await storage.shareContract(id, recipientEmail, userId, userEmail);
+      
+      // TODO: Send email notification to recipient with invitation code
+      // For now, return the invitation details
+      res.json({
+        success: true,
+        invitationCode: result.invitationCode,
+        message: "Contract shared successfully. Invitation code can be shared with recipient."
+      });
+    } catch (error) {
+      console.error("Error sharing contract:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to share contract";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // Get invitation details by code (public endpoint - no auth required)
+  app.get("/api/contracts/invitations/:code", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const invitation = await storage.getInvitationByCode(code);
+      
+      if (!invitation) {
+        return res.status(404).json({ error: "Invitation not found or expired" });
+      }
+
+      // Check if invitation is still pending
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ 
+          error: `Invitation has already been ${invitation.status}` 
+        });
+      }
+
+      // Check if invitation has expired (7 days)
+      const expiresAt = new Date(invitation.expiresAt);
+      if (expiresAt < new Date()) {
+        return res.status(400).json({ error: "Invitation has expired" });
+      }
+
+      // Return invitation details (sanitized - no email leakage to unauthenticated users)
+      res.json({
+        contractId: invitation.contractId,
+        expiresAt: invitation.expiresAt,
+        status: invitation.status
+      });
+    } catch (error) {
+      console.error("Error fetching invitation:", error);
+      res.status(500).json({ error: "Failed to fetch invitation" });
+    }
+  });
+
+  // Accept a contract invitation and become a collaborator
+  app.post("/api/contracts/invitations/:code/accept", requireAuth, async (req, res) => {
+    try {
+      const { code } = req.params;
+      const userId = req.user!.id;
+
+      const result = await storage.acceptInvitation(code, userId);
+      
+      if (!result) {
+        return res.status(400).json({ 
+          error: "Invalid invitation code or invitation already processed" 
+        });
+      }
+
+      res.json({
+        success: true,
+        contractId: result.contractId,
+        message: "Invitation accepted. You can now review and approve the contract."
+      });
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to accept invitation";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // Approve a collaborative contract
+  app.post("/api/contracts/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Verify contract exists and user has access
+      const contract = await storage.getContract(id, userId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found or unauthorized" });
+      }
+
+      // Only pending_approval contracts can be approved
+      if (contract.status !== 'pending_approval') {
+        return res.status(400).json({ 
+          error: `Cannot approve ${contract.status} contract. Only pending contracts can be approved.` 
+        });
+      }
+
+      const approved = await storage.approveContract(id, userId);
+      
+      if (!approved) {
+        return res.status(400).json({ 
+          error: "Could not approve contract. You may not be a collaborator." 
+        });
+      }
+
+      // Fetch updated contract to get current status
+      const updatedContract = await storage.getContract(id, userId);
+      
+      res.json({
+        success: true,
+        message: "Contract approved successfully",
+        contractStatus: updatedContract?.status || 'pending_approval'
+      });
+    } catch (error) {
+      console.error("Error approving contract:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to approve contract";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // Reject a collaborative contract
+  app.post("/api/contracts/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const userId = req.user!.id;
+
+      // Validate optional reason field
+      if (reason !== undefined && typeof reason !== 'string') {
+        return res.status(400).json({ error: "Rejection reason must be a string" });
+      }
+
+      // Verify contract exists and user has access
+      const contract = await storage.getContract(id, userId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found or unauthorized" });
+      }
+
+      // Only pending_approval contracts can be rejected
+      if (contract.status !== 'pending_approval') {
+        return res.status(400).json({ 
+          error: `Cannot reject ${contract.status} contract. Only pending contracts can be rejected.` 
+        });
+      }
+
+      const rejected = await storage.rejectContract(id, userId, reason);
+      
+      if (!rejected) {
+        return res.status(400).json({ 
+          error: "Could not reject contract. You may not be a collaborator." 
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Contract rejected successfully"
+      });
+    } catch (error) {
+      console.error("Error rejecting contract:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to reject contract";
+      res.status(500).json({ error: errorMessage });
     }
   });
 
