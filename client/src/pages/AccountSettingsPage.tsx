@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Trash2, Save, Clock, Shield, User, UserX, Eye, EyeOff } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, Trash2, Save, Clock, Shield, User, UserX, Eye, EyeOff, Image as ImageIcon, Link as LinkIcon } from "lucide-react";
 
 interface UserData {
   user: {
@@ -20,6 +22,11 @@ interface UserData {
     dataRetentionPolicy?: string;
     createdAt: string;
     authMethod: string;
+  };
+  profile?: {
+    profilePictureUrl?: string | null;
+    bio?: string | null;
+    websiteUrl?: string | null;
   };
 }
 
@@ -51,6 +58,12 @@ export default function AccountSettingsPage() {
   const [, navigate] = useLocation();
   const [selectedPolicy, setSelectedPolicy] = useState<string>("forever");
   const [isPolicyHydrated, setIsPolicyHydrated] = useState(false);
+  
+  // Profile editing state
+  const [profilePictureUrl, setProfilePictureUrl] = useState("");
+  const [bio, setBio] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
   
   // Change email state
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);

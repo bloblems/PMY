@@ -8,12 +8,17 @@ import { User, Link as LinkIcon, FileText, CheckCircle2, Grid3x3, FileSignature 
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 
-interface UserProfile {
-  id: string;
-  profilePictureUrl?: string;
-  bio?: string;
-  websiteUrl?: string;
-  referralCode?: string;
+interface UserData {
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
+  profile?: {
+    profilePictureUrl?: string | null;
+    bio?: string | null;
+    websiteUrl?: string | null;
+  };
 }
 
 interface ConsentStats {
@@ -28,7 +33,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'contracts' | 'recordings'>('contracts');
 
   // Fetch user profile
-  const { data: profile } = useQuery<UserProfile>({
+  const { data: userData } = useQuery<UserData>({
     queryKey: ['/api/auth/me'],
     enabled: !!user,
   });
@@ -80,7 +85,7 @@ export default function ProfilePage() {
       <div className="flex items-start gap-4 mb-6">
         {/* Avatar */}
         <Avatar className="h-20 w-20 border-2 border-card-border" data-testid="avatar-profile">
-          <AvatarImage src={profile?.profilePictureUrl} alt={userName || 'User'} />
+          <AvatarImage src={userData?.profile?.profilePictureUrl || undefined} alt={userName || 'User'} />
           <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
             {initials}
           </AvatarFallback>
@@ -113,34 +118,24 @@ export default function ProfilePage() {
       </div>
 
       {/* Bio */}
-      {profile?.bio && (
+      {userData?.profile?.bio && (
         <p className="text-sm mb-3" data-testid="text-bio">
-          {profile.bio}
+          {userData.profile.bio}
         </p>
       )}
 
       {/* Website Link */}
-      {profile?.websiteUrl && (
+      {userData?.profile?.websiteUrl && (
         <a
-          href={profile.websiteUrl}
+          href={userData.profile.websiteUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-primary hover-elevate mb-4"
           data-testid="link-website"
         >
           <LinkIcon className="h-3.5 w-3.5" />
-          <span className="truncate">{profile.websiteUrl.replace(/^https?:\/\//, '')}</span>
+          <span className="truncate">{userData.profile.websiteUrl.replace(/^https?:\/\//, '')}</span>
         </a>
-      )}
-
-      {/* Call to Action Card */}
-      {profile?.referralCode && (
-        <Card className="mb-4 p-3 bg-card/50">
-          <div className="text-sm font-medium mb-0.5">Share PMY with friends</div>
-          <div className="text-xs text-muted-foreground">
-            Use code: <span className="font-mono font-semibold text-primary">{profile.referralCode}</span>
-          </div>
-        </Card>
       )}
 
       {/* Action Buttons */}

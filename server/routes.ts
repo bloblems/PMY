@@ -125,16 +125,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const name = req.user!.name || null;
       
       return res.json({
-        id: userId,
-        email: req.user!.email,
-        name: name,
-        profilePictureUrl: profile?.profilePictureUrl || null,
-        bio: profile?.bio || null,
-        websiteUrl: profile?.websiteUrl || null,
-        savedSignature: profile?.savedSignature || null,
-        savedSignatureType: profile?.savedSignatureType || null,
-        savedSignatureText: profile?.savedSignatureText || null,
-        referralCode: profile?.referralCode || null,
+        user: {
+          id: userId,
+          email: req.user!.email,
+          name: name,
+          firstName: null,
+          lastName: null,
+          dataRetentionPolicy: profile?.dataRetentionPolicy || "forever",
+          createdAt: new Date().toISOString(),
+          authMethod: "supabase",
+          savedSignature: profile?.savedSignature || null,
+          savedSignatureType: profile?.savedSignatureType || null,
+          savedSignatureText: profile?.savedSignatureText || null,
+        },
+        profile: {
+          profilePictureUrl: profile?.profilePictureUrl || null,
+          bio: profile?.bio || null,
+          websiteUrl: profile?.websiteUrl || null,
+        },
       });
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -167,6 +175,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching profile stats:", error);
       return res.status(500).json({ error: "Failed to fetch profile stats" });
+    }
+  });
+
+  // Update profile information
+  app.patch("/api/profile", requireAuth, async (req, res) => {
+    try {
+      const { profilePictureUrl, bio, websiteUrl } = req.body;
+      const userId = req.user!.id;
+      
+      // Validate inputs
+      if (bio && typeof bio !== "string") {
+        return res.status(400).json({ error: "Invalid bio" });
+      }
+      
+      if (websiteUrl && typeof websiteUrl !== "string") {
+        return res.status(400).json({ error: "Invalid website URL" });
+      }
+      
+      if (profilePictureUrl && typeof profilePictureUrl !== "string") {
+        return res.status(400).json({ error: "Invalid profile picture URL" });
+      }
+      
+      // Prepare updates
+      const updates: any = {};
+      if (profilePictureUrl !== undefined) updates.profilePictureUrl = profilePictureUrl;
+      if (bio !== undefined) updates.bio = bio;
+      if (websiteUrl !== undefined) updates.websiteUrl = websiteUrl;
+      
+      // Update profile
+      await storage.updateUserProfile(userId, updates);
+      
+      return res.json({ success: true, message: "Profile updated successfully" });
+    } catch (error) {
+      console.error("Update profile error:", error);
+      return res.status(500).json({ error: "Failed to update profile" });
     }
   });
 
