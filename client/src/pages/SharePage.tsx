@@ -23,11 +23,36 @@ interface UserData {
 }
 
 const gradientColors = [
-  { name: "PMY Green", from: "from-primary", to: "to-emerald-500" },
-  { name: "Ocean", from: "from-blue-400", to: "to-cyan-500" },
-  { name: "Sunset", from: "from-orange-400", to: "to-pink-500" },
-  { name: "Purple", from: "from-purple-400", to: "to-indigo-500" },
-  { name: "Forest", from: "from-green-500", to: "to-teal-500" },
+  { 
+    name: "PMY Green", 
+    from: "from-primary", 
+    to: "to-emerald-500",
+    hex: { start: "#22c55e", end: "#10b981" }
+  },
+  { 
+    name: "Ocean", 
+    from: "from-blue-400", 
+    to: "to-cyan-500",
+    hex: { start: "#60a5fa", end: "#06b6d4" }
+  },
+  { 
+    name: "Sunset", 
+    from: "from-orange-400", 
+    to: "to-pink-500",
+    hex: { start: "#fb923c", end: "#ec4899" }
+  },
+  { 
+    name: "Purple", 
+    from: "from-purple-400", 
+    to: "to-indigo-500",
+    hex: { start: "#c084fc", end: "#6366f1" }
+  },
+  { 
+    name: "Forest", 
+    from: "from-green-500", 
+    to: "to-teal-500",
+    hex: { start: "#22c55e", end: "#14b8a6" }
+  },
 ];
 
 export default function SharePage() {
@@ -96,20 +121,36 @@ export default function SharePage() {
     canvas.width = 800;
     canvas.height = 900;
 
-    // Get gradient colors
+    // Get selected gradient colors
     const gradient = gradientColors[selectedGradient];
     const gradientFill = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradientFill.addColorStop(0, getComputedStyle(document.documentElement)
-      .getPropertyValue('--primary').trim() || '#22c55e');
-    gradientFill.addColorStop(1, '#10b981');
+    gradientFill.addColorStop(0, gradient.hex.start);
+    gradientFill.addColorStop(1, gradient.hex.end);
 
-    // Fill background
+    // Fill background with gradient
     ctx.fillStyle = gradientFill;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw white card
+    // Draw white card with rounded corners
     ctx.fillStyle = 'white';
-    ctx.roundRect(50, 150, 700, 600, 24);
+    // Fallback for older browsers that don't support roundRect
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(50, 150, 700, 600, 24);
+    } else {
+      // Manual rounded rectangle fallback
+      const x = 50, y = 150, width = 700, height = 600, radius = 24;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
     ctx.fill();
 
     // Create an image from SVG
