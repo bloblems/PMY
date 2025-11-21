@@ -213,6 +213,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user preferences (consent flow defaults)
+  app.get("/api/profile/preferences", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      const preferences = await storage.getUserPreferences(userId);
+      
+      return res.json(preferences || {
+        defaultUniversityId: null,
+        stateOfResidence: null,
+        defaultEncounterType: null,
+        defaultContractDuration: null,
+      });
+    } catch (error) {
+      console.error("Get preferences error:", error);
+      return res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  });
+
+  // Update user preferences (consent flow defaults)
+  app.patch("/api/profile/preferences", requireAuth, async (req, res) => {
+    try {
+      const { defaultUniversityId, stateOfResidence, defaultEncounterType, defaultContractDuration } = req.body;
+      const userId = req.user!.id;
+      
+      // Validate inputs
+      if (defaultUniversityId && typeof defaultUniversityId !== "string") {
+        return res.status(400).json({ error: "Invalid university ID" });
+      }
+      
+      if (stateOfResidence && typeof stateOfResidence !== "string") {
+        return res.status(400).json({ error: "Invalid state of residence" });
+      }
+      
+      if (defaultEncounterType && typeof defaultEncounterType !== "string") {
+        return res.status(400).json({ error: "Invalid encounter type" });
+      }
+      
+      if (defaultContractDuration && typeof defaultContractDuration !== "number") {
+        return res.status(400).json({ error: "Invalid contract duration" });
+      }
+      
+      // Prepare updates
+      const updates: any = {};
+      if (defaultUniversityId !== undefined) updates.defaultUniversityId = defaultUniversityId;
+      if (stateOfResidence !== undefined) updates.stateOfResidence = stateOfResidence;
+      if (defaultEncounterType !== undefined) updates.defaultEncounterType = defaultEncounterType;
+      if (defaultContractDuration !== undefined) updates.defaultContractDuration = defaultContractDuration;
+      
+      // Update preferences
+      await storage.updateUserPreferences(userId, updates);
+      
+      return res.json({ success: true, message: "Preferences updated successfully" });
+    } catch (error) {
+      console.error("Update preferences error:", error);
+      return res.status(500).json({ error: "Failed to update preferences" });
+    }
+  });
+
   // Update user data retention policy
   app.patch("/api/auth/retention-policy", requireAuth, async (req, res) => {
     try {

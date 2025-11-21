@@ -68,6 +68,20 @@ export interface IStorage {
   updateUserStripeCustomerId(id: string, stripeCustomerId: string): Promise<UserProfile | undefined>;
   deleteUserProfile(id: string): Promise<void>;
   deleteAllUserData(userId: string): Promise<void>;
+  
+  // User preferences methods
+  getUserPreferences(id: string): Promise<{
+    defaultUniversityId: string | null;
+    stateOfResidence: string | null;
+    defaultEncounterType: string | null;
+    defaultContractDuration: number | null;
+  } | undefined>;
+  updateUserPreferences(id: string, updates: {
+    defaultUniversityId?: string | null;
+    stateOfResidence?: string | null;
+    defaultEncounterType?: string | null;
+    defaultContractDuration?: number | null;
+  }): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -397,6 +411,27 @@ export class MemStorage implements IStorage {
 
     this.userProfiles.delete(userId);
   }
+
+  async getUserPreferences(id: string) {
+    const profile = await this.getUserProfile(id);
+    if (!profile) return undefined;
+    
+    return {
+      defaultUniversityId: profile.defaultUniversityId ?? null,
+      stateOfResidence: profile.stateOfResidence ?? null,
+      defaultEncounterType: profile.defaultEncounterType ?? null,
+      defaultContractDuration: profile.defaultContractDuration ?? null,
+    };
+  }
+
+  async updateUserPreferences(id: string, updates: {
+    defaultUniversityId?: string | null;
+    stateOfResidence?: string | null;
+    defaultEncounterType?: string | null;
+    defaultContractDuration?: number | null;
+  }): Promise<void> {
+    await this.updateUserProfile(id, updates);
+  }
 }
 
 // Database storage implementation
@@ -631,6 +666,27 @@ export class DbStorage implements IStorage {
     await db.delete(consentContracts).where(eq(consentContracts.userId, userId));
     await db.delete(verificationPayments).where(eq(verificationPayments.userId, userId));
     await db.delete(userProfiles).where(eq(userProfiles.id, userId));
+  }
+
+  async getUserPreferences(id: string) {
+    const profile = await this.getUserProfile(id);
+    if (!profile) return undefined;
+    
+    return {
+      defaultUniversityId: profile.defaultUniversityId ?? null,
+      stateOfResidence: profile.stateOfResidence ?? null,
+      defaultEncounterType: profile.defaultEncounterType ?? null,
+      defaultContractDuration: profile.defaultContractDuration ?? null,
+    };
+  }
+
+  async updateUserPreferences(id: string, updates: {
+    defaultUniversityId?: string | null;
+    stateOfResidence?: string | null;
+    defaultEncounterType?: string | null;
+    defaultContractDuration?: number | null;
+  }): Promise<void> {
+    await this.updateUserProfile(id, updates);
   }
 }
 
