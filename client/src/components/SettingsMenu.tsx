@@ -1,4 +1,4 @@
-import { Settings, User, CreditCard, Moon, Sun, LogOut, LogIn, Plug } from "lucide-react";
+import { Settings, User, CreditCard, Moon, Sun, LogOut, LogIn, Plug, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -81,6 +81,13 @@ export default function SettingsMenu() {
             >
               <User className="mr-2 h-4 w-4" />
               <span>Account</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => navigate("/settings/preferences")}
+              data-testid="menu-item-preferences"
+            >
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              <span>Preferences</span>
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={() => navigate("/settings/billing")}

@@ -8,7 +8,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
+export async function getAuthHeaders(): Promise<Record<string, string>> {
   // Await fresh session (Supabase handles auto-refresh)
   const session = await getFreshSession();
   
