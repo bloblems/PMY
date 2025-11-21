@@ -125,18 +125,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const name = req.user!.name || null;
       
       return res.json({
-        user: {
-          id: userId,
-          email: req.user!.email,
-          name: name,
-          savedSignature: profile?.savedSignature || null,
-          savedSignatureType: profile?.savedSignatureType || null,
-          savedSignatureText: profile?.savedSignatureText || null,
-        }
+        id: userId,
+        email: req.user!.email,
+        name: name,
+        profilePictureUrl: profile?.profilePictureUrl || null,
+        bio: profile?.bio || null,
+        websiteUrl: profile?.websiteUrl || null,
+        savedSignature: profile?.savedSignature || null,
+        savedSignatureType: profile?.savedSignatureType || null,
+        savedSignatureText: profile?.savedSignatureText || null,
+        referralCode: profile?.referralCode || null,
       });
     } catch (error) {
       console.error("Error fetching user profile:", error);
       return res.status(500).json({ error: "Failed to fetch user profile" });
+    }
+  });
+
+  // Get profile stats
+  app.get("/api/profile/stats", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Get all contracts
+      const contracts = await storage.getContractsByUserId(userId);
+      
+      // Count active contracts (contracts with end time in the future)
+      const now = new Date();
+      const activeContracts = contracts.filter((c: ConsentContract) => 
+        c.contractEndTime && new Date(c.contractEndTime) > now
+      ).length;
+      
+      // Get all recordings
+      const recordings = await storage.getRecordingsByUserId(userId);
+      
+      return res.json({
+        totalContracts: contracts.length,
+        activeContracts: activeContracts,
+        totalRecordings: recordings.length,
+      });
+    } catch (error) {
+      console.error("Error fetching profile stats:", error);
+      return res.status(500).json({ error: "Failed to fetch profile stats" });
     }
   });
 

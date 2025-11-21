@@ -25,6 +25,7 @@ import ConsentBiometricPage from "@/pages/ConsentBiometricPage";
 import AuthPage from "@/pages/AuthPage";
 import ResetRequestPage from "@/pages/ResetRequestPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import ProfilePage from "@/pages/ProfilePage";
 
 function Router() {
   return (
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/auth/reset-request" component={ResetRequestPage} />
       <Route path="/auth/reset-password" component={ResetPasswordPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route path="/" component={ConsentFlowPage} />
       <Route path="/titleix" component={InfoPage} />
       <Route path="/files" component={FilesPage} />

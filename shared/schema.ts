@@ -15,8 +15,11 @@ export const universities = pgTable("universities", {
 });
 
 // User profiles table - links to auth.users (managed by Supabase Auth)
-export const userProfiles = pgTable("user_profiles", {
+export const userProfiles = pgTable("users", {
   id: uuid("id").primaryKey(), // References auth.users(id)
+  profilePictureUrl: text("profile_picture_url"),
+  bio: text("bio"),
+  websiteUrl: text("website_url"),
   savedSignature: text("saved_signature"),
   savedSignatureType: text("saved_signature_type"),
   savedSignatureText: text("saved_signature_text"),
