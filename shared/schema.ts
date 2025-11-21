@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, uuid, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, integer, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Universities table - public reference data
 export const universities = pgTable("universities", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   state: text("state").notNull(),
   titleIXInfo: text("title_ix_info").notNull(),
@@ -16,7 +16,7 @@ export const universities = pgTable("universities", {
 
 // User profiles table - links to auth.users (managed by Supabase Auth)
 export const userProfiles = pgTable("users", {
-  id: uuid("id").primaryKey(), // References auth.users(id)
+  id: text("id").primaryKey(), // References auth.users(id)
   profilePictureUrl: text("profile_picture_url"),
   bio: text("bio"),
   websiteUrl: text("website_url"),
@@ -27,7 +27,7 @@ export const userProfiles = pgTable("users", {
   stripeCustomerId: text("stripe_customer_id"),
   referralCode: text("referral_code"),
   // User preferences for consent flow defaults
-  defaultUniversityId: uuid("default_university_id"), // References universities(id)
+  defaultUniversityId: varchar("default_university_id"), // References universities(id)
   stateOfResidence: text("state_of_residence"), // 2-letter state code (e.g., "CA", "NY")
   defaultEncounterType: text("default_encounter_type"), // Default encounter type
   defaultContractDuration: integer("default_contract_duration"), // Default duration in minutes
@@ -37,9 +37,9 @@ export const userProfiles = pgTable("users", {
 
 // Consent recordings table
 export const consentRecordings = pgTable("consent_recordings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id"), // References auth.users(id)
-  universityId: uuid("university_id"), // References universities(id)
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id"), // References auth.users(id)
+  universityId: varchar("university_id"), // References universities(id)
   encounterType: text("encounter_type"),
   parties: text("parties").array(),
   filename: text("filename").notNull(),
@@ -50,9 +50,9 @@ export const consentRecordings = pgTable("consent_recordings", {
 
 // Consent contracts table
 export const consentContracts = pgTable("consent_contracts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id"), // References auth.users(id)
-  universityId: uuid("university_id"), // References universities(id)
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id"), // References auth.users(id) - contract creator
+  universityId: varchar("university_id"), // References universities(id)
   encounterType: text("encounter_type"),
   parties: text("parties").array(),
   contractStartTime: timestamp("contract_start_time", { withTimezone: true }),
@@ -70,13 +70,47 @@ export const consentContracts = pgTable("consent_contracts", {
   credentialBackedUp: text("credential_backed_up"),
   authenticatedAt: timestamp("authenticated_at", { withTimezone: true }),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  // Collaboration fields
+  status: text("status").notNull().default("draft"), // draft, pending_approval, active, rejected
+  isCollaborative: text("is_collaborative").notNull().default("false"), // "true" or "false"
+  lastEditedBy: text("last_edited_by"), // References auth.users(id)
+  intimateActs: text("intimate_acts"), // JSON string of intimate acts selections
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Contract collaborators table - tracks all participants in a collaborative contract
+export const contractCollaborators = pgTable("contract_collaborators", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(), // References consent_contracts(id)
+  userId: text("user_id").notNull(), // References auth.users(id)
+  role: text("role").notNull(), // "initiator" or "recipient"
+  status: text("status").notNull().default("pending"), // pending, reviewing, approved, rejected
+  lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Contract invitations table - manages email-based sharing
+export const contractInvitations = pgTable("contract_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(), // References consent_contracts(id)
+  senderId: text("sender_id").notNull(), // References auth.users(id)
+  recipientEmail: text("recipient_email").notNull(),
+  recipientUserId: text("recipient_user_id"), // References auth.users(id) - set when invitation accepted
+  invitationCode: text("invitation_code").notNull().unique(),
+  status: text("status").notNull().default("pending"), // pending, accepted, expired
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // University reports table
 export const universityReports = pgTable("university_reports", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  universityId: uuid("university_id").notNull(), // References universities(id)
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  universityId: varchar("university_id").notNull(), // References universities(id)
   reportType: text("report_type").notNull(),
   description: text("description").notNull(),
   reportedAt: timestamp("reported_at", { withTimezone: true }).notNull().defaultNow(),
@@ -86,9 +120,9 @@ export const universityReports = pgTable("university_reports", {
 
 // Verification payments table
 export const verificationPayments = pgTable("verification_payments", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id"), // References auth.users(id)
-  universityId: uuid("university_id").notNull(), // References universities(id)
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id"), // References auth.users(id)
+  universityId: varchar("university_id").notNull(), // References universities(id)
   stripeSessionId: text("stripe_session_id").notNull(),
   stripePaymentStatus: text("stripe_payment_status").notNull().default("pending"),
   amount: text("amount").notNull(),
@@ -126,6 +160,7 @@ export const insertConsentRecordingSchema = createInsertSchema(consentRecordings
 export const insertConsentContractSchema = createInsertSchema(consentContracts).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 }).extend({
   encounterType: z.string().optional(),
   parties: z.array(z.string()).optional(),
@@ -144,6 +179,31 @@ export const insertConsentContractSchema = createInsertSchema(consentContracts).
   credentialBackedUp: z.string().optional(),
   authenticatedAt: z.string().optional(),
   verifiedAt: z.string().optional(),
+  status: z.enum(["draft", "pending_approval", "active", "rejected"]).default("draft"),
+  isCollaborative: z.enum(["true", "false"]).default("false"),
+  intimateActs: z.string().optional(),
+});
+
+export const insertContractCollaboratorSchema = createInsertSchema(contractCollaborators).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  role: z.enum(["initiator", "recipient"]),
+  status: z.enum(["pending", "reviewing", "approved", "rejected"]).default("pending"),
+  lastViewedAt: z.string().optional(),
+  approvedAt: z.string().optional(),
+  rejectedAt: z.string().optional(),
+  rejectionReason: z.string().optional(),
+});
+
+export const insertContractInvitationSchema = createInsertSchema(contractInvitations).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  recipientEmail: z.string().email(),
+  status: z.enum(["pending", "accepted", "expired"]).default("pending"),
+  expiresAt: z.string(),
+  acceptedAt: z.string().optional(),
 });
 
 export const insertUniversityReportSchema = createInsertSchema(universityReports).omit({
@@ -180,6 +240,12 @@ export type ConsentRecording = typeof consentRecordings.$inferSelect;
 
 export type InsertConsentContract = z.infer<typeof insertConsentContractSchema>;
 export type ConsentContract = typeof consentContracts.$inferSelect;
+
+export type InsertContractCollaborator = z.infer<typeof insertContractCollaboratorSchema>;
+export type ContractCollaborator = typeof contractCollaborators.$inferSelect;
+
+export type InsertContractInvitation = z.infer<typeof insertContractInvitationSchema>;
+export type ContractInvitation = typeof contractInvitations.$inferSelect;
 
 export type InsertUniversityReport = z.infer<typeof insertUniversityReportSchema>;
 export type UniversityReport = typeof universityReports.$inferSelect;

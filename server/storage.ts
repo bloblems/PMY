@@ -22,8 +22,10 @@ import {
   universityReports,
   verificationPayments,
   userProfiles,
+  contractCollaborators,
+  contractInvitations,
 } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { supabaseAdmin } from "./supabase";
 
 export interface IStorage {
@@ -57,6 +59,14 @@ export interface IStorage {
   getContract(id: string, userId: string): Promise<ConsentContract | undefined>;
   createContract(contract: InsertConsentContract): Promise<ConsentContract>;
   deleteContract(id: string, userId: string): Promise<boolean>;
+  updateContract(id: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | undefined>;
+  
+  // Collaborative contract methods
+  getDraftsByUserId(userId: string): Promise<ConsentContract[]>;
+  getSharedContractsByUserId(userId: string): Promise<ConsentContract[]>;
+  shareContract(contractId: string, recipientEmail: string, senderId: string): Promise<{ invitationId: string; invitationCode: string }>;
+  approveContract(contractId: string, userId: string): Promise<boolean>;
+  rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean>;
 
   // User profile methods (Supabase auth.users managed separately)
   getUserProfile(id: string): Promise<UserProfile | undefined>;
@@ -270,7 +280,12 @@ export class MemStorage implements IStorage {
       credentialBackedUp: insertContract.credentialBackedUp ?? null,
       authenticatedAt: insertContract.authenticatedAt ? new Date(insertContract.authenticatedAt) : null,
       verifiedAt: insertContract.verifiedAt ? new Date(insertContract.verifiedAt) : null,
+      status: insertContract.status ?? "draft",
+      isCollaborative: insertContract.isCollaborative ?? "false",
+      lastEditedBy: insertContract.lastEditedBy ?? null,
+      intimateActs: insertContract.intimateActs ?? null,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
     this.contracts.set(id, contract);
     return contract;
@@ -292,6 +307,51 @@ export class MemStorage implements IStorage {
     const contract = this.contracts.get(id);
     if (!contract || contract.userId !== userId) return false;
     return this.contracts.delete(id);
+  }
+
+  async updateContract(id: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | undefined> {
+    const contract = this.contracts.get(id);
+    if (!contract || contract.userId !== userId) return undefined;
+    
+    const updatedData: any = { ...updates };
+    if (updates.contractStartTime) updatedData.contractStartTime = new Date(updates.contractStartTime);
+    if (updates.contractEndTime) updatedData.contractEndTime = new Date(updates.contractEndTime);
+    if (updates.authenticatedAt) updatedData.authenticatedAt = new Date(updates.authenticatedAt);
+    if (updates.verifiedAt) updatedData.verifiedAt = new Date(updates.verifiedAt);
+    
+    const updated: ConsentContract = {
+      ...contract,
+      ...updatedData,
+      updatedAt: new Date(),
+    };
+    this.contracts.set(id, updated);
+    return updated;
+  }
+
+  async getDraftsByUserId(userId: string): Promise<ConsentContract[]> {
+    return Array.from(this.contracts.values())
+      .filter(c => c.userId === userId && c.status === "draft")
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getSharedContractsByUserId(_userId: string): Promise<ConsentContract[]> {
+    // TODO: Implement by checking contract_collaborators table
+    return [];
+  }
+
+  async shareContract(_contractId: string, _recipientEmail: string, _senderId: string): Promise<{ invitationId: string; invitationCode: string }> {
+    // TODO: Create invitation and collaborator records
+    return { invitationId: randomUUID(), invitationCode: randomUUID() };
+  }
+
+  async approveContract(_contractId: string, _userId: string): Promise<boolean> {
+    // TODO: Update collaborator status to approved
+    return true;
+  }
+
+  async rejectContract(_contractId: string, _userId: string, _reason?: string): Promise<boolean> {
+    // TODO: Update collaborator status to rejected
+    return true;
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -347,12 +407,19 @@ export class MemStorage implements IStorage {
   async createUserProfile(profile: InsertUserProfile & { id: string }): Promise<UserProfile> {
     const userProfile: UserProfile = {
       ...profile,
+      profilePictureUrl: profile.profilePictureUrl ?? null,
+      bio: profile.bio ?? null,
+      websiteUrl: profile.websiteUrl ?? null,
       savedSignature: profile.savedSignature ?? null,
       savedSignatureType: profile.savedSignatureType ?? null,
       savedSignatureText: profile.savedSignatureText ?? null,
       dataRetentionPolicy: profile.dataRetentionPolicy ?? "forever",
       stripeCustomerId: profile.stripeCustomerId ?? null,
       referralCode: profile.referralCode ?? null,
+      defaultUniversityId: profile.defaultUniversityId ?? null,
+      stateOfResidence: profile.stateOfResidence ?? null,
+      defaultEncounterType: profile.defaultEncounterType ?? null,
+      defaultContractDuration: profile.defaultContractDuration ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -563,6 +630,109 @@ export class DbStorage implements IStorage {
       .delete(consentContracts)
       .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)))
       .returning();
+    return result.length > 0;
+  }
+
+  async updateContract(id: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | undefined> {
+    const updatedData: any = { ...updates };
+    if (updates.contractStartTime) updatedData.contractStartTime = new Date(updates.contractStartTime);
+    if (updates.contractEndTime) updatedData.contractEndTime = new Date(updates.contractEndTime);
+    if (updates.authenticatedAt) updatedData.authenticatedAt = new Date(updates.authenticatedAt);
+    if (updates.verifiedAt) updatedData.verifiedAt = new Date(updates.verifiedAt);
+    
+    const result = await db
+      .update(consentContracts)
+      .set({ ...updatedData, updatedAt: new Date() })
+      .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async getDraftsByUserId(userId: string): Promise<ConsentContract[]> {
+    return await db
+      .select()
+      .from(consentContracts)
+      .where(and(eq(consentContracts.userId, userId), eq(consentContracts.status, "draft")))
+      .orderBy(desc(consentContracts.createdAt));
+  }
+
+  async getSharedContractsByUserId(userId: string): Promise<ConsentContract[]> {
+    // Get contracts where user is a collaborator
+    const collaboratorContracts = await db
+      .select({ contractId: contractCollaborators.contractId })
+      .from(contractCollaborators)
+      .where(eq(contractCollaborators.userId, userId));
+    
+    const contractIds = collaboratorContracts.map(c => c.contractId);
+    if (contractIds.length === 0) return [];
+    
+    return await db
+      .select()
+      .from(consentContracts)
+      .where(sql`${consentContracts.id} = ANY(${contractIds})`)
+      .orderBy(desc(consentContracts.createdAt));
+  }
+
+  async shareContract(contractId: string, recipientEmail: string, senderId: string): Promise<{ invitationId: string; invitationCode: string }> {
+    const invitationCode = randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+    
+    // Create invitation
+    const invitation = await db.insert(contractInvitations).values({
+      contractId,
+      senderId,
+      recipientEmail,
+      invitationCode,
+      expiresAt,
+    }).returning();
+    
+    // Update contract to collaborative
+    await db
+      .update(consentContracts)
+      .set({ isCollaborative: "true", updatedAt: new Date() })
+      .where(eq(consentContracts.id, contractId));
+    
+    // Create collaborator record for initiator if not exists
+    const existingInitiator = await db
+      .select()
+      .from(contractCollaborators)
+      .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, senderId)));
+    
+    if (existingInitiator.length === 0) {
+      await db.insert(contractCollaborators).values({
+        contractId,
+        userId: senderId,
+        role: "initiator",
+        status: "approved",
+        approvedAt: new Date(),
+      });
+    }
+    
+    return { invitationId: invitation[0].id, invitationCode };
+  }
+
+  async approveContract(contractId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .update(contractCollaborators)
+      .set({ status: "approved", approvedAt: new Date() })
+      .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, userId)))
+      .returning();
+    
+    return result.length > 0;
+  }
+
+  async rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean> {
+    const result = await db
+      .update(contractCollaborators)
+      .set({ 
+        status: "rejected", 
+        rejectedAt: new Date(),
+        rejectionReason: reason || null,
+      })
+      .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, userId)))
+      .returning();
+    
     return result.length > 0;
   }
 
