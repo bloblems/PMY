@@ -26,38 +26,24 @@ const gradientColors = [
   { 
     name: "PMY Green", 
     from: "from-primary", 
-    to: "to-emerald-500",
-    // Use CSS variable for primary, fallback hex for emerald-500
+    to: "to-emerald-600",
+    // Use CSS variable for primary, fallback hex for emerald
     cssVars: { start: "--primary", end: null },
-    fallbackHex: { start: "#22c55e", end: "#10b981" }
+    fallbackHex: { start: "#22c55e", end: "#059669" }
   },
   { 
-    name: "Ocean", 
-    from: "from-blue-400", 
-    to: "to-cyan-500",
+    name: "Dark", 
+    from: "from-gray-900", 
+    to: "to-emerald-900",
     cssVars: { start: null, end: null },
-    fallbackHex: { start: "#60a5fa", end: "#06b6d4" }
+    fallbackHex: { start: "#111827", end: "#064e3b" }
   },
   { 
-    name: "Sunset", 
-    from: "from-orange-400", 
-    to: "to-pink-500",
-    cssVars: { start: null, end: null },
-    fallbackHex: { start: "#fb923c", end: "#ec4899" }
-  },
-  { 
-    name: "Purple", 
-    from: "from-purple-400", 
-    to: "to-indigo-500",
-    cssVars: { start: null, end: null },
-    fallbackHex: { start: "#c084fc", end: "#6366f1" }
-  },
-  { 
-    name: "Forest", 
-    from: "from-green-500", 
-    to: "to-teal-500",
-    cssVars: { start: null, end: null },
-    fallbackHex: { start: "#22c55e", end: "#14b8a6" }
+    name: "Midnight", 
+    from: "from-black", 
+    to: "to-primary",
+    cssVars: { start: null, end: "--primary" },
+    fallbackHex: { start: "#000000", end: "#22c55e" }
   },
 ];
 
