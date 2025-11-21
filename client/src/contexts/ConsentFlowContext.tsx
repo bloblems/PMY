@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { storage } from "@/services/storage";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 
 export interface ConsentFlowState {
   universityId: string;
@@ -21,25 +23,39 @@ interface ConsentFlowContextType {
   isHydrated: boolean;
 }
 
-const defaultState: ConsentFlowState = {
-  universityId: "",
+interface UserPreferences {
+  defaultUniversityId: string | null;
+  stateOfResidence: string | null;
+  defaultEncounterType: string | null;
+  defaultContractDuration: number | null;
+}
+
+const getDefaultState = (preferences?: UserPreferences): ConsentFlowState => ({
+  universityId: preferences?.defaultUniversityId || "",
   universityName: "",
-  encounterType: "",
+  encounterType: preferences?.defaultEncounterType || "",
   parties: ["", ""],
   intimateActs: {},
   contractStartTime: undefined,
-  contractDuration: undefined,
+  contractDuration: preferences?.defaultContractDuration || undefined,
   contractEndTime: undefined,
   method: null,
-};
+});
 
 const STORAGE_KEY = "pmy_consent_flow_state";
 
 const ConsentFlowContext = createContext<ConsentFlowContextType | undefined>(undefined);
 
 export function ConsentFlowProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<ConsentFlowState>(defaultState);
+  const { user } = useAuth();
+  const [state, setState] = useState<ConsentFlowState>(getDefaultState());
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Fetch user preferences if authenticated
+  const { data: preferences } = useQuery<UserPreferences>({
+    queryKey: ['/api/profile/preferences'],
+    enabled: !!user,
+  });
 
   // Hydrate state from storage on mount (async)
   useEffect(() => {
@@ -50,33 +66,37 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
           const parsed = JSON.parse(saved);
           
           // Validate and merge with default state to handle corrupt/incomplete data
+          const defaultStateWithPrefs = getDefaultState(preferences);
           const validMethods: Array<ConsentFlowState["method"]> = ["signature", "voice", "photo", "biometric", null];
           const validatedState: ConsentFlowState = {
-            universityId: typeof parsed.universityId === 'string' ? parsed.universityId : defaultState.universityId,
-            universityName: typeof parsed.universityName === 'string' ? parsed.universityName : defaultState.universityName,
-            encounterType: typeof parsed.encounterType === 'string' ? parsed.encounterType : defaultState.encounterType,
-            parties: Array.isArray(parsed.parties) ? parsed.parties : defaultState.parties,
-            intimateActs: (parsed.intimateActs && typeof parsed.intimateActs === 'object' && !Array.isArray(parsed.intimateActs)) ? parsed.intimateActs : defaultState.intimateActs,
-            contractStartTime: typeof parsed.contractStartTime === 'string' ? parsed.contractStartTime : defaultState.contractStartTime,
-            contractDuration: typeof parsed.contractDuration === 'number' ? parsed.contractDuration : defaultState.contractDuration,
-            contractEndTime: typeof parsed.contractEndTime === 'string' ? parsed.contractEndTime : defaultState.contractEndTime,
-            method: validMethods.includes(parsed.method) ? parsed.method : defaultState.method,
+            universityId: typeof parsed.universityId === 'string' ? parsed.universityId : defaultStateWithPrefs.universityId,
+            universityName: typeof parsed.universityName === 'string' ? parsed.universityName : defaultStateWithPrefs.universityName,
+            encounterType: typeof parsed.encounterType === 'string' ? parsed.encounterType : defaultStateWithPrefs.encounterType,
+            parties: Array.isArray(parsed.parties) ? parsed.parties : defaultStateWithPrefs.parties,
+            intimateActs: (parsed.intimateActs && typeof parsed.intimateActs === 'object' && !Array.isArray(parsed.intimateActs)) ? parsed.intimateActs : defaultStateWithPrefs.intimateActs,
+            contractStartTime: typeof parsed.contractStartTime === 'string' ? parsed.contractStartTime : defaultStateWithPrefs.contractStartTime,
+            contractDuration: typeof parsed.contractDuration === 'number' ? parsed.contractDuration : defaultStateWithPrefs.contractDuration,
+            contractEndTime: typeof parsed.contractEndTime === 'string' ? parsed.contractEndTime : defaultStateWithPrefs.contractEndTime,
+            method: validMethods.includes(parsed.method) ? parsed.method : defaultStateWithPrefs.method,
           };
           
           setState(validatedState);
           console.log("[ConsentFlowContext] Restored from storage:", validatedState);
         } else {
-          console.log("[ConsentFlowContext] No saved state, using default");
+          // No saved flow - use preferences to prepopulate
+          const defaultStateWithPrefs = getDefaultState(preferences);
+          setState(defaultStateWithPrefs);
+          console.log("[ConsentFlowContext] No saved state, using preferences:", defaultStateWithPrefs);
         }
       } catch (e) {
         console.error("[ConsentFlowContext] Failed to restore from storage, using default:", e);
-        setState(defaultState);
+        setState(getDefaultState(preferences));
       } finally {
         setIsHydrated(true);
       }
     }
     loadState();
-  }, []);
+  }, [preferences]);
 
   // Persist state to storage whenever it changes (after initial hydration)
   useEffect(() => {
@@ -98,14 +118,15 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetState = useCallback(async () => {
-    setState(defaultState);
+    const defaultStateWithPrefs = getDefaultState(preferences);
+    setState(defaultStateWithPrefs);
     try {
       await storage.removeItem(STORAGE_KEY);
-      console.log("[ConsentFlowContext] State reset");
+      console.log("[ConsentFlowContext] State reset to preferences:", defaultStateWithPrefs);
     } catch (e) {
       console.error("[ConsentFlowContext] Failed to clear storage:", e);
     }
-  }, []);
+  }, [preferences]);
 
   const hasRequiredData = useCallback(() => {
     // Check that we have an encounter type
