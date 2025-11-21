@@ -388,11 +388,13 @@ export class MemStorage implements IStorage {
       id: invitationId,
       contractId,
       senderId,
+      recipientUserId: null,
       recipientEmail,
       invitationCode,
       status: "pending",
       createdAt: new Date(),
       expiresAt,
+      acceptedAt: null,
     });
     
     // Update contract to collaborative
@@ -416,7 +418,10 @@ export class MemStorage implements IStorage {
         role: "initiator",
         status: "approved",
         approvedAt: new Date(),
-        viewedAt: new Date(),
+        lastViewedAt: new Date(),
+        rejectedAt: null,
+        rejectionReason: null,
+        createdAt: new Date(),
       });
     }
     
@@ -465,7 +470,11 @@ export class MemStorage implements IStorage {
       userId,
       role: "recipient",
       status: "pending",
-      viewedAt: new Date(),
+      lastViewedAt: new Date(),
+      approvedAt: null,
+      rejectedAt: null,
+      rejectionReason: null,
+      createdAt: new Date(),
     });
     
     // Update contract status to pending_approval
@@ -940,12 +949,12 @@ export class DbStorage implements IStorage {
       
       if (existingInitiator.length === 0) {
         await tx.insert(contractCollaborators).values({
-          contractId,
           userId: senderId,
+          contractId,
           role: "initiator",
           status: "approved",
           approvedAt: new Date(),
-          viewedAt: new Date(),
+          lastViewedAt: new Date(),
         });
       }
       
@@ -1005,11 +1014,11 @@ export class DbStorage implements IStorage {
       
       // Create collaborator record
       await tx.insert(contractCollaborators).values({
-        contractId: invitation.contractId,
         userId,
+        contractId: invitation.contractId,
         role: "recipient",
         status: "pending",
-        viewedAt: new Date(),
+        lastViewedAt: new Date(),
       });
       
       // Update contract status to pending_approval
