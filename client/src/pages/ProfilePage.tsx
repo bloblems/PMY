@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Link as LinkIcon, FileText, CheckCircle2, Grid3x3, FileSignature } from "lucide-react";
+import { User, Link as LinkIcon, FileText, CheckCircle2, Grid3x3, FileSignature, Share2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 
@@ -152,7 +152,8 @@ export default function ProfilePage() {
           onClick={() => setLocation('/share')}
           data-testid="button-share-profile"
         >
-          Share profile
+          <Share2 className="h-4 w-4 mr-2" />
+          Share
         </Button>
       </div>
 
