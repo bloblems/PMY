@@ -1444,34 +1444,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const userId = req.user!.id;
 
-      // Verify user has access to this contract (either as owner or collaborator)
-      const [ownedContracts, sharedContracts] = await Promise.all([
-        storage.getContractsByUserId(userId),
-        storage.getSharedContractsByUserId(userId)
-      ]);
+      // Verify user has access (owner or collaborator) using targeted query to prevent unauthorized enumeration
+      const hasAccess = await storage.hasContractAccess(id, userId);
       
-      const contract = ownedContracts.find(c => c.id === id) || sharedContracts.find(c => c.id === id);
-      
-      if (!contract) {
-        // Return 404 for both "doesn't exist" and "no access" to prevent information leakage
+      // Return uniform 404 for unauthorized access AND all storage failures
+      // This prevents leaking information about contract existence or user's relationship to it
+      if (!hasAccess) {
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      // Only pending_approval contracts can be approved
-      if (contract.status !== 'pending_approval') {
-        return res.status(400).json({ 
-          error: `Cannot approve ${contract.status} contract. Only pending contracts can be approved.` 
-        });
-      }
-
-      // Attempt to approve - storage layer verifies collaborator status and handles approval logic
+      // Attempt to approve - storage enforces pending-status guard
       const approved = await storage.approveContract(id, userId);
       
       if (!approved) {
-        // User is not a pending collaborator (might be already approved or not a collaborator)
-        return res.status(409).json({ 
-          error: "Cannot approve: you have already approved or are not a collaborator on this contract" 
-        });
+        // Storage returned false - could be:
+        // - User not a collaborator, - Already approved, - Already rejected, - Wrong contract status
+        // Return same 404 to prevent leaking state information
+        return res.status(404).json({ error: "Contract not found" });
       }
 
       // Refetch contract to get updated status
@@ -1485,20 +1474,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error approving contract:", error);
-      
-      // Map storage errors to appropriate HTTP status codes
-      if (error instanceof Error) {
-        if (error.message.includes("not found")) {
-          return res.status(404).json({ error: "Contract not found" });
-        }
-        if (error.message.includes("already approved") || error.message.includes("already active")) {
-          return res.status(409).json({ error: "Contract has already been processed" });
-        }
-        if (error.message.includes("Invalid state") || error.message.includes("Cannot approve")) {
-          return res.status(400).json({ error: error.message });
-        }
-      }
-      
       res.status(500).json({ error: "Failed to approve contract" });
     }
   });
@@ -1520,34 +1495,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { reason } = validation.data;
 
-      // Verify user has access to this contract (either as owner or collaborator)
-      const [ownedContracts, sharedContracts] = await Promise.all([
-        storage.getContractsByUserId(userId),
-        storage.getSharedContractsByUserId(userId)
-      ]);
+      // Verify user has access (owner or collaborator) using targeted query to prevent unauthorized enumeration
+      const hasAccess = await storage.hasContractAccess(id, userId);
       
-      const contract = ownedContracts.find(c => c.id === id) || sharedContracts.find(c => c.id === id);
-      
-      if (!contract) {
-        // Return 404 for both "doesn't exist" and "no access" to prevent information leakage
+      // Return uniform 404 for unauthorized access AND all storage failures
+      // This prevents leaking information about contract existence or user's relationship to it
+      if (!hasAccess) {
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      // Only pending_approval contracts can be rejected
-      if (contract.status !== 'pending_approval') {
-        return res.status(400).json({ 
-          error: `Cannot reject ${contract.status} contract. Only pending contracts can be rejected.` 
-        });
-      }
-
-      // Attempt to reject - storage layer verifies collaborator status and handles rejection logic
+      // Attempt to reject - storage enforces pending-status guard
       const rejected = await storage.rejectContract(id, userId, reason);
       
       if (!rejected) {
-        // User is not a pending collaborator (might be already approved/rejected or not a collaborator)
-        return res.status(409).json({ 
-          error: "Cannot reject: you have already approved/rejected or are not a collaborator on this contract" 
-        });
+        // Storage returned false - could be:
+        // - User not a collaborator, - Already approved, - Already rejected, - Wrong contract status
+        // Return same 404 to prevent leaking state information
+        return res.status(404).json({ error: "Contract not found" });
       }
 
       res.json({
@@ -1556,20 +1520,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error rejecting contract:", error);
-      
-      // Map storage errors to appropriate HTTP status codes
-      if (error instanceof Error) {
-        if (error.message.includes("not found")) {
-          return res.status(404).json({ error: "Contract not found" });
-        }
-        if (error.message.includes("already rejected")) {
-          return res.status(409).json({ error: "Contract has already been processed" });
-        }
-        if (error.message.includes("Invalid state") || error.message.includes("Cannot reject")) {
-          return res.status(400).json({ error: error.message });
-        }
-      }
-      
       res.status(500).json({ error: "Failed to reject contract" });
     }
   });

@@ -69,6 +69,7 @@ export interface IStorage {
   shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }>;
   acceptInvitation(invitationCode: string, userId: string): Promise<{ contractId: string } | null>;
   getInvitationByCode(code: string): Promise<ContractInvitation | undefined>;
+  hasContractAccess(contractId: string, userId: string): Promise<boolean>;
   approveContract(contractId: string, userId: string): Promise<boolean>;
   rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean>;
 
@@ -494,6 +495,20 @@ export class MemStorage implements IStorage {
   async getInvitationByCode(code: string): Promise<ContractInvitation | undefined> {
     return Array.from(this.invitations.values())
       .find(inv => inv.invitationCode === code);
+  }
+
+  async hasContractAccess(contractId: string, userId: string): Promise<boolean> {
+    // Check if user owns the contract
+    const contract = this.contracts.get(contractId);
+    if (contract && contract.userId === userId) {
+      return true;
+    }
+    
+    // Check if user is a collaborator
+    const isCollaborator = Array.from(this.collaborators.values())
+      .some(c => c.contractId === contractId && c.userId === userId);
+    
+    return isCollaborator;
   }
 
   async approveContract(contractId: string, userId: string): Promise<boolean> {
@@ -1037,6 +1052,31 @@ export class DbStorage implements IStorage {
       .from(contractInvitations)
       .where(eq(contractInvitations.invitationCode, code));
     return result[0];
+  }
+
+  async hasContractAccess(contractId: string, userId: string): Promise<boolean> {
+    // Check if user owns the contract OR is a collaborator (single efficient query)
+    const contract = await db
+      .select({ userId: consentContracts.userId })
+      .from(consentContracts)
+      .where(eq(consentContracts.id, contractId))
+      .limit(1);
+    
+    if (contract.length > 0 && contract[0].userId === userId) {
+      return true;
+    }
+    
+    // Check if user is a collaborator
+    const collaborator = await db
+      .select({ id: contractCollaborators.id })
+      .from(contractCollaborators)
+      .where(and(
+        eq(contractCollaborators.contractId, contractId),
+        eq(contractCollaborators.userId, userId)
+      ))
+      .limit(1);
+    
+    return collaborator.length > 0;
   }
 
   async approveContract(contractId: string, userId: string): Promise<boolean> {
