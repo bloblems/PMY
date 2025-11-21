@@ -12,6 +12,8 @@ import {
   type InsertVerificationPayment,
   type UserProfile,
   type InsertUserProfile,
+  type ContractInvitation,
+  type ContractCollaborator,
 } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
@@ -64,7 +66,9 @@ export interface IStorage {
   // Collaborative contract methods
   getDraftsByUserId(userId: string): Promise<ConsentContract[]>;
   getSharedContractsByUserId(userId: string): Promise<ConsentContract[]>;
-  shareContract(contractId: string, recipientEmail: string, senderId: string): Promise<{ invitationId: string; invitationCode: string }>;
+  shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }>;
+  acceptInvitation(invitationCode: string, userId: string): Promise<{ contractId: string } | null>;
+  getInvitationByCode(code: string): Promise<ContractInvitation | undefined>;
   approveContract(contractId: string, userId: string): Promise<boolean>;
   rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean>;
 
@@ -101,6 +105,8 @@ export class MemStorage implements IStorage {
   private reports: Map<string, UniversityReport>;
   private verificationPayments: Map<string, VerificationPayment>;
   private userProfiles: Map<string, UserProfile>;
+  private collaborators: Map<string, ContractCollaborator>;
+  private invitations: Map<string, ContractInvitation>;
 
   constructor() {
     this.universities = new Map();
@@ -109,6 +115,8 @@ export class MemStorage implements IStorage {
     this.reports = new Map();
     this.verificationPayments = new Map();
     this.userProfiles = new Map();
+    this.collaborators = new Map();
+    this.invitations = new Map();
 
     // Seed with initial universities
     this.seedUniversities();
@@ -334,23 +342,219 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async getSharedContractsByUserId(_userId: string): Promise<ConsentContract[]> {
-    // TODO: Implement by checking contract_collaborators table
-    return [];
+  async getSharedContractsByUserId(userId: string): Promise<ConsentContract[]> {
+    // Find all collaborator records for this user
+    const userCollaborations = Array.from(this.collaborators.values())
+      .filter(c => c.userId === userId);
+    
+    const contractIds = userCollaborations.map(c => c.contractId);
+    
+    return Array.from(this.contracts.values())
+      .filter(c => contractIds.includes(c.id))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async shareContract(_contractId: string, _recipientEmail: string, _senderId: string): Promise<{ invitationId: string; invitationCode: string }> {
-    // TODO: Create invitation and collaborator records
-    return { invitationId: randomUUID(), invitationCode: randomUUID() };
+  async shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }> {
+    // Validate contract exists and belongs to sender
+    const contract = this.contracts.get(contractId);
+    if (!contract || contract.userId !== senderId) {
+      throw new Error("Contract not found or unauthorized");
+    }
+    
+    // Prevent sharing non-draft contracts
+    if (contract.status !== "draft") {
+      throw new Error("Only draft contracts can be shared");
+    }
+    
+    // Prevent self-invites by comparing emails
+    if (recipientEmail.toLowerCase() === senderEmail.toLowerCase()) {
+      throw new Error("Cannot share contract with yourself");
+    }
+    
+    // Check for any existing invitation to this email (regardless of status)
+    const existingInvitation = Array.from(this.invitations.values())
+      .find(inv => inv.contractId === contractId && inv.recipientEmail.toLowerCase() === recipientEmail.toLowerCase());
+    if (existingInvitation) {
+      throw new Error("An invitation has already been sent to this email");
+    }
+    
+    const invitationId = randomUUID();
+    const invitationCode = randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    
+    // Create invitation
+    this.invitations.set(invitationId, {
+      id: invitationId,
+      contractId,
+      senderId,
+      recipientEmail,
+      invitationCode,
+      status: "pending",
+      createdAt: new Date(),
+      expiresAt,
+    });
+    
+    // Update contract to collaborative
+    const updated = {
+      ...contract,
+      isCollaborative: "true",
+      updatedAt: new Date(),
+    };
+    this.contracts.set(contractId, updated);
+    
+    // Create collaborator record for initiator if not exists
+    const existingInitiator = Array.from(this.collaborators.values())
+      .find(c => c.contractId === contractId && c.userId === senderId);
+    
+    if (!existingInitiator) {
+      const collaboratorId = randomUUID();
+      this.collaborators.set(collaboratorId, {
+        id: collaboratorId,
+        contractId,
+        userId: senderId,
+        role: "initiator",
+        status: "approved",
+        approvedAt: new Date(),
+        viewedAt: new Date(),
+      });
+    }
+    
+    return { invitationId, invitationCode };
   }
 
-  async approveContract(_contractId: string, _userId: string): Promise<boolean> {
-    // TODO: Update collaborator status to approved
+  async acceptInvitation(invitationCode: string, userId: string): Promise<{ contractId: string } | null> {
+    // Find invitation by code
+    const invitation = Array.from(this.invitations.values())
+      .find(inv => inv.invitationCode === invitationCode);
+    
+    if (!invitation) return null;
+    
+    // Check if expired
+    if (new Date() > invitation.expiresAt) {
+      return null;
+    }
+    
+    // Check if already accepted
+    if (invitation.status !== "pending") {
+      return null;
+    }
+    
+    // Check if user is already a collaborator (prevent duplicates)
+    const existingCollaborator = Array.from(this.collaborators.values())
+      .find(c => c.contractId === invitation.contractId && c.userId === userId);
+    
+    if (existingCollaborator) {
+      // User already a collaborator, just mark invitation as accepted
+      invitation.status = "accepted";
+      invitation.acceptedAt = new Date();
+      this.invitations.set(invitation.id, invitation);
+      return { contractId: invitation.contractId };
+    }
+    
+    // Update invitation status
+    invitation.status = "accepted";
+    invitation.acceptedAt = new Date();
+    this.invitations.set(invitation.id, invitation);
+    
+    // Create collaborator record
+    const collaboratorId = randomUUID();
+    this.collaborators.set(collaboratorId, {
+      id: collaboratorId,
+      contractId: invitation.contractId,
+      userId,
+      role: "recipient",
+      status: "pending",
+      viewedAt: new Date(),
+    });
+    
+    // Update contract status to pending_approval
+    const contract = this.contracts.get(invitation.contractId);
+    if (contract) {
+      const updated = {
+        ...contract,
+        status: "pending_approval",
+        updatedAt: new Date(),
+      };
+      this.contracts.set(invitation.contractId, updated);
+    }
+    
+    return { contractId: invitation.contractId };
+  }
+
+  async getInvitationByCode(code: string): Promise<ContractInvitation | undefined> {
+    return Array.from(this.invitations.values())
+      .find(inv => inv.invitationCode === code);
+  }
+
+  async approveContract(contractId: string, userId: string): Promise<boolean> {
+    // Find collaborator record
+    const collaborator = Array.from(this.collaborators.values())
+      .find(c => c.contractId === contractId && c.userId === userId);
+    
+    if (!collaborator) return false;
+    
+    // Check if already approved/rejected
+    if (collaborator.status === "approved" || collaborator.status === "rejected") {
+      return false;
+    }
+    
+    // Update collaborator status
+    collaborator.status = "approved";
+    collaborator.approvedAt = new Date();
+    this.collaborators.set(collaborator.id, collaborator);
+    
+    // Check if all collaborators have approved
+    const allCollaborators = Array.from(this.collaborators.values())
+      .filter(c => c.contractId === contractId);
+    
+    const allApproved = allCollaborators.every(c => c.status === "approved");
+    
+    if (allApproved) {
+      // Update contract status to active
+      const contract = this.contracts.get(contractId);
+      if (contract) {
+        const updated = {
+          ...contract,
+          status: "active",
+          updatedAt: new Date(),
+        };
+        this.contracts.set(contractId, updated);
+      }
+    }
+    
     return true;
   }
 
-  async rejectContract(_contractId: string, _userId: string, _reason?: string): Promise<boolean> {
-    // TODO: Update collaborator status to rejected
+  async rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean> {
+    // Find collaborator record
+    const collaborator = Array.from(this.collaborators.values())
+      .find(c => c.contractId === contractId && c.userId === userId);
+    
+    if (!collaborator) return false;
+    
+    // Check if already approved/rejected
+    if (collaborator.status === "approved" || collaborator.status === "rejected") {
+      return false;
+    }
+    
+    // Update collaborator status
+    collaborator.status = "rejected";
+    collaborator.rejectedAt = new Date();
+    collaborator.rejectionReason = reason || null;
+    this.collaborators.set(collaborator.id, collaborator);
+    
+    // Update contract status to rejected
+    const contract = this.contracts.get(contractId);
+    if (contract) {
+      const updated = {
+        ...contract,
+        status: "rejected",
+        updatedAt: new Date(),
+      };
+      this.contracts.set(contractId, updated);
+    }
+    
     return true;
   }
 
@@ -673,67 +877,247 @@ export class DbStorage implements IStorage {
       .orderBy(desc(consentContracts.createdAt));
   }
 
-  async shareContract(contractId: string, recipientEmail: string, senderId: string): Promise<{ invitationId: string; invitationCode: string }> {
-    const invitationCode = randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
-    
-    // Create invitation
-    const invitation = await db.insert(contractInvitations).values({
-      contractId,
-      senderId,
-      recipientEmail,
-      invitationCode,
-      expiresAt,
-    }).returning();
-    
-    // Update contract to collaborative
-    await db
-      .update(consentContracts)
-      .set({ isCollaborative: "true", updatedAt: new Date() })
-      .where(eq(consentContracts.id, contractId));
-    
-    // Create collaborator record for initiator if not exists
-    const existingInitiator = await db
-      .select()
-      .from(contractCollaborators)
-      .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, senderId)));
-    
-    if (existingInitiator.length === 0) {
-      await db.insert(contractCollaborators).values({
-        contractId,
-        userId: senderId,
-        role: "initiator",
-        status: "approved",
-        approvedAt: new Date(),
-      });
+  async shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }> {
+    // Prevent self-invites by comparing emails
+    if (recipientEmail.toLowerCase() === senderEmail.toLowerCase()) {
+      throw new Error("Cannot share contract with yourself");
     }
     
-    return { invitationId: invitation[0].id, invitationCode };
+    // Use transaction to ensure atomicity
+    return await db.transaction(async (tx) => {
+      // Validate contract exists and belongs to sender
+      const contract = await tx
+        .select()
+        .from(consentContracts)
+        .where(and(eq(consentContracts.id, contractId), eq(consentContracts.userId, senderId)));
+      
+      if (contract.length === 0) {
+        throw new Error("Contract not found or unauthorized");
+      }
+      
+      // Prevent sharing non-draft contracts
+      if (contract[0].status !== "draft") {
+        throw new Error("Only draft contracts can be shared");
+      }
+      
+      // Check for any existing invitation to this email (regardless of status)
+      const existingInvitation = await tx
+        .select()
+        .from(contractInvitations)
+        .where(and(
+          eq(contractInvitations.contractId, contractId),
+          sql`LOWER(${contractInvitations.recipientEmail}) = LOWER(${recipientEmail})`
+        ));
+      
+      if (existingInvitation.length > 0) {
+        throw new Error("An invitation has already been sent to this email");
+      }
+      
+      const invitationCode = randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+      
+      // Create invitation
+      const invitation = await tx.insert(contractInvitations).values({
+        contractId,
+        senderId,
+        recipientEmail,
+        invitationCode,
+        expiresAt,
+      }).returning();
+      
+      // Update contract to collaborative
+      await tx
+        .update(consentContracts)
+        .set({ isCollaborative: "true", updatedAt: new Date() })
+        .where(eq(consentContracts.id, contractId));
+      
+      // Create collaborator record for initiator if not exists
+      const existingInitiator = await tx
+        .select()
+        .from(contractCollaborators)
+        .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, senderId)));
+      
+      if (existingInitiator.length === 0) {
+        await tx.insert(contractCollaborators).values({
+          contractId,
+          userId: senderId,
+          role: "initiator",
+          status: "approved",
+          approvedAt: new Date(),
+          viewedAt: new Date(),
+        });
+      }
+      
+      return { invitationId: invitation[0].id, invitationCode };
+    });
+  }
+
+  async acceptInvitation(invitationCode: string, userId: string): Promise<{ contractId: string } | null> {
+    // Use transaction to prevent race conditions
+    return await db.transaction(async (tx) => {
+      // Find and lock invitation (prevent concurrent acceptance)
+      const invitations = await tx
+        .select()
+        .from(contractInvitations)
+        .where(and(
+          eq(contractInvitations.invitationCode, invitationCode),
+          eq(contractInvitations.status, "pending") // Row-level guard
+        ));
+      
+      if (invitations.length === 0) return null;
+      const invitation = invitations[0];
+      
+      // Check if expired
+      if (new Date() > invitation.expiresAt) {
+        return null;
+      }
+      
+      // Check if user is already a collaborator (prevent duplicates)
+      const existingCollaborator = await tx
+        .select()
+        .from(contractCollaborators)
+        .where(and(
+          eq(contractCollaborators.contractId, invitation.contractId),
+          eq(contractCollaborators.userId, userId)
+        ));
+      
+      if (existingCollaborator.length > 0) {
+        // User already a collaborator, just mark invitation as accepted
+        await tx
+          .update(contractInvitations)
+          .set({ status: "accepted", acceptedAt: new Date() })
+          .where(eq(contractInvitations.id, invitation.id));
+        return { contractId: invitation.contractId };
+      }
+      
+      // Update invitation status (will fail if status changed)
+      const updated = await tx
+        .update(contractInvitations)
+        .set({ status: "accepted", acceptedAt: new Date() })
+        .where(and(
+          eq(contractInvitations.id, invitation.id),
+          eq(contractInvitations.status, "pending") // Prevent double-acceptance
+        ))
+        .returning();
+      
+      if (updated.length === 0) return null; // Already accepted
+      
+      // Create collaborator record
+      await tx.insert(contractCollaborators).values({
+        contractId: invitation.contractId,
+        userId,
+        role: "recipient",
+        status: "pending",
+        viewedAt: new Date(),
+      });
+      
+      // Update contract status to pending_approval
+      await tx
+        .update(consentContracts)
+        .set({ status: "pending_approval", updatedAt: new Date() })
+        .where(eq(consentContracts.id, invitation.contractId));
+      
+      return { contractId: invitation.contractId };
+    });
+  }
+
+  async getInvitationByCode(code: string): Promise<ContractInvitation | undefined> {
+    const result = await db
+      .select()
+      .from(contractInvitations)
+      .where(eq(contractInvitations.invitationCode, code));
+    return result[0];
   }
 
   async approveContract(contractId: string, userId: string): Promise<boolean> {
-    const result = await db
-      .update(contractCollaborators)
-      .set({ status: "approved", approvedAt: new Date() })
-      .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, userId)))
-      .returning();
-    
-    return result.length > 0;
+    // Use transaction to prevent race conditions during approval
+    return await db.transaction(async (tx) => {
+      // Find collaborator record with row-level guard
+      const collaborators = await tx
+        .select()
+        .from(contractCollaborators)
+        .where(and(
+          eq(contractCollaborators.contractId, contractId),
+          eq(contractCollaborators.userId, userId),
+          eq(contractCollaborators.status, "pending") // Row-level guard
+        ));
+      
+      if (collaborators.length === 0) return false;
+      const collaborator = collaborators[0];
+      
+      // Update collaborator status with guard to prevent double-approval
+      const updated = await tx
+        .update(contractCollaborators)
+        .set({ status: "approved", approvedAt: new Date() })
+        .where(and(
+          eq(contractCollaborators.id, collaborator.id),
+          eq(contractCollaborators.status, "pending") // Prevent double-approval
+        ))
+        .returning();
+      
+      if (updated.length === 0) return false; // Already approved or rejected
+      
+      // Check if all collaborators have approved
+      const allCollaborators = await tx
+        .select()
+        .from(contractCollaborators)
+        .where(eq(contractCollaborators.contractId, contractId));
+      
+      const allApproved = allCollaborators.every(c => c.status === "approved");
+      
+      if (allApproved) {
+        // Update contract status to active
+        await tx
+          .update(consentContracts)
+          .set({ status: "active", updatedAt: new Date() })
+          .where(eq(consentContracts.id, contractId));
+      }
+      
+      return true;
+    });
   }
 
   async rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean> {
-    const result = await db
-      .update(contractCollaborators)
-      .set({ 
-        status: "rejected", 
-        rejectedAt: new Date(),
-        rejectionReason: reason || null,
-      })
-      .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, userId)))
-      .returning();
-    
-    return result.length > 0;
+    // Use transaction to prevent race conditions during rejection
+    return await db.transaction(async (tx) => {
+      // Find collaborator record with row-level guard
+      const collaborators = await tx
+        .select()
+        .from(contractCollaborators)
+        .where(and(
+          eq(contractCollaborators.contractId, contractId),
+          eq(contractCollaborators.userId, userId),
+          eq(contractCollaborators.status, "pending") // Row-level guard
+        ));
+      
+      if (collaborators.length === 0) return false;
+      const collaborator = collaborators[0];
+      
+      // Update collaborator status with guard to prevent double-rejection
+      const updated = await tx
+        .update(contractCollaborators)
+        .set({ 
+          status: "rejected", 
+          rejectedAt: new Date(),
+          rejectionReason: reason || null,
+        })
+        .where(and(
+          eq(contractCollaborators.id, collaborator.id),
+          eq(contractCollaborators.status, "pending") // Prevent double-rejection
+        ))
+        .returning();
+      
+      if (updated.length === 0) return false; // Already approved or rejected
+      
+      // Update contract status to rejected
+      await tx
+        .update(consentContracts)
+        .set({ status: "rejected", updatedAt: new Date() })
+        .where(eq(consentContracts.id, contractId));
+      
+      return true;
+    });
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
