@@ -225,6 +225,15 @@ export const insertVerificationPaymentSchema = createInsertSchema(verificationPa
   gpuModel: z.enum(["gpt-4", "gpt-4-turbo", "gpt-4o"]),
 });
 
+// API request validation schemas for collaborative contracts
+export const shareContractSchema = z.object({
+  recipientEmail: z.string().email("Invalid email format"),
+});
+
+export const rejectContractSchema = z.object({
+  reason: z.string().optional(),
+});
+
 // ================================================================
 // TYPESCRIPT TYPES
 // ================================================================

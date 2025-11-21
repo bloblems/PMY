@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import storage from "./storage";
-import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema, type ConsentContract } from "@shared/schema";
+import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema, type ConsentContract, shareContractSchema, rejectContractSchema } from "@shared/schema";
 import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
@@ -1305,20 +1305,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contracts/:id/share", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { recipientEmail } = req.body;
       const userId = req.user!.id;
       const userEmail = req.user!.email || '';
 
-      // Validate input
-      if (!recipientEmail || typeof recipientEmail !== 'string') {
-        return res.status(400).json({ error: "Recipient email is required" });
+      // Validate request body with Zod
+      const validation = shareContractSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid request data",
+          details: validation.error.errors 
+        });
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(recipientEmail)) {
-        return res.status(400).json({ error: "Invalid email format" });
-      }
+      const { recipientEmail } = validation.data;
 
       // Verify ownership and draft status before sharing
       const contract = await storage.getContract(id, userId);
@@ -1457,13 +1456,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contracts/:id/reject", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { reason } = req.body;
       const userId = req.user!.id;
 
-      // Validate optional reason field
-      if (reason !== undefined && typeof reason !== 'string') {
-        return res.status(400).json({ error: "Rejection reason must be a string" });
+      // Validate request body with Zod
+      const validation = rejectContractSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid request data",
+          details: validation.error.errors 
+        });
       }
+
+      const { reason } = validation.data;
 
       // Verify contract exists and user has access
       const contract = await storage.getContract(id, userId);
