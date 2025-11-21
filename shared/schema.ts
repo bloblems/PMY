@@ -26,6 +26,11 @@ export const userProfiles = pgTable("users", {
   dataRetentionPolicy: text("data_retention_policy").notNull().default("forever"),
   stripeCustomerId: text("stripe_customer_id"),
   referralCode: text("referral_code"),
+  // User preferences for consent flow defaults
+  defaultUniversityId: uuid("default_university_id"), // References universities(id)
+  stateOfResidence: text("state_of_residence"), // 2-letter state code (e.g., "CA", "NY")
+  defaultEncounterType: text("default_encounter_type"), // Default encounter type
+  defaultContractDuration: integer("default_contract_duration"), // Default duration in minutes
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
