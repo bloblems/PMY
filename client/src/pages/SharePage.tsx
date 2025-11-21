@@ -27,33 +27,96 @@ const gradientColors = [
     name: "PMY Green", 
     from: "from-primary", 
     to: "to-emerald-500",
-    hex: { start: "#22c55e", end: "#10b981" }
+    // Use CSS variable for primary, fallback hex for emerald-500
+    cssVars: { start: "--primary", end: null },
+    fallbackHex: { start: "#22c55e", end: "#10b981" }
   },
   { 
     name: "Ocean", 
     from: "from-blue-400", 
     to: "to-cyan-500",
-    hex: { start: "#60a5fa", end: "#06b6d4" }
+    cssVars: { start: null, end: null },
+    fallbackHex: { start: "#60a5fa", end: "#06b6d4" }
   },
   { 
     name: "Sunset", 
     from: "from-orange-400", 
     to: "to-pink-500",
-    hex: { start: "#fb923c", end: "#ec4899" }
+    cssVars: { start: null, end: null },
+    fallbackHex: { start: "#fb923c", end: "#ec4899" }
   },
   { 
     name: "Purple", 
     from: "from-purple-400", 
     to: "to-indigo-500",
-    hex: { start: "#c084fc", end: "#6366f1" }
+    cssVars: { start: null, end: null },
+    fallbackHex: { start: "#c084fc", end: "#6366f1" }
   },
   { 
     name: "Forest", 
     from: "from-green-500", 
     to: "to-teal-500",
-    hex: { start: "#22c55e", end: "#14b8a6" }
+    cssVars: { start: null, end: null },
+    fallbackHex: { start: "#22c55e", end: "#14b8a6" }
   },
 ];
+
+// Helper function to get computed color from CSS variable or fallback
+const getGradientColor = (cssVar: string | null, fallbackHex: string): string => {
+  if (cssVar) {
+    const computedValue = getComputedStyle(document.documentElement)
+      .getPropertyValue(cssVar)
+      .trim();
+    
+    // If CSS variable returns HSL format (e.g., "142 71% 45%"), convert to hex
+    if (computedValue && !computedValue.startsWith('#')) {
+      // Parse HSL values
+      const hslMatch = computedValue.match(/(\d+)\s+(\d+)%\s+(\d+)%/);
+      if (hslMatch) {
+        const h = parseInt(hslMatch[1]);
+        const s = parseInt(hslMatch[2]);
+        const l = parseInt(hslMatch[3]);
+        return hslToHex(h, s, l);
+      }
+    }
+    
+    return computedValue || fallbackHex;
+  }
+  return fallbackHex;
+};
+
+// Convert HSL to Hex
+const hslToHex = (h: number, s: number, l: number): string => {
+  const sDecimal = s / 100;
+  const lDecimal = l / 100;
+  
+  const c = (1 - Math.abs(2 * lDecimal - 1)) * sDecimal;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = lDecimal - c / 2;
+  
+  let r = 0, g = 0, b = 0;
+  
+  if (h >= 0 && h < 60) {
+    r = c; g = x; b = 0;
+  } else if (h >= 60 && h < 120) {
+    r = x; g = c; b = 0;
+  } else if (h >= 120 && h < 180) {
+    r = 0; g = c; b = x;
+  } else if (h >= 180 && h < 240) {
+    r = 0; g = x; b = c;
+  } else if (h >= 240 && h < 300) {
+    r = x; g = 0; b = c;
+  } else {
+    r = c; g = 0; b = x;
+  }
+  
+  const toHex = (n: number) => {
+    const hex = Math.round((n + m) * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
 
 export default function SharePage() {
   const { toast } = useToast();
@@ -121,11 +184,14 @@ export default function SharePage() {
     canvas.width = 800;
     canvas.height = 900;
 
-    // Get selected gradient colors
+    // Get selected gradient colors (computed at download time for theme accuracy)
     const gradient = gradientColors[selectedGradient];
+    const startColor = getGradientColor(gradient.cssVars.start, gradient.fallbackHex.start);
+    const endColor = getGradientColor(gradient.cssVars.end, gradient.fallbackHex.end);
+    
     const gradientFill = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradientFill.addColorStop(0, gradient.hex.start);
-    gradientFill.addColorStop(1, gradient.hex.end);
+    gradientFill.addColorStop(0, startColor);
+    gradientFill.addColorStop(1, endColor);
 
     // Fill background with gradient
     ctx.fillStyle = gradientFill;
@@ -133,13 +199,14 @@ export default function SharePage() {
 
     // Draw white card with rounded corners
     ctx.fillStyle = 'white';
+    ctx.beginPath(); // Essential: start path before drawing
+    
     // Fallback for older browsers that don't support roundRect
     if (typeof ctx.roundRect === 'function') {
       ctx.roundRect(50, 150, 700, 600, 24);
     } else {
       // Manual rounded rectangle fallback
       const x = 50, y = 150, width = 700, height = 600, radius = 24;
-      ctx.beginPath();
       ctx.moveTo(x + radius, y);
       ctx.lineTo(x + width - radius, y);
       ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
