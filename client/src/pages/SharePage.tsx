@@ -1,502 +1,372 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
+import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Share2, Mail, Users, Trophy, QrCode, Copy, Download, CheckCircle, Clock, XCircle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { X, Share2, Link as LinkIcon, Download, MoreHorizontal, Palette } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { format } from "date-fns";
+import { useLocation } from "wouter";
+import PMYLogo from "@/components/PMYLogo";
 
-interface Referral {
-  id: string;
-  referrerId: string;
-  refereeEmail: string;
-  refereeId: string | null;
-  status: string;
-  invitationMessage: string | null;
-  createdAt: string;
-  completedAt: string | null;
+interface UserData {
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
+  profile?: {
+    profilePictureUrl?: string | null;
+    bio?: string | null;
+    websiteUrl?: string | null;
+  };
 }
 
-interface ConsentContract {
-  id: string;
-  encounterType: string;
-  createdAt: string;
-}
-
-interface ConsentRecording {
-  id: string;
-  recordingType: string;
-  createdAt: string;
-}
+const gradientColors = [
+  { name: "PMY Green", from: "from-primary", to: "to-emerald-500" },
+  { name: "Ocean", from: "from-blue-400", to: "to-cyan-500" },
+  { name: "Sunset", from: "from-orange-400", to: "to-pink-500" },
+  { name: "Purple", from: "from-purple-400", to: "to-indigo-500" },
+  { name: "Forest", from: "from-green-500", to: "to-teal-500" },
+];
 
 export default function SharePage() {
   const { toast } = useToast();
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteMessage, setInviteMessage] = useState("");
-  const [shareDocumentEmail, setShareDocumentEmail] = useState("");
-  const [selectedDocumentId, setSelectedDocumentId] = useState("");
-  const [selectedDocumentType, setSelectedDocumentType] = useState<"contract" | "recording">("contract");
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const [selectedGradient, setSelectedGradient] = useState(0);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const qrCardRef = useRef<HTMLDivElement>(null);
+
+  // Fetch user profile data
+  const { data: userData } = useQuery<UserData>({
+    queryKey: ['/api/auth/me'],
+    enabled: !!user,
+  });
 
   // Fetch user's referral code
   const { data: referralData } = useQuery<{ referralCode: string }>({
     queryKey: ["/api/user/referral-code"],
+    enabled: !!user,
   });
 
-  // Fetch referral stats
-  const { data: stats } = useQuery<{ total: number; completed: number; pending: number }>({
-    queryKey: ["/api/referrals/stats"],
-  });
-
-  // Fetch referral history
-  const { data: referrals = [] } = useQuery<Referral[]>({
-    queryKey: ["/api/referrals"],
-  });
-
-  // Fetch user's consent contracts
-  const { data: contracts = [] } = useQuery<ConsentContract[]>({
-    queryKey: ["/api/contracts"],
-  });
-
-  // Fetch user's consent recordings
-  const { data: recordings = [] } = useQuery<ConsentRecording[]>({
-    queryKey: ["/api/recordings"],
-  });
-
-  // Create referral mutation
-  const createReferralMutation = useMutation({
-    mutationFn: async (data: { refereeEmail: string; invitationMessage: string }) => {
-      return await apiRequest("POST", "/api/referrals", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/referrals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/referrals/stats"] });
-      setInviteEmail("");
-      setInviteMessage("");
-      toast({
-        title: "Invitation sent!",
-        description: "Your friend has been invited to join PMY.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to send invitation. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Share document mutation
-  const shareDocumentMutation = useMutation({
-    mutationFn: async (data: { documentId: string; documentType: string; recipientEmail: string }) => {
-      return await apiRequest("POST", "/api/share-document", data);
-    },
-    onSuccess: () => {
-      setShareDocumentEmail("");
-      setSelectedDocumentId("");
-      toast({
-        title: "Document shared!",
-        description: "The consent document has been sent via email.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to share document. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSendInvite = () => {
-    if (!inviteEmail) {
-      toast({
-        title: "Email required",
-        description: "Please enter an email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    createReferralMutation.mutate({
-      refereeEmail: inviteEmail,
-      invitationMessage: inviteMessage || "Join me on PMY for secure Title IX consent documentation!",
-    });
-  };
-
-  const handleShareDocument = () => {
-    if (!shareDocumentEmail) {
-      toast({
-        title: "Email required",
-        description: "Please enter a recipient email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!selectedDocumentId) {
-      toast({
-        title: "Document required",
-        description: "Please select a document to share.",
-        variant: "destructive",
-      });
-      return;
-    }
-    shareDocumentMutation.mutate({
-      documentId: selectedDocumentId,
-      documentType: selectedDocumentType,
-      recipientEmail: shareDocumentEmail,
-    });
-  };
-
-  const handleCopyReferralLink = () => {
-    if (referralData?.referralCode) {
-      const referralLink = `${window.location.origin}/?ref=${referralData.referralCode}`;
-      navigator.clipboard.writeText(referralLink);
-      toast({
-        title: "Copied!",
-        description: "Referral link copied to clipboard.",
-      });
-    }
-  };
-
-  const handleCopyReferralCode = () => {
-    if (referralData?.referralCode) {
-      navigator.clipboard.writeText(referralData.referralCode);
-      toast({
-        title: "Copied!",
-        description: "Referral code copied to clipboard.",
-      });
-    }
-  };
-
+  const userName = userData?.user?.name || "User";
   const referralLink = referralData?.referralCode 
     ? `${window.location.origin}/?ref=${referralData.referralCode}`
-    : "";
+    : window.location.origin;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralLink);
+    toast({
+      title: "Copied!",
+      description: "Referral link copied to clipboard.",
+    });
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Join me on PMY`,
+          text: `Use my referral code: ${referralData?.referralCode || ''}`,
+          url: referralLink,
+        });
+      } catch (error) {
+        // User cancelled sharing or error occurred
+        console.log("Share cancelled");
+      }
+    } else {
+      handleCopyLink();
+    }
+  };
+
+  const handleDownload = () => {
+    if (!qrCardRef.current) return;
+
+    // Create a canvas from the QR code SVG
+    const svg = qrCardRef.current.querySelector('svg');
+    if (!svg) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = 800;
+    canvas.height = 900;
+
+    // Get gradient colors
+    const gradient = gradientColors[selectedGradient];
+    const gradientFill = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradientFill.addColorStop(0, getComputedStyle(document.documentElement)
+      .getPropertyValue('--primary').trim() || '#22c55e');
+    gradientFill.addColorStop(1, '#10b981');
+
+    // Fill background
+    ctx.fillStyle = gradientFill;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw white card
+    ctx.fillStyle = 'white';
+    ctx.roundRect(50, 150, 700, 600, 24);
+    ctx.fill();
+
+    // Create an image from SVG
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const img = new Image();
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      // Draw QR code
+      ctx.drawImage(img, 200, 200, 400, 400);
+
+      // Draw PMY text
+      ctx.fillStyle = '#22c55e';
+      ctx.font = 'bold 48px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('PMY', 400, 680);
+
+      // Draw username
+      ctx.fillStyle = '#666';
+      ctx.font = '32px system-ui';
+      ctx.fillText(`@${userName.toLowerCase().replace(/\s+/g, '')}`, 400, 720);
+
+      // Convert to image and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `pmy-qr-${userName}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+
+      URL.revokeObjectURL(url);
+    };
+
+    img.src = url;
+
+    toast({
+      title: "Downloaded!",
+      description: "QR code saved to your device.",
+    });
+  };
+
+  const currentGradient = gradientColors[selectedGradient];
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Share & Invite</h1>
-          <p className="text-sm text-muted-foreground">
-            Share documents and invite friends to PMY
-          </p>
+    <div className="fixed inset-0 z-50 bg-background">
+      {/* Main QR Code View */}
+      <div className={`relative min-h-screen bg-gradient-to-br ${currentGradient.from} ${currentGradient.to} overflow-hidden`}>
+        {/* Top Bar */}
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setLocation('/profile')}
+            className="text-white hover:bg-white/20"
+            data-testid="button-close-share"
+          >
+            <X className="h-6 w-6" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="text-white hover:bg-white/20 rounded-full px-4"
+            data-testid="button-color-picker"
+          >
+            <Palette className="h-4 w-4 mr-2" />
+            COLOR
+          </Button>
+
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setShowMoreOptions(!showMoreOptions)}
+            className="text-white hover:bg-white/20"
+            data-testid="button-more-options"
+          >
+            <MoreHorizontal className="h-6 w-6" />
+          </Button>
         </div>
 
-        <Tabs defaultValue="documents" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="documents" data-testid="tab-documents">
-              <Share2 className="h-4 w-4 mr-1" />
-              Documents
-            </TabsTrigger>
-            <TabsTrigger value="invite" data-testid="tab-invite">
-              <Mail className="h-4 w-4 mr-1" />
-              Invite
-            </TabsTrigger>
-            <TabsTrigger value="referrals" data-testid="tab-referrals">
-              <Trophy className="h-4 w-4 mr-1" />
-              Referrals
-            </TabsTrigger>
-          </TabsList>
+        {/* Color Picker Dropdown */}
+        {showColorPicker && (
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20 bg-white/95 backdrop-blur-sm rounded-2xl p-3 shadow-lg">
+            <div className="flex gap-2">
+              {gradientColors.map((gradient, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setSelectedGradient(index);
+                    setShowColorPicker(false);
+                  }}
+                  className={`w-12 h-12 rounded-full bg-gradient-to-br ${gradient.from} ${gradient.to} border-4 ${
+                    selectedGradient === index ? 'border-white scale-110' : 'border-transparent'
+                  } transition-all hover:scale-105`}
+                  aria-label={gradient.name}
+                  data-testid={`color-${index}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
-          {/* Document Sharing Tab */}
-          <TabsContent value="documents" className="space-y-4">
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Share Document via Email</h3>
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="document-type">Document Type</Label>
-                  <Select
-                    value={selectedDocumentType}
-                    onValueChange={(value: "contract" | "recording") => {
-                      setSelectedDocumentType(value);
-                      setSelectedDocumentId("");
-                    }}
-                  >
-                    <SelectTrigger id="document-type" data-testid="select-document-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="contract">Signature Contracts</SelectItem>
-                      <SelectItem value="recording">Audio/Video Recordings</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="select-document">Select Document</Label>
-                  <Select
-                    value={selectedDocumentId}
-                    onValueChange={setSelectedDocumentId}
-                  >
-                    <SelectTrigger id="select-document" data-testid="select-document">
-                      <SelectValue placeholder="Choose a document..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedDocumentType === "contract" ? (
-                        contracts.length === 0 ? (
-                          <SelectItem value="none" disabled>No contracts available</SelectItem>
-                        ) : (
-                          contracts.map((contract) => (
-                            <SelectItem key={contract.id} value={contract.id}>
-                              {contract.encounterType} - {format(new Date(contract.createdAt), "MMM d, yyyy")}
-                            </SelectItem>
-                          ))
-                        )
-                      ) : (
-                        recordings.length === 0 ? (
-                          <SelectItem value="none" disabled>No recordings available</SelectItem>
-                        ) : (
-                          recordings.map((recording) => (
-                            <SelectItem key={recording.id} value={recording.id}>
-                              {recording.recordingType} - {format(new Date(recording.createdAt), "MMM d, yyyy")}
-                            </SelectItem>
-                          ))
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="share-email">Recipient Email</Label>
-                  <Input
-                    id="share-email"
-                    type="email"
-                    placeholder="friend@example.com"
-                    value={shareDocumentEmail}
-                    onChange={(e) => setShareDocumentEmail(e.target.value)}
-                    data-testid="input-share-email"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    You can also send to yourself for backup
-                  </p>
-                </div>
-                <Button
-                  onClick={handleShareDocument}
-                  disabled={shareDocumentMutation.isPending || !selectedDocumentId || !shareDocumentEmail}
-                  className="w-full"
-                  data-testid="button-share-document"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  {shareDocumentMutation.isPending ? "Sending..." : "Share Document"}
-                </Button>
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Download Document</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Download your consent documents to share them manually
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  toast({
-                    title: "Go to Contracts",
-                    description: "Visit the Contracts page to download your documents.",
-                  });
-                }}
-                data-testid="button-goto-contracts"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Go to Contracts Page
-              </Button>
-            </Card>
-          </TabsContent>
-
-          {/* Invite Friends Tab */}
-          <TabsContent value="invite" className="space-y-4">
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Send Invitation</h3>
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="invite-email">Friend's Email</Label>
-                  <Input
-                    id="invite-email"
-                    type="email"
-                    placeholder="friend@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    data-testid="input-invite-email"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="invite-message">Personal Message (Optional)</Label>
-                  <Textarea
-                    id="invite-message"
-                    placeholder="Join me on PMY for secure Title IX consent documentation!"
-                    value={inviteMessage}
-                    onChange={(e) => setInviteMessage(e.target.value)}
-                    rows={3}
-                    data-testid="textarea-invite-message"
-                  />
-                </div>
-                <Button
-                  onClick={handleSendInvite}
-                  disabled={createReferralMutation.isPending || !inviteEmail}
-                  className="w-full"
-                  data-testid="button-send-invite"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  {createReferralMutation.isPending ? "Sending..." : "Send Invitation"}
-                </Button>
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Share Referral Link</h3>
-              <div className="space-y-3">
-                <div>
-                  <Label>Your Referral Code</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      value={referralData?.referralCode || "Loading..."}
-                      readOnly
-                      data-testid="input-referral-code"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleCopyReferralCode}
-                      data-testid="button-copy-code"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <Label>Referral Link</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      value={referralLink || "Loading..."}
-                      readOnly
-                      data-testid="input-referral-link"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleCopyReferralLink}
-                      data-testid="button-copy-link"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
+        {/* QR Code Card */}
+        <div className="flex items-center justify-center min-h-screen px-4 py-20">
+          <div className="w-full max-w-sm">
+            <div
+              ref={qrCardRef}
+              className="bg-white rounded-3xl p-8 shadow-2xl mb-6"
+              data-testid="qr-card"
+            >
+              {/* QR Code with PMY Logo */}
+              <div className="relative bg-white p-4 rounded-2xl mb-6">
+                <QRCodeSVG
+                  value={referralLink}
+                  size={280}
+                  level="H"
+                  className="w-full h-auto"
+                  fgColor="#22c55e"
+                  data-testid="qr-code"
+                />
+                {/* PMY Logo Overlay - centered in QR code */}
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl p-3 shadow-lg">
+                  <PMYLogo className="text-3xl text-primary" />
                 </div>
               </div>
-            </Card>
 
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <QrCode className="h-4 w-4" />
-                QR Code
-              </h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Share your referral link by showing this QR code
-              </p>
-              <div className="flex justify-center p-4 bg-white rounded-lg">
-                {referralLink ? (
-                  <QRCodeSVG value={referralLink} size={200} data-testid="qr-code" />
-                ) : (
-                  <div className="w-[200px] h-[200px] bg-muted rounded flex items-center justify-center">
-                    Loading...
-                  </div>
-                )}
+              {/* Username */}
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary mb-1">
+                  @{userName.toLowerCase().replace(/\s+/g, '')}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Scan to join PMY
+                </div>
               </div>
-            </Card>
-          </TabsContent>
-
-          {/* Referrals Dashboard Tab */}
-          <TabsContent value="referrals" className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <Card className="p-4">
-                <div className="text-2xl font-bold">{stats?.total || 0}</div>
-                <div className="text-xs text-muted-foreground">Total Invites</div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-2xl font-bold text-success">
-                  {stats?.completed || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">Completed</div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                  {stats?.pending || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">Pending</div>
-              </Card>
             </div>
 
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Referral History</h3>
-              <div className="space-y-3">
-                {referrals.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No referrals yet</p>
-                    <p className="text-xs">Start inviting friends to earn rewards!</p>
-                  </div>
-                ) : (
-                  referrals.map((referral) => (
-                    <div
-                      key={referral.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                      data-testid={`referral-${referral.id}`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">
-                          {referral.refereeEmail}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(referral.createdAt), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                      <div>
-                        {referral.status === "completed" ? (
-                          <Badge variant="default" className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3" />
-                            Joined
-                          </Badge>
-                        ) : referral.status === "pending" ? (
-                          <Badge variant="secondary" className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Pending
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive" className="flex items-center gap-1">
-                            <XCircle className="h-3 w-3" />
-                            Cancelled
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
+            {/* Action Buttons */}
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                onClick={handleShare}
+                className="flex flex-col items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl p-4 hover-elevate active-elevate-2 transition-all"
+                data-testid="button-share"
+              >
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
+                  <Share2 className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-sm font-medium">Share</span>
+              </button>
 
-            <Card className="p-4 bg-gradient-to-br from-success/10 to-success/15 border-success/20">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-success" />
-                Referral Rewards
-              </h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Earn rewards when your friends join PMY! Future benefits may include premium
-                features, verified policy access, and more.
-              </p>
-              <Badge variant="secondary" className="text-xs">
-                Coming Soon
-              </Badge>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              <button
+                onClick={handleCopyLink}
+                className="flex flex-col items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl p-4 hover-elevate active-elevate-2 transition-all"
+                data-testid="button-copy-link"
+              >
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center">
+                  <LinkIcon className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-sm font-medium">Copy link</span>
+              </button>
+
+              <button
+                onClick={handleDownload}
+                className="flex flex-col items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl p-4 hover-elevate active-elevate-2 transition-all"
+                data-testid="button-download"
+              >
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
+                  <Download className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-sm font-medium">Download</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* More Options Bottom Sheet */}
+        {showMoreOptions && (
+          <div className="absolute bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl p-6 shadow-2xl max-h-[70vh] overflow-y-auto">
+            <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-6" />
+            
+            <Tabs defaultValue="invite" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="invite">Invite Friends</TabsTrigger>
+                <TabsTrigger value="about">About QR Code</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="invite" className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Invite Friends to PMY</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Share your referral code and help friends discover secure Title IX consent documentation.
+                  </p>
+
+                  <div className="bg-muted/50 rounded-xl p-4">
+                    <div className="text-sm text-muted-foreground mb-1">Your Referral Code</div>
+                    <div className="text-2xl font-bold text-primary font-mono">
+                      {referralData?.referralCode || "Loading..."}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleShare}
+                    className="flex-1"
+                    data-testid="button-share-invite"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share Invite
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowMoreOptions(false);
+                      setLocation('/profile');
+                    }}
+                    variant="outline"
+                    data-testid="button-view-profile"
+                  >
+                    View Profile
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="about" className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">How it works</h3>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      Your QR code contains your unique PMY referral link. When someone scans it, they'll be directed to PMY and credited to your referrals.
+                    </p>
+                    <p>
+                      The QR code is designed with PMY's colors and your username for easy recognition. You can customize the background gradient to match your style.
+                    </p>
+                    <p>
+                      Download the QR code to share it in your social media posts, presentations, or print materials.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => setShowMoreOptions(false)}
+                  variant="outline"
+                  className="w-full"
+                  data-testid="button-close-more"
+                >
+                  Close
+                </Button>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );
