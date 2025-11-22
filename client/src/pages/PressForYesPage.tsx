@@ -215,14 +215,43 @@ export default function PressForYesPage() {
               `}
               data-testid="button-press-for-yes"
             >
-              {/* Horizontal Progress Fill */}
+              {/* Animated Progress Stroke */}
               {isPressed && pressProgress < 100 && (
-                <div 
-                  className="absolute inset-0 bg-white/20 transition-all duration-100 ease-linear"
-                  style={{
-                    width: `${pressProgress}%`,
-                  }}
-                />
+                <svg 
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  viewBox="0 0 400 128"
+                  preserveAspectRatio="none"
+                >
+                  {/* Background stroke (semi-transparent) */}
+                  <rect
+                    x="4"
+                    y="4"
+                    width="392"
+                    height="120"
+                    rx="8"
+                    ry="8"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="6"
+                    strokeOpacity="0.3"
+                  />
+                  {/* Animated progress stroke */}
+                  <rect
+                    x="4"
+                    y="4"
+                    width="392"
+                    height="120"
+                    rx="8"
+                    ry="8"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="6"
+                    strokeDasharray={`${2 * (392 + 120)}`}
+                    strokeDashoffset={`${2 * (392 + 120) * (1 - pressProgress / 100)}`}
+                    strokeLinecap="round"
+                    className="transition-all duration-100 ease-linear"
+                  />
+                </svg>
               )}
               
               {/* Glow effect */}
