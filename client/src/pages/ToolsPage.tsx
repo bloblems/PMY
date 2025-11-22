@@ -17,19 +17,8 @@ interface ToolPanel {
 
 const toolPanels: ToolPanel[] = [
   {
-    id: "title-ix",
-    title: "Title IX",
-    description: "Access university Title IX policies and educational resources about consent requirements.",
-    icon: <School className="h-6 w-6" />,
-    iconBgColor: "bg-blue-500/10 dark:bg-blue-400/10",
-    action: {
-      label: "View Policies",
-      path: "/titleix"
-    }
-  },
-  {
-    id: "id-verify",
-    title: "ID Verify",
+    id: "partner-verify",
+    title: "Partner Verify",
     description: "Verify identity and age using third-party verification services for enhanced security.",
     icon: <Shield className="h-6 w-6" />,
     iconBgColor: "bg-success/10",
@@ -39,14 +28,25 @@ const toolPanels: ToolPanel[] = [
     }
   },
   {
-    id: "status-check",
-    title: "Status Check",
+    id: "contract-verify",
+    title: "Contract Verify",
     description: "Check the status and validity of your consent documentation and contracts.",
     icon: <CheckCircle className="h-6 w-6" />,
     iconBgColor: "bg-purple-500/10 dark:bg-purple-400/10",
     action: {
       label: "Check Status",
       path: "/files"
+    }
+  },
+  {
+    id: "title-ix",
+    title: "Title IX",
+    description: "Access university Title IX policies and educational resources about consent requirements.",
+    icon: <School className="h-6 w-6" />,
+    iconBgColor: "bg-blue-500/10 dark:bg-blue-400/10",
+    action: {
+      label: "View Policies",
+      path: "/titleix"
     }
   }
 ];
