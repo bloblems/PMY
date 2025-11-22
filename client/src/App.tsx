@@ -17,6 +17,7 @@ import ToolsPage from "@/pages/ToolsPage";
 import IntegrationsPage from "@/pages/IntegrationsPage";
 import AccountSettingsPage from "@/pages/AccountSettingsPage";
 import PreferencesPage from "@/pages/PreferencesPage";
+import ContactsPage from "@/pages/ContactsPage";
 import BillingPage from "@/pages/BillingPage";
 import ConsentFlowPage from "@/pages/ConsentFlowPage";
 import ConsentSignaturePage from "@/pages/ConsentSignaturePage";
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/settings/integrations" component={IntegrationsPage} />
       <Route path="/settings/account" component={AccountSettingsPage} />
       <Route path="/settings/preferences" component={PreferencesPage} />
+      <Route path="/settings/contacts" component={ContactsPage} />
       <Route path="/settings/billing" component={BillingPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/consent/signature" component={ConsentSignaturePage} />

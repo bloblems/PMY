@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Link as LinkIcon, Share2, Gift, Calendar, Shield, MapPin, Clock, Users, Award } from "lucide-react";
+import { User, Link as LinkIcon, Share2, Gift, Calendar, Shield, MapPin, Clock, Users, Award, UserCircle } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface UserData {
@@ -307,6 +307,29 @@ export default function ProfilePage() {
         </h4>
         
         <div className="grid grid-cols-1 gap-3">
+          <Card
+            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
+            onClick={() => setLocation('/settings/contacts')}
+            data-testid="card-manage-contacts"
+          >
+            <div className="relative">
+              <div className="h-1 bg-gradient-to-r from-cyan-500 to-blue-500" />
+              <div className="bg-gradient-to-br from-cyan-500/20 via-blue-500/15 to-indigo-500/20 dark:from-cyan-500/30 dark:via-blue-500/25 dark:to-indigo-500/30 p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-cyan-500/20 dark:bg-cyan-400/30 backdrop-blur-sm">
+                    <UserCircle className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-sm mb-0.5">Manage Contacts</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Save frequently used contacts
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <Card
             className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
             onClick={() => setLocation('/settings/preferences')}
