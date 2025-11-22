@@ -176,90 +176,111 @@ export default function ProfilePage() {
           Profile Details
         </h3>
 
-        {/* Account Information */}
-        <Card className="p-4" data-testid="card-account-info">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Member since</p>
-                <p className="text-sm font-medium" data-testid="text-member-since">
-                  {userData?.profile?.createdAt 
-                    ? new Date(userData.profile.createdAt).toLocaleDateString('en-US', { 
-                        month: 'long', 
-                        year: 'numeric' 
-                      })
-                    : 'Recently'}
-                </p>
-              </div>
+        {/* Account Information - Individual Cards */}
+        <Card className="p-4 hover-elevate" data-testid="card-member-since">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-primary" />
             </div>
-
-            <div className="flex items-center gap-3">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Data retention</p>
-                <p className="text-sm font-medium capitalize" data-testid="text-retention-policy">
-                  {userData?.profile?.dataRetentionPolicy?.replace('days', ' days').replace('year', ' year') || 'Forever'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Award className="h-4 w-4 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Referrals</p>
-                <p className="text-sm font-medium" data-testid="text-referrals">
-                  {userData?.profile?.referralCount || 0} friends invited
-                </p>
-              </div>
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground mb-0.5">Member since</p>
+              <p className="text-sm font-semibold" data-testid="text-member-since">
+                {userData?.profile?.createdAt 
+                  ? new Date(userData.profile.createdAt).toLocaleDateString('en-US', { 
+                      month: 'long', 
+                      year: 'numeric' 
+                    })
+                  : 'Recently'}
+              </p>
             </div>
           </div>
         </Card>
 
-        {/* Default Preferences */}
+        <Card className="p-4 hover-elevate" data-testid="card-retention">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Shield className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground mb-0.5">Data retention</p>
+              <p className="text-sm font-semibold capitalize" data-testid="text-retention-policy">
+                {userData?.profile?.dataRetentionPolicy?.replace('days', ' days').replace('year', ' year') || 'Forever'}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 hover-elevate" data-testid="card-referrals">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+              <Award className="h-5 w-5 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground mb-0.5">Referrals</p>
+              <p className="text-sm font-semibold" data-testid="text-referrals">
+                {userData?.profile?.referralCount || 0} friends invited
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Default Preferences - Individual Cards */}
         {(userData?.profile?.stateOfResidence || 
           userData?.profile?.defaultEncounterType || 
           userData?.profile?.defaultContractDuration) && (
-          <Card className="p-4" data-testid="card-preferences">
-            <h4 className="text-sm font-semibold mb-3">Default Preferences</h4>
-            <div className="space-y-3">
-              {userData?.profile?.stateOfResidence && (
+          <>
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-6">
+              Default Preferences
+            </h4>
+
+            {userData?.profile?.stateOfResidence && (
+              <Card className="p-4 hover-elevate" data-testid="card-state">
                 <div className="flex items-center gap-3">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-success" />
+                  </div>
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground">State</p>
-                    <p className="text-sm font-medium" data-testid="text-state">
+                    <p className="text-xs text-muted-foreground mb-0.5">State</p>
+                    <p className="text-sm font-semibold" data-testid="text-state">
                       {userData.profile.stateOfResidence}
                     </p>
                   </div>
                 </div>
-              )}
+              </Card>
+            )}
 
-              {userData?.profile?.defaultEncounterType && (
+            {userData?.profile?.defaultEncounterType && (
+              <Card className="p-4 hover-elevate" data-testid="card-encounter">
                 <div className="flex items-center gap-3">
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground">Encounter type</p>
-                    <p className="text-sm font-medium capitalize" data-testid="text-encounter-type">
+                    <p className="text-xs text-muted-foreground mb-0.5">Encounter type</p>
+                    <p className="text-sm font-semibold capitalize" data-testid="text-encounter-type">
                       {userData.profile.defaultEncounterType}
                     </p>
                   </div>
                 </div>
-              )}
+              </Card>
+            )}
 
-              {userData?.profile?.defaultContractDuration && (
+            {userData?.profile?.defaultContractDuration && (
+              <Card className="p-4 hover-elevate" data-testid="card-duration">
                 <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-accent" />
+                  </div>
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground">Default duration</p>
-                    <p className="text-sm font-medium" data-testid="text-duration">
+                    <p className="text-xs text-muted-foreground mb-0.5">Default duration</p>
+                    <p className="text-sm font-semibold" data-testid="text-duration">
                       {userData.profile.defaultContractDuration} minutes
                     </p>
                   </div>
                 </div>
-              )}
-            </div>
-          </Card>
+              </Card>
+            )}
+          </>
         )}
 
         {/* Quick Actions */}
