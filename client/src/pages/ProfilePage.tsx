@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Link as LinkIcon, Share2, Gift, Calendar, Shield, MapPin, Clock, Users, Award, UserCircle } from "lucide-react";
+import { User, Link as LinkIcon, Share2, Gift, Calendar, Shield, MapPin, Clock, Users, Award, UserCircle, BadgeCheck } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface UserData {
@@ -26,6 +26,10 @@ interface UserData {
     defaultContractDuration?: number | null;
     referralCount?: number;
     referralCode?: string;
+    isVerified?: string;
+    verificationProvider?: string | null;
+    verifiedAt?: string | null;
+    verificationLevel?: string | null;
   };
 }
 
@@ -107,9 +111,18 @@ export default function ProfilePage() {
 
       {/* Username & Name */}
       <div className="mb-2">
-        <h1 className="text-base font-semibold" data-testid="text-profile-username">
-          @{userData?.profile?.username || 'username'}
-        </h1>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-base font-semibold" data-testid="text-profile-username">
+            @{userData?.profile?.username || 'username'}
+          </h1>
+          {userData?.profile?.isVerified === 'true' && (
+            <BadgeCheck 
+              className="h-4 w-4 text-primary fill-primary/20" 
+              data-testid="icon-verified-badge"
+              aria-label="Verified account"
+            />
+          )}
+        </div>
         {userName && (
           <p className="text-sm text-muted-foreground" data-testid="text-profile-name">
             {userName}
