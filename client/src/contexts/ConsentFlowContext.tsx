@@ -3,10 +3,14 @@ import { storage } from "@/services/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
+import { US_STATES } from "@/lib/constants";
 
 export interface ConsentFlowState {
   universityId: string;
   universityName: string;
+  stateCode: string; // US state code (e.g., "CA", "NY")
+  stateName: string; // US state name (e.g., "California")
+  selectionMode?: "select-university" | "select-state" | "not-applicable"; // Persist user's explicit selection mode choice
   encounterType: string;
   parties: string[];
   intimateActs: Record<string, "yes" | "no">; // Three states: undefined (unselected), "yes" (green check), "no" (red X)
@@ -44,29 +48,38 @@ interface UserPreferences {
   defaultContractDuration: number | null;
 }
 
-const getDefaultState = (preferences?: UserPreferences): ConsentFlowState => ({
-  universityId: preferences?.defaultUniversityId || "",
-  universityName: "",
-  encounterType: preferences?.defaultEncounterType || "",
-  parties: ["", ""],
-  intimateActs: {},
-  contractStartTime: undefined,
-  contractDuration: preferences?.defaultContractDuration || undefined,
-  contractEndTime: undefined,
-  method: null,
-  draftId: undefined,
-  isCollaborative: false,
-  contractText: undefined,
-  signature1: undefined,
-  signature2: undefined,
-  photoUrl: undefined,
-  credentialId: undefined,
-  credentialPublicKey: undefined,
-  credentialCounter: undefined,
-  credentialDeviceType: undefined,
-  credentialBackedUp: undefined,
-  authenticatedAt: undefined,
-});
+const getDefaultState = (preferences?: UserPreferences): ConsentFlowState => {
+  // Lookup state name from state code if provided in preferences
+  const stateCode = preferences?.stateOfResidence || "";
+  const stateName = stateCode ? (US_STATES.find(s => s.code === stateCode)?.name || "") : "";
+  
+  return {
+    universityId: preferences?.defaultUniversityId || "",
+    universityName: "",
+    stateCode,
+    stateName,
+    selectionMode: undefined, // Will be derived on first render or restored from storage
+    encounterType: preferences?.defaultEncounterType || "",
+    parties: ["", ""],
+    intimateActs: {},
+    contractStartTime: undefined,
+    contractDuration: preferences?.defaultContractDuration || undefined,
+    contractEndTime: undefined,
+    method: null,
+    draftId: undefined,
+    isCollaborative: false,
+    contractText: undefined,
+    signature1: undefined,
+    signature2: undefined,
+    photoUrl: undefined,
+    credentialId: undefined,
+    credentialPublicKey: undefined,
+    credentialCounter: undefined,
+    credentialDeviceType: undefined,
+    credentialBackedUp: undefined,
+    authenticatedAt: undefined,
+  };
+};
 
 const STORAGE_KEY = "pmy_consent_flow_state";
 
@@ -119,10 +132,29 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
           const defaultStateWithPrefs = getDefaultState(preferences);
           const validMethods: Array<ConsentFlowState["method"]> = ["signature", "voice", "photo", "biometric", null];
           
+          // Determine final stateCode and stateName with normalization
+          const finalStateCode = (typeof parsed.stateCode === 'string' && parsed.stateCode !== '') ? parsed.stateCode : defaultStateWithPrefs.stateCode;
+          const savedStateName = (typeof parsed.stateName === 'string' && parsed.stateName !== '') ? parsed.stateName : defaultStateWithPrefs.stateName;
+          // If we have a stateCode but no stateName, lookup the name
+          const finalStateName = finalStateCode && !savedStateName 
+            ? (US_STATES.find(s => s.code === finalStateCode)?.name || "") 
+            : savedStateName;
+          
+          // Validate selectionMode
+          // null means user explicitly cleared the mode, undefined means not yet set
+          // Both should result in auto-derivation on render
+          const validModes: Array<ConsentFlowState["selectionMode"] | null> = ["select-university", "select-state", "not-applicable", undefined, null];
+          const savedSelectionMode = validModes.includes(parsed.selectionMode) 
+            ? (parsed.selectionMode === null ? undefined : parsed.selectionMode)
+            : undefined;
+          
           const validatedState: ConsentFlowState = {
             // Use saved value only if it's non-empty, otherwise use preference default
             universityId: (typeof parsed.universityId === 'string' && parsed.universityId !== '') ? parsed.universityId : defaultStateWithPrefs.universityId,
             universityName: (typeof parsed.universityName === 'string' && parsed.universityName !== '') ? parsed.universityName : defaultStateWithPrefs.universityName,
+            stateCode: finalStateCode,
+            stateName: finalStateName,
+            selectionMode: savedSelectionMode, // Persist user's explicit selection mode choice
             encounterType: (typeof parsed.encounterType === 'string' && parsed.encounterType !== '') ? parsed.encounterType : defaultStateWithPrefs.encounterType,
             parties: (Array.isArray(parsed.parties) && parsed.parties.length > 0) ? parsed.parties : defaultStateWithPrefs.parties,
             intimateActs: (parsed.intimateActs && typeof parsed.intimateActs === 'object' && !Array.isArray(parsed.intimateActs) && Object.keys(parsed.intimateActs).length > 0) ? parsed.intimateActs : defaultStateWithPrefs.intimateActs,

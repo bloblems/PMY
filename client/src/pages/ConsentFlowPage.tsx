@@ -19,6 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn, UserPlus } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
+import StateSelector from "@/components/StateSelector";
 import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
 import ContractDurationStep from "@/components/ContractDurationStep";
 import { UserSearch } from "@/components/UserSearch";
@@ -375,8 +376,14 @@ export default function ConsentFlowPage() {
   // Track selected university object for the selector
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
   
-  // Track whether user selected "Not Applicable" for university
-  const [universityNotApplicable, setUniversityNotApplicable] = useState(false);
+  // Track selected state for state selector
+  const [selectedState, setSelectedState] = useState<{ code: string; name: string } | null>(null);
+  
+  // Track selection mode: "select-university", "select-state", or "not-applicable"
+  // Initialize from context if available, otherwise default to "select-university"
+  const [selectionMode, setSelectionMode] = useState<"select-university" | "select-state" | "not-applicable">(
+    state.selectionMode || "select-university"
+  );
 
   // Validate if consent flow has minimum required data for saving/sharing
   const canSaveOrShare = () => {
@@ -424,9 +431,50 @@ export default function ConsentFlowPage() {
       updateFlowState({
         universityId: selectedUniversity.id,
         universityName: selectedUniversity.name,
+        stateCode: "",
+        stateName: "",
       });
     }
   }, [selectedUniversity]);
+
+  // Sync local selectionMode with persisted context value on hydration
+  useEffect(() => {
+    if (state.selectionMode) {
+      // Restore persisted selection mode from context
+      setSelectionMode(state.selectionMode);
+    } else {
+      // No persisted mode - derive from active data
+      if (state.universityId) {
+        setSelectionMode("select-university");
+      } else if (state.stateCode && state.stateName) {
+        setSelectionMode("select-state");
+      } else {
+        setSelectionMode("select-university");
+      }
+    }
+  }, [state.selectionMode, isHydrated]);
+  
+  // Sync selectedState when state data changes
+  useEffect(() => {
+    if (state.stateCode && state.stateName) {
+      setSelectedState({
+        code: state.stateCode,
+        name: state.stateName,
+      });
+    }
+  }, [state.stateCode, state.stateName]);
+
+  // Update state when state is manually selected
+  useEffect(() => {
+    if (selectedState && selectedState.code !== state.stateCode) {
+      updateFlowState({
+        stateCode: selectedState.code,
+        stateName: selectedState.name,
+        universityId: "",
+        universityName: "",
+      });
+    }
+  }, [selectedState]);
 
   // Pre-fill first participant with logged-in user's name when available
   useEffect(() => {
@@ -666,8 +714,11 @@ export default function ConsentFlowPage() {
     if (step === flowSteps.encounterType) {
       return state.encounterType !== "";
     } else if (step === flowSteps.university) {
-      // Can proceed if university is selected OR "Not Applicable" is chosen
-      return state.universityId !== "" || universityNotApplicable;
+      // Can proceed if university is selected OR state is selected OR "Not Applicable" is chosen
+      // Use context state (not local component state) as source of truth
+      // Prevent "not-applicable" for encounter types that require university
+      const allowNotApplicable = state.selectionMode === "not-applicable" && !doesEncounterTypeRequireUniversity(state.encounterType);
+      return state.universityId !== "" || state.stateCode !== "" || allowNotApplicable;
     } else if (step === flowSteps.parties) {
       // Check at least one non-empty party AND no validation errors
       const hasParties = state.parties.some(p => p.trim() !== "");
@@ -890,19 +941,58 @@ export default function ConsentFlowPage() {
       {step === flowSteps.university && flowSteps.university !== null && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.university}: Select Your Institution</h2>
-            <p className="text-sm text-muted-foreground">Choose your university to generate a Title IX-compliant consent contract</p>
+            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.university}: Select Your State or Institution</h2>
+            <p className="text-sm text-muted-foreground">Choose your state or university for compliance information</p>
           </div>
           
           <RadioGroup
-            value={universityNotApplicable ? "not-applicable" : "select-university"}
-            onValueChange={(value) => {
-              const isNotApplicable = value === "not-applicable";
-              setUniversityNotApplicable(isNotApplicable);
-              if (isNotApplicable) {
-                // Clear university selection when "Not Applicable" is chosen
+            value={selectionMode}
+            onValueChange={(value: "select-university" | "select-state" | "not-applicable") => {
+              // Prevent "not-applicable" for encounter types that require university
+              if (value === "not-applicable" && doesEncounterTypeRequireUniversity(state.encounterType)) {
+                toast({
+                  title: "University required",
+                  description: `The "${state.encounterType}" encounter type requires selecting a university.`,
+                  variant: "destructive",
+                });
+                return;
+              }
+              
+              setSelectionMode(value);
+              
+              // Update persisted selectionMode in context immediately
+              if (value === "not-applicable") {
+                // Persist "not-applicable" choice
+                updateFlowState({ 
+                  selectionMode: value,
+                  universityId: "", 
+                  universityName: "",
+                  stateCode: "",
+                  stateName: "",
+                });
+                // Clear UI selections
                 setSelectedUniversity(null);
-                updateFlowState({ universityId: "", universityName: "" });
+                setSelectedState(null);
+              } else {
+                // Clear persisted mode for auto-derived modes (university/state)
+                // Set to null (not undefined) to ensure it persists to storage
+                updateFlowState({ selectionMode: null as any });
+              }
+              
+              if (value === "select-university") {
+                // Clear state selection when switching to university
+                setSelectedState(null);
+                updateFlowState({ 
+                  stateCode: "",
+                  stateName: "",
+                });
+              } else if (value === "select-state") {
+                // Clear university selection when switching to state
+                setSelectedUniversity(null);
+                updateFlowState({ 
+                  universityId: "", 
+                  universityName: "",
+                });
               }
             }}
             className="space-y-3"
@@ -914,14 +1004,31 @@ export default function ConsentFlowPage() {
               </Label>
             </div>
             <div className="flex items-center space-x-3">
-              <RadioGroupItem value="not-applicable" id="not-applicable" data-testid="radio-not-applicable" />
-              <Label htmlFor="not-applicable" className="font-normal cursor-pointer">
+              <RadioGroupItem value="select-state" id="select-state" data-testid="radio-select-state" />
+              <Label htmlFor="select-state" className="font-normal cursor-pointer">
+                Select My State
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3">
+              <RadioGroupItem 
+                value="not-applicable" 
+                id="not-applicable" 
+                data-testid="radio-not-applicable"
+                disabled={doesEncounterTypeRequireUniversity(state.encounterType)}
+              />
+              <Label 
+                htmlFor="not-applicable" 
+                className={`font-normal ${doesEncounterTypeRequireUniversity(state.encounterType) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              >
                 Not Applicable
+                {doesEncounterTypeRequireUniversity(state.encounterType) && (
+                  <span className="text-xs text-muted-foreground ml-2">(University required for {state.encounterType})</span>
+                )}
               </Label>
             </div>
           </RadioGroup>
 
-          {!universityNotApplicable && (
+          {selectionMode === "select-university" && (
             <>
               <UniversitySelector
                 universities={universities}
@@ -939,6 +1046,13 @@ export default function ConsentFlowPage() {
                 />
               )}
             </>
+          )}
+
+          {selectionMode === "select-state" && (
+            <StateSelector
+              selectedState={selectedState}
+              onSelect={setSelectedState}
+            />
           )}
         </div>
       )}
