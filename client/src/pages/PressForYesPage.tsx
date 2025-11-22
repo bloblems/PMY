@@ -193,7 +193,7 @@ export default function PressForYesPage() {
           </div>
 
           {/* Iconic Press Button */}
-          <div className="py-8">
+          <div className="py-8 px-4">
             <button
               onMouseDown={handlePressStart}
               onMouseUp={handlePressEnd}
@@ -202,60 +202,41 @@ export default function PressForYesPage() {
               onTouchEnd={handlePressEnd}
               disabled={confirmConsentMutation.isPending}
               className={`
-                relative w-48 h-48 mx-auto rounded-full
+                relative w-full max-w-md mx-auto h-32
                 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500
-                shadow-2xl
+                rounded-lg border-2 border-green-600
+                shadow-2xl overflow-hidden
                 transition-all duration-200 ease-out
                 disabled:opacity-50 disabled:cursor-not-allowed
                 ${isPressed 
-                  ? 'scale-95 shadow-lg' 
-                  : 'scale-100 hover:scale-105 active:scale-95'
+                  ? 'scale-[0.98] shadow-lg' 
+                  : 'scale-100 hover:scale-[1.02] active:scale-[0.98]'
                 }
               `}
               data-testid="button-press-for-yes"
             >
-              {/* Progress ring */}
+              {/* Horizontal Progress Fill */}
               {isPressed && pressProgress < 100 && (
-                <svg 
-                  className="absolute inset-0 w-full h-full -rotate-90"
-                  viewBox="0 0 200 200"
-                >
-                  <circle
-                    cx="100"
-                    cy="100"
-                    r="95"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="8"
-                    strokeOpacity="0.3"
-                  />
-                  <circle
-                    cx="100"
-                    cy="100"
-                    r="95"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="8"
-                    strokeDasharray={`${2 * Math.PI * 95}`}
-                    strokeDashoffset={`${2 * Math.PI * 95 * (1 - pressProgress / 100)}`}
-                    strokeLinecap="round"
-                    className="transition-all duration-100 ease-linear"
-                  />
-                </svg>
+                <div 
+                  className="absolute inset-0 bg-white/20 transition-all duration-100 ease-linear"
+                  style={{
+                    width: `${pressProgress}%`,
+                  }}
+                />
               )}
               
               {/* Glow effect */}
               <div className={`
-                absolute inset-0 rounded-full bg-gradient-to-br from-green-400 to-emerald-400
+                absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-400
                 blur-xl opacity-0 transition-opacity duration-300
-                ${isPressed ? 'opacity-60' : ''}
+                ${isPressed ? 'opacity-40' : ''}
               `} />
               
               {/* Button content */}
-              <div className="relative flex flex-col items-center justify-center h-full text-white">
+              <div className="relative flex flex-col items-center justify-center h-full text-white px-6">
                 {confirmConsentMutation.isPending ? (
                   <>
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mb-2" />
+                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-white border-t-transparent mb-2" />
                     <span className="text-sm font-medium">Confirming...</span>
                   </>
                 ) : isPressed ? (
@@ -263,12 +244,12 @@ export default function PressForYesPage() {
                     <div className="text-5xl font-bold mb-1">
                       {Math.ceil((REQUIRED_HOLD_TIME - (Date.now() - (pressStartTime || 0))) / 1000)}
                     </div>
-                    <span className="text-xs font-medium">Hold...</span>
+                    <span className="text-sm font-medium">Hold to Confirm...</span>
                   </>
                 ) : (
                   <>
-                    <div className="text-4xl font-bold mb-1">YES</div>
-                    <span className="text-xs opacity-90">Hold 3 sec</span>
+                    <div className="text-4xl font-bold mb-2">Press for Yes</div>
+                    <span className="text-sm opacity-90">Hold for 3 seconds to confirm</span>
                   </>
                 )}
               </div>
