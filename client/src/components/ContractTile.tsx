@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Coffee, Briefcase, FileText, Download, Trash2, Check, X, Edit, Clock, Image as ImageIcon } from "lucide-react";
+import { Heart, Coffee, Briefcase, FileText, Download, Trash2, Check, X, Edit, Clock, Image as ImageIcon, Pause, Play } from "lucide-react";
 import { format } from "date-fns";
 
 interface ContractTileProps {
@@ -20,6 +20,8 @@ interface ContractTileProps {
   onApprove?: () => void;
   onReject?: () => void;
   onResume?: () => void;
+  onPause?: () => void;
+  onResumeActive?: () => void;
   isPending?: boolean;
 }
 
@@ -103,6 +105,8 @@ export default function ContractTile({
   onApprove,
   onReject,
   onResume,
+  onPause,
+  onResumeActive,
   isPending
 }: ContractTileProps) {
   const style = getEncounterStyle(encounterType);
@@ -172,8 +176,20 @@ export default function ContractTile({
         {/* Action buttons */}
         <div className="flex gap-2 flex-wrap">
           {/* Active contract actions */}
-          {variant === "active" && (
+          {variant === "active" && status === "active" && (
             <>
+              {onPause && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onPause}
+                  disabled={isPending}
+                  data-testid={`button-pause-${id}`}
+                >
+                  <Pause className="h-4 w-4 mr-1.5" />
+                  Pause
+                </Button>
+              )}
               {onDownload && (
                 <Button
                   size="sm"
@@ -195,6 +211,64 @@ export default function ContractTile({
                 >
                   <Trash2 className="h-4 w-4 mr-1.5" />
                   Delete
+                </Button>
+              )}
+            </>
+          )}
+          
+          {/* Paused contract actions */}
+          {variant === "active" && status === "paused" && (
+            <>
+              {onResumeActive && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={onResumeActive}
+                  disabled={isPending}
+                  data-testid={`button-resume-${id}`}
+                >
+                  <Play className="h-4 w-4 mr-1.5" />
+                  Resume
+                </Button>
+              )}
+              {onDownload && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onDownload}
+                  data-testid={`button-download-${id}`}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Download
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onDelete}
+                  data-testid={`button-delete-${id}`}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Delete
+                </Button>
+              )}
+            </>
+          )}
+          
+          {/* Completed contract actions - read-only */}
+          {variant === "active" && status === "completed" && (
+            <>
+              {onDownload && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onDownload}
+                  data-testid={`button-download-${id}`}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Download
                 </Button>
               )}
             </>

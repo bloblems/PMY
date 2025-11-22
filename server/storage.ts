@@ -62,6 +62,8 @@ export interface IStorage {
   createContract(contract: InsertConsentContract): Promise<ConsentContract>;
   deleteContract(id: string, userId: string): Promise<boolean>;
   updateContract(id: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | undefined>;
+  pauseContract(id: string, userId: string): Promise<ConsentContract | undefined>;
+  resumeContract(id: string, userId: string): Promise<ConsentContract | undefined>;
   
   // Collaborative contract methods
   getDraftsByUserId(userId: string): Promise<ConsentContract[]>;
@@ -354,6 +356,40 @@ export class MemStorage implements IStorage {
     const updated: ConsentContract = {
       ...contract,
       ...updatedData,
+      updatedAt: new Date(),
+    };
+    this.contracts.set(id, updated);
+    return updated;
+  }
+
+  async pauseContract(id: string, userId: string): Promise<ConsentContract | undefined> {
+    const contract = this.contracts.get(id);
+    if (!contract || contract.userId !== userId) return undefined;
+    
+    if (contract.status !== "active") {
+      return undefined;
+    }
+    
+    const updated: ConsentContract = {
+      ...contract,
+      status: "paused",
+      updatedAt: new Date(),
+    };
+    this.contracts.set(id, updated);
+    return updated;
+  }
+
+  async resumeContract(id: string, userId: string): Promise<ConsentContract | undefined> {
+    const contract = this.contracts.get(id);
+    if (!contract || contract.userId !== userId) return undefined;
+    
+    if (contract.status !== "paused") {
+      return undefined;
+    }
+    
+    const updated: ConsentContract = {
+      ...contract,
+      status: "active",
       updatedAt: new Date(),
     };
     this.contracts.set(id, updated);
@@ -837,6 +873,8 @@ export class MemStorage implements IStorage {
       dataRetentionPolicy: profile.dataRetentionPolicy ?? "forever",
       stripeCustomerId: profile.stripeCustomerId ?? null,
       referralCode: profile.referralCode ?? null,
+      referralCount: profile.referralCount ?? 0,
+      referredBy: profile.referredBy ?? null,
       defaultUniversityId: profile.defaultUniversityId ?? null,
       stateOfResidence: profile.stateOfResidence ?? null,
       defaultEncounterType: profile.defaultEncounterType ?? null,
@@ -1076,6 +1114,34 @@ export class DbStorage implements IStorage {
     const result = await db
       .update(consentContracts)
       .set({ ...updatedData, updatedAt: new Date() })
+      .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async pauseContract(id: string, userId: string): Promise<ConsentContract | undefined> {
+    const contract = await this.getContract(id, userId);
+    if (!contract || contract.status !== "active") {
+      return undefined;
+    }
+    
+    const result = await db
+      .update(consentContracts)
+      .set({ status: "paused", updatedAt: new Date() })
+      .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async resumeContract(id: string, userId: string): Promise<ConsentContract | undefined> {
+    const contract = await this.getContract(id, userId);
+    if (!contract || contract.status !== "paused") {
+      return undefined;
+    }
+    
+    const result = await db
+      .update(consentContracts)
+      .set({ status: "active", updatedAt: new Date() })
       .where(and(eq(consentContracts.id, id), eq(consentContracts.userId, userId)))
       .returning();
     return result[0];

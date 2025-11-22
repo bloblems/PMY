@@ -668,6 +668,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pause an active contract
+  app.post("/api/contracts/:id/pause", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const contract = await storage.pauseContract(id, userId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found, unauthorized, or not in active status" });
+      }
+      res.json(contract);
+    } catch (error) {
+      console.error("Error pausing contract:", error);
+      res.status(500).json({ error: "Failed to pause contract" });
+    }
+  });
+
+  // Resume a paused contract
+  app.post("/api/contracts/:id/resume", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const contract = await storage.resumeContract(id, userId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found, unauthorized, or not in paused status" });
+      }
+      res.json(contract);
+    } catch (error) {
+      console.error("Error resuming contract:", error);
+      res.status(500).json({ error: "Failed to resume contract" });
+    }
+  });
+
   // New consent creation endpoints with enhanced fields (requires authentication)
   app.post("/api/consent-contracts", requireAuth, async (req, res) => {
     try {

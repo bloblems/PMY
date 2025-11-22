@@ -243,6 +243,50 @@ export default function FilesPage() {
     },
   });
 
+  // Pause contract mutation
+  const pauseContractMutation = useMutation({
+    mutationFn: async (contractId: string) => {
+      const response = await apiRequest("POST", `/api/contracts/${contractId}/pause`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      toast({
+        title: "Contract paused",
+        description: "The contract has been paused and can be resumed later",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to pause contract",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Resume contract mutation
+  const resumeContractMutation = useMutation({
+    mutationFn: async (contractId: string) => {
+      const response = await apiRequest("POST", `/api/contracts/${contractId}/resume`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      toast({
+        title: "Contract resumed",
+        description: "The contract is now active again",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to resume contract",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Combine and format files
   const files = [
     ...recordings.map((r) => ({
@@ -446,9 +490,44 @@ export default function FilesPage() {
                         parties={contract.parties}
                         createdAt={contract.createdAt}
                         method={contract.method}
+                        status={contract.status}
                         variant="active"
                         onDownload={() => handleDownload(contract.id)}
                         onDelete={() => handleDelete(contract.id)}
+                        onPause={() => pauseContractMutation.mutate(contract.id)}
+                        isPending={pauseContractMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold mb-3">Paused Contracts</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Contracts temporarily paused, can be resumed or modified
+                </p>
+                {contracts.filter(c => c.status === "paused").length === 0 ? (
+                  <Card className="p-8 text-center">
+                    <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">No paused contracts</p>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {contracts.filter(c => c.status === "paused").map((contract) => (
+                      <ContractTile
+                        key={contract.id}
+                        id={contract.id}
+                        encounterType={contract.encounterType}
+                        parties={contract.parties}
+                        createdAt={contract.createdAt}
+                        method={contract.method}
+                        status={contract.status}
+                        variant="active"
+                        onDownload={() => handleDownload(contract.id)}
+                        onDelete={() => handleDelete(contract.id)}
+                        onResumeActive={() => resumeContractMutation.mutate(contract.id)}
+                        isPending={resumeContractMutation.isPending}
                       />
                     ))}
                   </div>
@@ -475,9 +554,9 @@ export default function FilesPage() {
                         parties={contract.parties}
                         createdAt={contract.createdAt}
                         method={contract.method}
+                        status={contract.status}
                         variant="active"
                         onDownload={() => handleDownload(contract.id)}
-                        onDelete={() => handleDelete(contract.id)}
                       />
                     ))}
                   </div>
