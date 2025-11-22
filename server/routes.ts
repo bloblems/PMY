@@ -795,14 +795,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contractEndTime: parsed.data.contractEndTime
       });
 
-      // Validate all parties use canonical @username format
+      // Validate all parties use canonical @username format (lowercase alphanumeric_underscore)
       if (parsed.data.parties && parsed.data.parties.length > 0) {
-        const invalidParties = parsed.data.parties.filter((party: string) => 
-          party.trim() && !party.trim().startsWith('@')
-        );
+        const usernameRegex = /^@[a-z0-9_]+$/;
+        const invalidParties = parsed.data.parties.filter((party: string) => {
+          const trimmed = party.trim();
+          return trimmed && !usernameRegex.test(trimmed);
+        });
         if (invalidParties.length > 0) {
           return res.status(400).json({ 
-            error: "All parties must use canonical @username format",
+            error: "All parties must use canonical @username format (lowercase letters, numbers, underscores only)",
             invalidParties: invalidParties
           });
         }

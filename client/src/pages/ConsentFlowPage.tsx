@@ -159,13 +159,20 @@ export default function ConsentFlowPage() {
             parsedIntimateActs = draft.intimateActs;
           }
           
-          // Normalize parties to canonical @username format
+          // Normalize parties to canonical @username format (lowercase, clean)
           const normalizedParties = (draft.parties || ["", ""]).map((party: string) => {
-            const trimmed = party.trim();
-            if (!trimmed) return "";
-            // If it doesn't start with @, prepend it
-            return trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+            return normalizeUsername(party);
           });
+
+          // Validate all parties and set errors for invalid ones
+          const errors: { [key: number]: string } = {};
+          normalizedParties.forEach((party: string, index: number) => {
+            const error = validateUsername(party);
+            if (error) {
+              errors[index] = error;
+            }
+          });
+          setPartyErrors(errors);
 
           // Load draft data into consent flow state with full fidelity
           updateFlowState({
@@ -530,22 +537,73 @@ export default function ConsentFlowPage() {
     updateFlowState({ parties: [...state.parties, ""] });
   };
 
+  const [partyErrors, setPartyErrors] = useState<{ [key: number]: string }>({});
+
+  const normalizeUsername = (input: string): string => {
+    if (!input || input.trim() === '') return '';
+    let normalized = input.trim();
+    // Ensure starts with @
+    if (!normalized.startsWith('@')) {
+      normalized = `@${normalized}`;
+    }
+    // Remove anything that's not @, alphanumeric, or underscore
+    normalized = normalized.replace(/[^@a-zA-Z0-9_]/g, '');
+    // Lowercase for canonical format
+    normalized = normalized.toLowerCase();
+    return normalized;
+  };
+
+  const validateUsername = (username: string): string | null => {
+    if (!username || username.trim() === '') return null;
+    const trimmed = username.trim();
+    // Canonical username format: @alphanumeric_underscore only (lowercase)
+    const usernameRegex = /^@[a-z0-9_]+$/;
+    if (!usernameRegex.test(trimmed)) {
+      return "Username must be @lowercase_letters_numbers_underscores only";
+    }
+    return null;
+  };
+
   const updateParty = (index: number, value: string) => {
     const newParties = [...state.parties];
-    // Normalize to canonical @username format if user enters text
-    // Allow @ to be optional during typing, but store with @ prefix
-    const trimmedValue = value.trim();
-    if (trimmedValue && !trimmedValue.startsWith('@')) {
-      newParties[index] = `@${trimmedValue}`;
-    } else {
-      newParties[index] = trimmedValue;
-    }
+    // Normalize to canonical format: lowercase, strip invalid chars
+    const normalizedValue = normalizeUsername(value);
+    
+    newParties[index] = normalizedValue;
+    
+    // Validate and set error if invalid
+    const error = validateUsername(normalizedValue);
+    setPartyErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[index] = error;
+      } else {
+        delete newErrors[index];
+      }
+      return newErrors;
+    });
+    
     updateFlowState({ parties: newParties });
   };
 
   const removeParty = (index: number) => {
     const newParties = state.parties.filter((_, i) => i !== index);
     updateFlowState({ parties: newParties.length === 0 ? [""] : newParties });
+    
+    // Clear error for removed party and re-index errors
+    setPartyErrors(prev => {
+      const newErrors: { [key: number]: string } = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const numKey = parseInt(key);
+        if (numKey < index) {
+          newErrors[numKey] = value;
+        } else if (numKey > index) {
+          newErrors[numKey - 1] = value;
+        }
+        // Skip the removed index
+      });
+      return newErrors;
+    });
   };
 
   const addContactAsParty = (contact: UserContact) => {
@@ -611,7 +669,10 @@ export default function ConsentFlowPage() {
       // Can proceed if university is selected OR "Not Applicable" is chosen
       return state.universityId !== "" || universityNotApplicable;
     } else if (step === flowSteps.parties) {
-      return state.parties.some(p => p.trim() !== "");
+      // Check at least one non-empty party AND no validation errors
+      const hasParties = state.parties.some(p => p.trim() !== "");
+      const hasErrors = Object.keys(partyErrors).length > 0;
+      return hasParties && !hasErrors;
     } else if (step === flowSteps.intimateActs) {
       return true; // Can proceed even with no acts selected
     } else if (step === flowSteps.duration) {
@@ -926,24 +987,32 @@ export default function ConsentFlowPage() {
 
           <div className="space-y-3">
             {state.parties.map((party, index) => (
-              <div key={index} className="flex gap-2">
-                <div className="flex-1">
-                  <Input
-                    placeholder={index === 0 ? "@username (You)" : `@username (Participant ${index + 1})`}
-                    value={party}
-                    onChange={(e) => updateParty(index, e.target.value)}
-                    data-testid={`input-party-${index}`}
-                  />
+              <div key={index} className="space-y-1">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder={index === 0 ? "@username (You)" : `@username (Participant ${index + 1})`}
+                      value={party}
+                      onChange={(e) => updateParty(index, e.target.value)}
+                      data-testid={`input-party-${index}`}
+                      className={partyErrors[index] ? "border-destructive" : ""}
+                    />
+                  </div>
+                  {state.parties.length > 1 && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => removeParty(index)}
+                      data-testid={`button-remove-party-${index}`}
+                    >
+                      ×
+                    </Button>
+                  )}
                 </div>
-                {state.parties.length > 1 && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => removeParty(index)}
-                    data-testid={`button-remove-party-${index}`}
-                  >
-                    ×
-                  </Button>
+                {partyErrors[index] && (
+                  <p className="text-sm text-destructive" data-testid={`error-party-${index}`}>
+                    {partyErrors[index]}
+                  </p>
                 )}
               </div>
             ))}
