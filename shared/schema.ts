@@ -93,6 +93,7 @@ export const contractCollaborators = pgTable("contract_collaborators", {
   approvedAt: timestamp("approved_at", { withTimezone: true }),
   rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   rejectionReason: text("rejection_reason"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }), // When party pressed "Yes" to activate contract
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -200,6 +201,7 @@ export const insertContractCollaboratorSchema = createInsertSchema(contractColla
   approvedAt: z.string().optional(),
   rejectedAt: z.string().optional(),
   rejectionReason: z.string().optional(),
+  confirmedAt: z.string().optional(),
 });
 
 export const insertContractInvitationSchema = createInsertSchema(contractInvitations).omit({

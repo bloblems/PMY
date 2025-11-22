@@ -23,6 +23,7 @@ import ConsentSignaturePage from "@/pages/ConsentSignaturePage";
 import ConsentVoicePage from "@/pages/ConsentVoicePage";
 import ConsentPhotoPage from "@/pages/ConsentPhotoPage";
 import ConsentBiometricPage from "@/pages/ConsentBiometricPage";
+import PressForYesPage from "@/pages/PressForYesPage";
 import AuthPage from "@/pages/AuthPage";
 import ResetRequestPage from "@/pages/ResetRequestPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/consent/voice" component={ConsentVoicePage} />
       <Route path="/consent/photo" component={ConsentPhotoPage} />
       <Route path="/consent/biometric" component={ConsentBiometricPage} />
+      <Route path="/consent/press-for-yes" component={PressForYesPage} />
     </Switch>
   );
 }
