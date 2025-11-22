@@ -20,12 +20,16 @@ export default function PressForYesPage() {
   const { state } = useConsentFlow();
   const [isPressed, setIsPressed] = useState(false);
   const [pressStartTime, setPressStartTime] = useState<number | null>(null);
+  const [pressProgress, setPressProgress] = useState(0);
   
   // Get contract data from query params or context
   const urlParams = new URLSearchParams(window.location.search);
   const contractId = urlParams.get("contractId") || undefined;
   const isCollaborative = urlParams.get("collaborative") === "true";
   const encounterType = state.encounterType || urlParams.get("encounterType") || "Consent";
+  
+  // Title IX standard: 3 second hold requirement
+  const REQUIRED_HOLD_TIME = 3000;
 
   useEffect(() => {
     if (!contractId) {
@@ -81,6 +85,36 @@ export default function PressForYesPage() {
     },
   });
 
+  // Progress animation during press
+  useEffect(() => {
+    let animationFrame: number;
+    
+    if (isPressed && pressStartTime) {
+      const updateProgress = () => {
+        const elapsed = Date.now() - pressStartTime;
+        const progress = Math.min((elapsed / REQUIRED_HOLD_TIME) * 100, 100);
+        setPressProgress(progress);
+        
+        if (progress < 100) {
+          animationFrame = requestAnimationFrame(updateProgress);
+        } else {
+          // 3 seconds complete - confirm automatically
+          confirmConsentMutation.mutate();
+        }
+      };
+      
+      animationFrame = requestAnimationFrame(updateProgress);
+    } else {
+      setPressProgress(0);
+    }
+    
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [isPressed, pressStartTime, confirmConsentMutation]);
+
   const handlePressStart = () => {
     setIsPressed(true);
     setPressStartTime(Date.now());
@@ -89,16 +123,18 @@ export default function PressForYesPage() {
   const handlePressEnd = () => {
     const pressDuration = pressStartTime ? Date.now() - pressStartTime : 0;
     
-    // Require at least 500ms press for intentional confirmation
-    if (pressDuration >= 500) {
-      confirmConsentMutation.mutate();
+    // Title IX requirement: Must hold for full 3 seconds
+    if (pressDuration >= REQUIRED_HOLD_TIME) {
+      // Already handled by animation effect
+      return;
     } else {
-      // Too quick - reset
+      // Released too early - reset
       setIsPressed(false);
       setPressStartTime(null);
+      setPressProgress(0);
       toast({
-        title: "Hold Longer",
-        description: "Press and hold the button to confirm your consent.",
+        title: "Hold for 3 Seconds",
+        description: "Press and hold the button for the full 3 seconds to confirm your consent.",
       });
     }
   };
@@ -106,6 +142,7 @@ export default function PressForYesPage() {
   const handleCancel = () => {
     setIsPressed(false);
     setPressStartTime(null);
+    setPressProgress(0);
   };
 
   return (
@@ -151,7 +188,7 @@ export default function PressForYesPage() {
               {isCollaborative && " All parties must confirm to activate the contract."}
             </p>
             <p className="text-sm text-muted-foreground/70">
-              Press and hold the button below to confirm your consent
+              Press and hold for 3 seconds to confirm your consent
             </p>
           </div>
 
@@ -177,6 +214,36 @@ export default function PressForYesPage() {
               `}
               data-testid="button-press-for-yes"
             >
+              {/* Progress ring */}
+              {isPressed && pressProgress < 100 && (
+                <svg 
+                  className="absolute inset-0 w-full h-full -rotate-90"
+                  viewBox="0 0 200 200"
+                >
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="95"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="8"
+                    strokeOpacity="0.3"
+                  />
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="95"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="8"
+                    strokeDasharray={`${2 * Math.PI * 95}`}
+                    strokeDashoffset={`${2 * Math.PI * 95 * (1 - pressProgress / 100)}`}
+                    strokeLinecap="round"
+                    className="transition-all duration-100 ease-linear"
+                  />
+                </svg>
+              )}
+              
               {/* Glow effect */}
               <div className={`
                 absolute inset-0 rounded-full bg-gradient-to-br from-pink-400 to-purple-400
@@ -193,13 +260,15 @@ export default function PressForYesPage() {
                   </>
                 ) : isPressed ? (
                   <>
-                    <Check className="h-12 w-12 mb-2" />
-                    <span className="text-sm font-medium">Hold...</span>
+                    <div className="text-5xl font-bold mb-1">
+                      {Math.ceil((REQUIRED_HOLD_TIME - (Date.now() - (pressStartTime || 0))) / 1000)}
+                    </div>
+                    <span className="text-xs font-medium">Hold...</span>
                   </>
                 ) : (
                   <>
                     <div className="text-4xl font-bold mb-1">YES</div>
-                    <span className="text-xs opacity-90">Press & Hold</span>
+                    <span className="text-xs opacity-90">Hold 3 sec</span>
                   </>
                 )}
               </div>
