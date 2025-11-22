@@ -263,27 +263,47 @@ export default function ProfilePage() {
         )}
 
         {/* Quick Actions */}
-        <Card className="p-4" data-testid="card-quick-actions">
-          <h4 className="text-sm font-semibold mb-3">Quick Actions</h4>
-          <div className="space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => setLocation('/files')}
-              data-testid="button-view-files"
-            >
-              View all contracts & recordings
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => setLocation('/settings/preferences')}
-              data-testid="button-edit-preferences"
-            >
-              Edit default preferences
-            </Button>
-          </div>
-        </Card>
+        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+          Quick Actions
+        </h4>
+        
+        <div className="grid grid-cols-1 gap-3">
+          <Card
+            className="p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
+            onClick={() => setLocation('/files')}
+            data-testid="card-view-files"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h5 className="font-semibold text-sm mb-0.5">View All Files</h5>
+                <p className="text-xs text-muted-foreground">
+                  Browse contracts & recordings
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            className="p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
+            onClick={() => setLocation('/settings/preferences')}
+            data-testid="card-edit-preferences"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-success" />
+              </div>
+              <div className="flex-1">
+                <h5 className="font-semibold text-sm mb-0.5">Edit Preferences</h5>
+                <p className="text-xs text-muted-foreground">
+                  Update default settings
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );
