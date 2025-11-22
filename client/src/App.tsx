@@ -28,6 +28,7 @@ import AuthPage from "@/pages/AuthPage";
 import ResetRequestPage from "@/pages/ResetRequestPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import ProfilePage from "@/pages/ProfilePage";
+import RewardsPage from "@/pages/RewardsPage";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/auth/reset-request" component={ResetRequestPage} />
       <Route path="/auth/reset-password" component={ResetPasswordPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/rewards" component={RewardsPage} />
       <Route path="/" component={ConsentFlowPage} />
       <Route path="/titleix" component={InfoPage} />
       <Route path="/files" component={FilesPage} />

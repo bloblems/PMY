@@ -29,6 +29,8 @@ export const userProfiles = pgTable("users", {
   dataRetentionPolicy: text("data_retention_policy").notNull().default("forever"),
   stripeCustomerId: text("stripe_customer_id"),
   referralCode: text("referral_code"),
+  referralCount: integer("referral_count").notNull().default(0),
+  referredBy: text("referred_by"), // Username of user who referred this user
   // User preferences for consent flow defaults
   defaultUniversityId: varchar("default_university_id"), // References universities(id)
   stateOfResidence: text("state_of_residence"), // 2-letter state code (e.g., "CA", "NY")

@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Link as LinkIcon, FileText, CheckCircle2, Grid3x3, FileSignature, Share2 } from "lucide-react";
+import { User, Link as LinkIcon, FileText, CheckCircle2, Grid3x3, FileSignature, Share2, Gift } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 
@@ -145,21 +145,32 @@ export default function ProfilePage() {
       )}
 
       {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-2 mb-6">
         <Button
           variant="secondary"
           onClick={() => setLocation('/settings/account')}
           data-testid="button-edit-profile"
+          className="text-xs"
         >
-          Edit profile
+          Edit
         </Button>
         <Button
           variant="secondary"
           onClick={() => setLocation('/share')}
           data-testid="button-share-profile"
+          className="text-xs"
         >
-          <Share2 className="h-4 w-4 mr-2" />
+          <Share2 className="h-3.5 w-3.5 mr-1.5" />
           Share
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setLocation('/rewards')}
+          data-testid="button-rewards"
+          className="text-xs"
+        >
+          <Gift className="h-3.5 w-3.5 mr-1.5" />
+          Rewards
         </Button>
       </div>
 
