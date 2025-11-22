@@ -177,49 +177,64 @@ export default function ProfilePage() {
         </h3>
 
         {/* Account Information - Individual Cards */}
-        <Card className="p-4 hover-elevate" data-testid="card-member-since">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-xs text-muted-foreground mb-0.5">Member since</p>
-              <p className="text-sm font-semibold" data-testid="text-member-since">
-                {userData?.profile?.createdAt 
-                  ? new Date(userData.profile.createdAt).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      year: 'numeric' 
-                    })
-                  : 'Recently'}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 hover-elevate" data-testid="card-retention">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-              <Shield className="h-5 w-5 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <p className="text-xs text-muted-foreground mb-0.5">Data retention</p>
-              <p className="text-sm font-semibold capitalize" data-testid="text-retention-policy">
-                {userData?.profile?.dataRetentionPolicy?.replace('days', ' days').replace('year', ' year') || 'Forever'}
-              </p>
+        <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-member-since">
+          <div className="relative">
+            <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
+            <div className="bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-teal-500/20 dark:from-blue-500/30 dark:via-cyan-500/25 dark:to-teal-500/30 p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 p-2.5 rounded-lg bg-blue-500/20 dark:bg-blue-400/30 backdrop-blur-sm">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-0.5">Member since</p>
+                  <p className="text-sm font-semibold" data-testid="text-member-since">
+                    {userData?.profile?.createdAt 
+                      ? new Date(userData.profile.createdAt).toLocaleDateString('en-US', { 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })
+                      : 'Recently'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4 hover-elevate" data-testid="card-referrals">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-              <Award className="h-5 w-5 text-accent" />
+        <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-retention">
+          <div className="relative">
+            <div className="h-1 bg-gradient-to-r from-red-500 to-orange-500" />
+            <div className="bg-gradient-to-br from-red-500/20 via-orange-500/15 to-amber-500/20 dark:from-red-500/30 dark:via-orange-500/25 dark:to-amber-500/30 p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 p-2.5 rounded-lg bg-red-500/20 dark:bg-red-400/30 backdrop-blur-sm">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-0.5">Data retention</p>
+                  <p className="text-sm font-semibold capitalize" data-testid="text-retention-policy">
+                    {userData?.profile?.dataRetentionPolicy?.replace('days', ' days').replace('year', ' year') || 'Forever'}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex-1">
-              <p className="text-xs text-muted-foreground mb-0.5">Referrals</p>
-              <p className="text-sm font-semibold" data-testid="text-referrals">
-                {userData?.profile?.referralCount || 0} friends invited
-              </p>
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-referrals">
+          <div className="relative">
+            <div className="h-1 bg-gradient-to-r from-amber-500 to-yellow-500" />
+            <div className="bg-gradient-to-br from-amber-500/20 via-yellow-500/15 to-orange-500/20 dark:from-amber-500/30 dark:via-yellow-500/25 dark:to-orange-500/30 p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 p-2.5 rounded-lg bg-amber-500/20 dark:bg-amber-400/30 backdrop-blur-sm">
+                  <Award className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-0.5">Referrals</p>
+                  <p className="text-sm font-semibold" data-testid="text-referrals">
+                    {userData?.profile?.referralCount || 0} friends invited
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </Card>
@@ -234,48 +249,63 @@ export default function ProfilePage() {
             </h4>
 
             {userData?.profile?.stateOfResidence && (
-              <Card className="p-4 hover-elevate" data-testid="card-state">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-success" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-0.5">State</p>
-                    <p className="text-sm font-semibold" data-testid="text-state">
-                      {userData.profile.stateOfResidence}
-                    </p>
+              <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-state">
+                <div className="relative">
+                  <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-500" />
+                  <div className="bg-gradient-to-br from-green-500/20 via-emerald-500/15 to-teal-500/20 dark:from-green-500/30 dark:via-emerald-500/25 dark:to-teal-500/30 p-4 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 p-2.5 rounded-lg bg-green-500/20 dark:bg-green-400/30 backdrop-blur-sm">
+                        <MapPin className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-0.5">State</p>
+                        <p className="text-sm font-semibold" data-testid="text-state">
+                          {userData.profile.stateOfResidence}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>
             )}
 
             {userData?.profile?.defaultEncounterType && (
-              <Card className="p-4 hover-elevate" data-testid="card-encounter">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-0.5">Encounter type</p>
-                    <p className="text-sm font-semibold capitalize" data-testid="text-encounter-type">
-                      {userData.profile.defaultEncounterType}
-                    </p>
+              <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-encounter">
+                <div className="relative">
+                  <div className="h-1 bg-gradient-to-r from-purple-500 to-violet-500" />
+                  <div className="bg-gradient-to-br from-purple-500/20 via-violet-500/15 to-indigo-500/20 dark:from-purple-500/30 dark:via-violet-500/25 dark:to-indigo-500/30 p-4 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 p-2.5 rounded-lg bg-purple-500/20 dark:bg-purple-400/30 backdrop-blur-sm">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-0.5">Encounter type</p>
+                        <p className="text-sm font-semibold capitalize" data-testid="text-encounter-type">
+                          {userData.profile.defaultEncounterType}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>
             )}
 
             {userData?.profile?.defaultContractDuration && (
-              <Card className="p-4 hover-elevate" data-testid="card-duration">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-accent" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-0.5">Default duration</p>
-                    <p className="text-sm font-semibold" data-testid="text-duration">
-                      {userData.profile.defaultContractDuration} minutes
-                    </p>
+              <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-duration">
+                <div className="relative">
+                  <div className="h-1 bg-gradient-to-r from-indigo-500 to-blue-500" />
+                  <div className="bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-cyan-500/20 dark:from-indigo-500/30 dark:via-blue-500/25 dark:to-cyan-500/30 p-4 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 p-2.5 rounded-lg bg-indigo-500/20 dark:bg-indigo-400/30 backdrop-blur-sm">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-0.5">Default duration</p>
+                        <p className="text-sm font-semibold" data-testid="text-duration">
+                          {userData.profile.defaultContractDuration} minutes
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -284,43 +314,53 @@ export default function ProfilePage() {
         )}
 
         {/* Quick Actions */}
-        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-6 mb-3">
           Quick Actions
         </h4>
         
         <div className="grid grid-cols-1 gap-3">
           <Card
-            className="p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
+            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
             onClick={() => setLocation('/files')}
             data-testid="card-view-files"
           >
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h5 className="font-semibold text-sm mb-0.5">View All Files</h5>
-                <p className="text-xs text-muted-foreground">
-                  Browse contracts & recordings
-                </p>
+            <div className="relative">
+              <div className="h-1 bg-gradient-to-r from-slate-500 to-gray-500" />
+              <div className="bg-gradient-to-br from-slate-500/20 via-gray-500/15 to-zinc-500/20 dark:from-slate-500/30 dark:via-gray-500/25 dark:to-zinc-500/30 p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-slate-500/20 dark:bg-slate-400/30 backdrop-blur-sm">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-sm mb-0.5">View All Files</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Browse contracts & recordings
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </Card>
 
           <Card
-            className="p-4 hover-elevate active-elevate-2 cursor-pointer transition-all"
+            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
             onClick={() => setLocation('/settings/preferences')}
             data-testid="card-edit-preferences"
           >
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-success" />
-              </div>
-              <div className="flex-1">
-                <h5 className="font-semibold text-sm mb-0.5">Edit Preferences</h5>
-                <p className="text-xs text-muted-foreground">
-                  Update default settings
-                </p>
+            <div className="relative">
+              <div className="h-1 bg-gradient-to-r from-pink-500 to-rose-500" />
+              <div className="bg-gradient-to-br from-pink-500/20 via-rose-500/15 to-purple-500/20 dark:from-pink-500/30 dark:via-rose-500/25 dark:to-purple-500/30 p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-pink-500/20 dark:bg-pink-400/30 backdrop-blur-sm">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-sm mb-0.5">Edit Preferences</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Update default settings
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </Card>
