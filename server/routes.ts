@@ -163,6 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           savedSignatureText: profile?.savedSignatureText || null,
         },
         profile: {
+          username: profile?.username || null,
           profilePictureUrl: profile?.profilePictureUrl || null,
           bio: profile?.bio || null,
           websiteUrl: profile?.websiteUrl || null,
@@ -793,6 +794,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contractDuration: parsed.data.contractDuration,
         contractEndTime: parsed.data.contractEndTime
       });
+
+      // Validate all parties use canonical @username format
+      if (parsed.data.parties && parsed.data.parties.length > 0) {
+        const invalidParties = parsed.data.parties.filter((party: string) => 
+          party.trim() && !party.trim().startsWith('@')
+        );
+        if (invalidParties.length > 0) {
+          return res.status(400).json({ 
+            error: "All parties must use canonical @username format",
+            invalidParties: invalidParties
+          });
+        }
+      }
 
       // For signature-based contracts, require both signatures
       if (parsed.data.method === "signature") {

@@ -17,7 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn, UserPlus } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
 import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
 import ContractDurationStep from "@/components/ContractDurationStep";
@@ -35,6 +35,14 @@ type University = {
   lastUpdated: string;
   verifiedAt: string | null;
 };
+
+interface UserContact {
+  id: string;
+  userId: string;
+  contactUsername: string;
+  nickname: string | null;
+  createdAt: string;
+}
 
 const intimateEncounterType = { id: "intimate", label: "Intimate Encounter", icon: Heart };
 
@@ -116,8 +124,17 @@ export default function ConsentFlowPage() {
   });
   
   // Fetch current user data
-  const { data: userData } = useQuery<{ user: { id: string; email: string; name: string | null } }>({
+  const { data: userData } = useQuery<{ 
+    user: { id: string; email: string; name: string | null }; 
+    profile?: { username?: string } 
+  }>({
     queryKey: ["/api/auth/me"],
+  });
+
+  // Fetch user saved contacts
+  const { data: contacts = [] } = useQuery<UserContact[]>({
+    queryKey: ["/api/profile/contacts"],
+    enabled: !!user,
   });
 
   // Load draft for resume editing
@@ -142,13 +159,21 @@ export default function ConsentFlowPage() {
             parsedIntimateActs = draft.intimateActs;
           }
           
+          // Normalize parties to canonical @username format
+          const normalizedParties = (draft.parties || ["", ""]).map((party: string) => {
+            const trimmed = party.trim();
+            if (!trimmed) return "";
+            // If it doesn't start with @, prepend it
+            return trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+          });
+
           // Load draft data into consent flow state with full fidelity
           updateFlowState({
             draftId: draft.id,
             universityId: draft.universityId || "",
             universityName: draft.universityName || "",
             encounterType: draft.encounterType || "",
-            parties: draft.parties || ["", ""],
+            parties: normalizedParties,
             intimateActs: parsedIntimateActs,
             contractStartTime: draft.contractStartTime || undefined,
             contractDuration: draft.contractDuration || undefined,
@@ -398,9 +423,9 @@ export default function ConsentFlowPage() {
 
   // Pre-fill first participant with logged-in user's name when available
   useEffect(() => {
-    if (userData?.user?.name && state.parties[0] === "") {
+    if (userData?.profile?.username && state.parties[0] === "") {
       const newParties = [...state.parties];
-      newParties[0] = userData.user.name;
+      newParties[0] = `@${userData.profile.username}`;
       updateFlowState({ parties: newParties });
     }
   }, [userData]);
@@ -507,13 +532,58 @@ export default function ConsentFlowPage() {
 
   const updateParty = (index: number, value: string) => {
     const newParties = [...state.parties];
-    newParties[index] = value;
+    // Normalize to canonical @username format if user enters text
+    // Allow @ to be optional during typing, but store with @ prefix
+    const trimmedValue = value.trim();
+    if (trimmedValue && !trimmedValue.startsWith('@')) {
+      newParties[index] = `@${trimmedValue}`;
+    } else {
+      newParties[index] = trimmedValue;
+    }
     updateFlowState({ parties: newParties });
   };
 
   const removeParty = (index: number) => {
     const newParties = state.parties.filter((_, i) => i !== index);
     updateFlowState({ parties: newParties.length === 0 ? [""] : newParties });
+  };
+
+  const addContactAsParty = (contact: UserContact) => {
+    // Use canonical username with @ prefix for reliable collaborator matching
+    const canonicalUsername = `@${contact.contactUsername}`;
+    const displayName = contact.nickname || contact.contactUsername;
+    
+    // Check if contact already exists in parties list (case-insensitive)
+    const alreadyExists = state.parties.some(party => 
+      party.toLowerCase() === canonicalUsername.toLowerCase()
+    );
+    
+    if (alreadyExists) {
+      toast({
+        title: "Contact already added",
+        description: `${displayName} is already in the parties list.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Find the first empty party slot (excluding index 0 which is user's username)
+    const emptyIndex = state.parties.findIndex((party, index) => index > 0 && party.trim() === "");
+    
+    if (emptyIndex !== -1) {
+      // Fill empty slot
+      const newParties = [...state.parties];
+      newParties[emptyIndex] = canonicalUsername;
+      updateFlowState({ parties: newParties });
+    } else {
+      // Add new party
+      updateFlowState({ parties: [...state.parties, canonicalUsername] });
+    }
+    
+    toast({
+      title: "Contact added",
+      description: `${displayName} has been added to the parties list.`,
+    });
   };
 
   const toggleIntimateAct = (act: string) => {
@@ -820,12 +890,46 @@ export default function ConsentFlowPage() {
               Add the names of other participants (in addition to yourself)
             </p>
           </div>
+
+          {contacts.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Quick Add from Contacts</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {contacts.map((contact) => {
+                  const canonicalUsername = `@${contact.contactUsername}`;
+                  const isAlreadyAdded = state.parties.some(party => 
+                    party.toLowerCase() === canonicalUsername.toLowerCase()
+                  );
+                  
+                  return (
+                    <Button
+                      key={contact.id}
+                      variant={isAlreadyAdded ? "outline" : "secondary"}
+                      size="sm"
+                      className={isAlreadyAdded ? "opacity-50" : ""}
+                      onClick={() => addContactAsParty(contact)}
+                      disabled={isAlreadyAdded}
+                      data-testid={`badge-contact-${contact.id}`}
+                    >
+                      <UserPlus className="h-3 w-3 mr-1.5" />
+                      {contact.nickname || contact.contactUsername}
+                      {isAlreadyAdded && " ✓"}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3">
             {state.parties.map((party, index) => (
               <div key={index} className="flex gap-2">
                 <div className="flex-1">
                   <Input
-                    placeholder={index === 0 ? "Your name (Participant 1)" : `Participant ${index + 1} name`}
+                    placeholder={index === 0 ? "@username (You)" : `@username (Participant ${index + 1})`}
                     value={party}
                     onChange={(e) => updateParty(index, e.target.value)}
                     data-testid={`input-party-${index}`}
