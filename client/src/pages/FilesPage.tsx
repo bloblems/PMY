@@ -10,6 +10,7 @@ import { Heart, Users, Coffee, Briefcase, FileText, ArrowRight, Inbox, FilePlus,
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { format } from "date-fns";
+import { featureFlags } from "@/lib/featureFlags";
 
 interface Recording {
   id: string;
@@ -378,19 +379,23 @@ export default function FilesPage() {
         </div>
 
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className={`grid w-full ${featureFlags.collaborativeContracts ? 'grid-cols-3' : 'grid-cols-1'} mb-6`}>
             <TabsTrigger value="active" data-testid="tab-active-contracts">
               <FileText className="h-4 w-4 mr-2" />
               Active
             </TabsTrigger>
-            <TabsTrigger value="drafts" data-testid="tab-drafts">
-              <FilePlus className="h-4 w-4 mr-2" />
-              Drafts {drafts.length > 0 && <Badge variant="secondary" className="ml-2">{drafts.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="inbox" data-testid="tab-inbox">
-              <Inbox className="h-4 w-4 mr-2" />
-              Inbox {invitations.length > 0 && <Badge variant="secondary" className="ml-2">{invitations.length}</Badge>}
-            </TabsTrigger>
+            {featureFlags.collaborativeContracts && (
+              <>
+                <TabsTrigger value="drafts" data-testid="tab-drafts">
+                  <FilePlus className="h-4 w-4 mr-2" />
+                  Drafts {drafts.length > 0 && <Badge variant="secondary" className="ml-2">{drafts.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="inbox" data-testid="tab-inbox">
+                  <Inbox className="h-4 w-4 mr-2" />
+                  Inbox {invitations.length > 0 && <Badge variant="secondary" className="ml-2">{invitations.length}</Badge>}
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* Active Contracts Tab */}
@@ -510,7 +515,7 @@ export default function FilesPage() {
                             <Button
                               size="sm"
                               variant="default"
-                              onClick={() => navigate(`/?resumeDraftId=${draft.id}`)}
+                              onClick={() => setLocation(`/?resumeDraftId=${draft.id}`)}
                               data-testid={`button-resume-${draft.id}`}
                             >
                               <Edit className="h-4 w-4 mr-1" />

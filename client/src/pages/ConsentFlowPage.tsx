@@ -21,6 +21,7 @@ import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
 import ContractDurationStep from "@/components/ContractDurationStep";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { featureFlags } from "@/lib/featureFlags";
 
 type University = {
   id: string;
@@ -940,7 +941,7 @@ export default function ConsentFlowPage() {
 
       {/* Action buttons */}
       <div className="space-y-3 pt-4">
-        {step === flowSteps.recordingMethod && (
+        {step === flowSteps.recordingMethod && featureFlags.collaborativeContracts && (
           <div className="flex gap-3">
             <Button
               variant="outline"
