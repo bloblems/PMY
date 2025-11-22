@@ -170,12 +170,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           savedSignature: profile?.savedSignature || null,
           savedSignatureType: profile?.savedSignatureType || null,
           savedSignatureText: profile?.savedSignatureText || null,
+          isVerified: profile?.isVerified || "false",
+          verificationProvider: profile?.verificationProvider || null,
+          verifiedAt: profile?.verifiedAt?.toISOString() || null,
+          verificationLevel: profile?.verificationLevel || null,
         },
         profile: {
           username: profile?.username || null,
           profilePictureUrl: profile?.profilePictureUrl || null,
           bio: profile?.bio || null,
           websiteUrl: profile?.websiteUrl || null,
+          isVerified: profile?.isVerified || "false",
+          verificationProvider: profile?.verificationProvider || null,
+          verifiedAt: profile?.verifiedAt?.toISOString() || null,
+          verificationLevel: profile?.verificationLevel || null,
         },
       });
     } catch (error) {
