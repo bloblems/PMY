@@ -15,10 +15,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
 import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
 import ContractDurationStep from "@/components/ContractDurationStep";
+import { UserSearch } from "@/components/UserSearch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { featureFlags } from "@/lib/featureFlags";
@@ -97,7 +99,14 @@ export default function ConsentFlowPage() {
   
   // Share dialog state
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareMode, setShareMode] = useState<"pmy-user" | "email">("pmy-user");
   const [shareEmail, setShareEmail] = useState("");
+  const [selectedPmyUser, setSelectedPmyUser] = useState<{
+    id: string;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null>(null);
   
   // Fetch universities
   const { data: universities = [] } = useQuery<University[]>({
@@ -1012,40 +1021,89 @@ export default function ConsentFlowPage() {
 
       {/* Share Dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent data-testid="dialog-share-contract">
+        <DialogContent data-testid="dialog-share-contract" className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Share Contract</DialogTitle>
+            <DialogTitle>Share Contract for Approval</DialogTitle>
             <DialogDescription>
-              Enter the email address of the person you want to collaborate with. They'll receive an invitation to review and approve this consent contract.
+              Invite another person to review and approve this consent contract.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="share-email">Recipient Email</Label>
-              <Input
-                id="share-email"
-                type="email"
-                placeholder="partner@example.com"
-                value={shareEmail}
-                onChange={(e) => setShareEmail(e.target.value)}
-                data-testid="input-share-email"
-              />
-            </div>
-          </div>
+          
+          <Tabs value={shareMode} onValueChange={(v) => setShareMode(v as "pmy-user" | "email")} className="py-4">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="pmy-user" data-testid="tab-pmy-user">
+                <AtSign className="h-4 w-4 mr-2" />
+                PMY User
+              </TabsTrigger>
+              <TabsTrigger value="email" data-testid="tab-email">
+                <Mail className="h-4 w-4 mr-2" />
+                Email
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="pmy-user" className="space-y-4" data-testid="content-pmy-user">
+              <div className="space-y-2">
+                <Label>Find a PMY user to collaborate with</Label>
+                <UserSearch
+                  onSelectUser={(user) => setSelectedPmyUser(user)}
+                  selectedUserId={selectedPmyUser?.id}
+                  placeholder="Search by username (e.g., @username)"
+                />
+                {selectedPmyUser && (
+                  <p className="text-sm text-muted-foreground mt-2" data-testid="text-selected-user">
+                    Selected: <span className="font-medium">@{selectedPmyUser.username}</span>
+                    {selectedPmyUser.firstName && selectedPmyUser.lastName && (
+                      <span> ({selectedPmyUser.firstName} {selectedPmyUser.lastName})</span>
+                    )}
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="email" className="space-y-4" data-testid="content-email">
+              <div className="space-y-2">
+                <Label htmlFor="share-email">Recipient Email</Label>
+                <p className="text-sm text-muted-foreground">
+                  Send an invitation to someone who doesn't have PMY yet.
+                </p>
+                <Input
+                  id="share-email"
+                  type="email"
+                  placeholder="partner@example.com"
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  data-testid="input-share-email"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+          
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
                 setShowShareDialog(false);
                 setShareEmail("");
+                setSelectedPmyUser(null);
+                setShareMode("pmy-user");
               }}
               data-testid="button-cancel-share"
             >
               Cancel
             </Button>
             <Button
-              onClick={() => shareContractMutation.mutate(shareEmail)}
-              disabled={!shareEmail || shareContractMutation.isPending}
+              onClick={() => {
+                if (shareMode === "pmy-user" && selectedPmyUser) {
+                  shareContractMutation.mutate(selectedPmyUser.id);
+                } else if (shareMode === "email" && shareEmail) {
+                  shareContractMutation.mutate(shareEmail);
+                }
+              }}
+              disabled={
+                shareContractMutation.isPending ||
+                (shareMode === "pmy-user" && !selectedPmyUser) ||
+                (shareMode === "email" && !shareEmail)
+              }
               data-testid="button-confirm-share"
             >
               {shareContractMutation.isPending ? "Sharing..." : "Send Invitation"}

@@ -109,15 +109,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If profile doesn't exist, create it (happens for newly confirmed signups)
       if (!profile) {
-        await storage.createUserProfile({
-          id: userId,
-          savedSignature: null,
-          savedSignatureType: null,
-          savedSignatureText: null,
-          dataRetentionPolicy: "forever",
-          stripeCustomerId: null,
-          referralCode: null,
-        });
+        // Generate a unique username from the user ID with collision safety
+        let generatedUsername = `user_${userId.substring(0, 8)}`;
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        while (attempts < maxAttempts) {
+          try {
+            await storage.createUserProfile({
+              id: userId,
+              username: generatedUsername,
+              savedSignature: null,
+              savedSignatureType: null,
+              savedSignatureText: null,
+              dataRetentionPolicy: "forever",
+              stripeCustomerId: null,
+              referralCode: null,
+            });
+            break; // Success
+          } catch (error: unknown) {
+            // If username collision, retry with timestamp
+            if (error instanceof Error && (error.message.includes("unique") || error.message.includes("duplicate"))) {
+              attempts++;
+              generatedUsername = `user_${userId.substring(0, 8)}_${Date.now().toString().slice(-6)}`;
+            } else {
+              throw error; // Re-throw other errors
+            }
+          }
+        }
+        
+        if (attempts >= maxAttempts) {
+          return res.status(500).json({ error: "Failed to generate unique username" });
+        }
+        
         profile = await storage.getUserProfile(userId);
       }
       
@@ -175,6 +199,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching profile stats:", error);
       return res.status(500).json({ error: "Failed to fetch profile stats" });
+    }
+  });
+
+  // Search users by username (for social features / collaboration)
+  app.get("/api/users/search", requireAuth, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      
+      if (!query || typeof query !== "string") {
+        return res.status(400).json({ error: "Query parameter 'q' is required" });
+      }
+      
+      if (query.length < 2) {
+        return res.status(400).json({ error: "Query must be at least 2 characters" });
+      }
+      
+      // Search for users by username (supports '@' prefix)
+      const users = await storage.searchUsersByUsername(query, 10);
+      
+      // Return limited profile information for privacy
+      const results = users.map(user => ({
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profilePictureUrl: user.profilePictureUrl,
+        bio: user.bio,
+      }));
+      
+      return res.json({ users: results });
+    } catch (error) {
+      console.error("Error searching users:", error);
+      return res.status(500).json({ error: "Failed to search users" });
     }
   });
 
@@ -1382,7 +1439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { recipientEmail } = validation.data;
+      const { recipientEmail, recipientUserId } = validation.data;
 
       // Verify ownership: only the owner can share
       // getContract returns undefined if contract doesn't exist OR user doesn't have access
@@ -1403,8 +1460,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Share contract and create invitation (storage layer has additional validation)
-      const result = await storage.shareContract(id, recipientEmail, userId, userEmail);
+      // Determine recipient type and share accordingly
+      let result;
+      if (recipientUserId) {
+        // PMY user: Create collaborator directly (in-app collaboration)
+        // For now, use email-based flow with userId - TODO: Optimize for in-app only
+        // Get recipient's email for the current flow
+        const recipientProfile = await storage.getUserProfile(recipientUserId);
+        if (!recipientProfile) {
+          return res.status(404).json({ error: "Recipient user not found" });
+        }
+        // For now, we'll still use email-based invitation but include userId
+        // TODO: Implement pure in-app collaboration without email
+        result = await storage.shareContract(id, recipientUserId, userId, userEmail);
+      } else if (recipientEmail) {
+        // External email: Use email-based invitation flow
+        result = await storage.shareContract(id, recipientEmail, userId, userEmail);
+      } else {
+        return res.status(400).json({ error: "Either recipientEmail or recipientUserId must be provided" });
+      }
       
       // TODO: Send email notification to recipient with invitation code
       // For now, return the invitation details

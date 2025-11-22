@@ -17,6 +17,9 @@ export const universities = pgTable("universities", {
 // User profiles table - links to auth.users (managed by Supabase Auth)
 export const userProfiles = pgTable("users", {
   id: text("id").primaryKey(), // References auth.users(id)
+  username: text("username").notNull().unique(), // Unique username for social features (@username)
+  firstName: text("first_name"), // User's first name
+  lastName: text("last_name"), // User's last name
   profilePictureUrl: text("profile_picture_url"),
   bio: text("bio"),
   websiteUrl: text("website_url"),
@@ -146,6 +149,9 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   dataRetentionPolicy: z.enum(["30days", "90days", "1year", "forever"]).default("forever"),
 });
 
@@ -227,8 +233,12 @@ export const insertVerificationPaymentSchema = createInsertSchema(verificationPa
 
 // API request validation schemas for collaborative contracts
 export const shareContractSchema = z.object({
-  recipientEmail: z.string().email("Invalid email format"),
-});
+  recipientEmail: z.string().email("Invalid email format").optional(),
+  recipientUserId: z.string().optional(),
+}).refine(
+  (data) => data.recipientEmail || data.recipientUserId,
+  { message: "Either recipientEmail or recipientUserId must be provided" }
+);
 
 export const rejectContractSchema = z.object({
   reason: z.string().optional(),

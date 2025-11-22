@@ -78,6 +78,8 @@ export interface IStorage {
   // User profile methods (Supabase auth.users managed separately)
   getUserProfile(id: string): Promise<UserProfile | undefined>;
   getAllUserProfiles(batch?: { limit: number; offset: number }): Promise<UserProfile[]>;
+  searchUsersByUsername(query: string, limit?: number): Promise<UserProfile[]>;
+  getUserByUsername(username: string): Promise<UserProfile | undefined>;
   createUserProfile(profile: InsertUserProfile & { id: string }): Promise<UserProfile>;
   updateUserProfile(id: string, updates: Partial<InsertUserProfile>): Promise<UserProfile | undefined>;
   updateUserSignature(id: string, signature: string, signatureType: string, signatureText?: string): Promise<UserProfile | undefined>;
@@ -666,9 +668,26 @@ export class MemStorage implements IStorage {
     return Array.from(this.userProfiles.values());
   }
 
+  async searchUsersByUsername(query: string, limit: number = 10): Promise<UserProfile[]> {
+    const normalizedQuery = query.toLowerCase().replace('@', '');
+    const profiles = Array.from(this.userProfiles.values())
+      .filter(p => p.username.toLowerCase().includes(normalizedQuery))
+      .slice(0, limit);
+    return profiles;
+  }
+
+  async getUserByUsername(username: string): Promise<UserProfile | undefined> {
+    const normalizedUsername = username.toLowerCase().replace('@', '');
+    return Array.from(this.userProfiles.values())
+      .find(p => p.username.toLowerCase() === normalizedUsername);
+  }
+
   async createUserProfile(profile: InsertUserProfile & { id: string }): Promise<UserProfile> {
     const userProfile: UserProfile = {
       ...profile,
+      username: profile.username,
+      firstName: profile.firstName ?? null,
+      lastName: profile.lastName ?? null,
       profilePictureUrl: profile.profilePictureUrl ?? null,
       bio: profile.bio ?? null,
       websiteUrl: profile.websiteUrl ?? null,
@@ -1286,6 +1305,26 @@ export class DbStorage implements IStorage {
       .range(batch?.offset ?? 0, (batch?.offset ?? 0) + (batch?.limit ?? 1000) - 1);
     if (error) throw error;
     return data || [];
+  }
+
+  async searchUsersByUsername(query: string, limit: number = 10): Promise<UserProfile[]> {
+    const normalizedQuery = query.toLowerCase().replace('@', '');
+    const result = await db
+      .select()
+      .from(userProfiles)
+      .where(sql`LOWER(${userProfiles.username}) LIKE ${`%${normalizedQuery}%`}`)
+      .limit(limit);
+    return result;
+  }
+
+  async getUserByUsername(username: string): Promise<UserProfile | undefined> {
+    const normalizedUsername = username.toLowerCase().replace('@', '');
+    const result = await db
+      .select()
+      .from(userProfiles)
+      .where(sql`LOWER(${userProfiles.username}) = ${normalizedUsername}`)
+      .limit(1);
+    return result[0];
   }
 
   async createUserProfile(profile: InsertUserProfile & { id: string }): Promise<UserProfile> {
