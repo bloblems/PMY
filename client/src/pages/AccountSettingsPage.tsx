@@ -648,12 +648,12 @@ export default function AccountSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Data Retention Policy */}
+      {/* Data Retention */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Data Retention Policy
+            Data Retention
           </CardTitle>
           <CardDescription>
             Choose how long your consent documents are kept before automatic deletion
