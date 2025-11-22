@@ -329,6 +329,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user saved contacts
+  app.get("/api/profile/contacts", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const contacts = await storage.getUserContacts(userId);
+      return res.json(contacts);
+    } catch (error) {
+      console.error("Get contacts error:", error);
+      return res.status(500).json({ error: "Failed to fetch contacts" });
+    }
+  });
+
+  // Add a new contact
+  app.post("/api/profile/contacts", requireAuth, async (req, res) => {
+    try {
+      const { contactUsername, nickname } = req.body;
+      const userId = req.user!.id;
+      
+      if (!contactUsername || typeof contactUsername !== "string") {
+        return res.status(400).json({ error: "Valid contact username is required" });
+      }
+      
+      // Validate username format
+      const usernameRegex = /^[a-zA-Z0-9_]+$/;
+      if (!usernameRegex.test(contactUsername) || contactUsername.length < 3 || contactUsername.length > 30) {
+        return res.status(400).json({ error: "Invalid username format" });
+      }
+      
+      // Verify that the username exists
+      const contactUser = await storage.getUserByUsername(contactUsername);
+      if (!contactUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check if user is trying to add themselves
+      if (contactUser.id === userId) {
+        return res.status(400).json({ error: "You cannot add yourself as a contact" });
+      }
+      
+      // Check if contact already exists
+      const existingContacts = await storage.getUserContacts(userId);
+      const alreadyExists = existingContacts.some(c => c.contactUsername === contactUsername);
+      if (alreadyExists) {
+        return res.status(400).json({ error: "Contact already exists" });
+      }
+      
+      const contact = await storage.addUserContact(userId, contactUsername, nickname);
+      return res.json(contact);
+    } catch (error) {
+      console.error("Add contact error:", error);
+      return res.status(500).json({ error: "Failed to add contact" });
+    }
+  });
+
+  // Delete a contact
+  app.delete("/api/profile/contacts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      
+      const success = await storage.deleteUserContact(id, userId);
+      if (!success) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      
+      return res.json({ success: true, message: "Contact deleted successfully" });
+    } catch (error) {
+      console.error("Delete contact error:", error);
+      return res.status(500).json({ error: "Failed to delete contact" });
+    }
+  });
+
   // Update user data retention policy
   app.patch("/api/auth/retention-policy", requireAuth, async (req, res) => {
     try {

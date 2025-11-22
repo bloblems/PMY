@@ -139,6 +139,15 @@ export const verificationPayments = pgTable("verification_payments", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });
 
+// User contacts table - saved contacts for quick party selection
+export const userContacts = pgTable("user_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(), // References auth.users(id) - the user who saved this contact
+  contactUsername: text("contact_username").notNull(), // The username being saved
+  nickname: text("nickname"), // Optional custom nickname for this contact
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ================================================================
 // INSERT SCHEMAS AND TYPES
 // ================================================================
@@ -235,6 +244,14 @@ export const insertVerificationPaymentSchema = createInsertSchema(verificationPa
   gpuModel: z.enum(["gpt-4", "gpt-4-turbo", "gpt-4o"]),
 });
 
+export const insertUserContactSchema = createInsertSchema(userContacts).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  contactUsername: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  nickname: z.string().max(50).optional(),
+});
+
 // API request validation schemas for collaborative contracts
 export const shareContractSchema = z.object({
   recipientEmail: z.string().email("Invalid email format").optional(),
@@ -275,3 +292,6 @@ export type UniversityReport = typeof universityReports.$inferSelect;
 
 export type InsertVerificationPayment = z.infer<typeof insertVerificationPaymentSchema>;
 export type VerificationPayment = typeof verificationPayments.$inferSelect;
+
+export type InsertUserContact = z.infer<typeof insertUserContactSchema>;
+export type UserContact = typeof userContacts.$inferSelect;

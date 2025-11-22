@@ -14,6 +14,8 @@ import {
   type InsertUserProfile,
   type ContractInvitation,
   type ContractCollaborator,
+  type UserContact,
+  type InsertUserContact,
 } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
@@ -26,6 +28,7 @@ import {
   userProfiles,
   contractCollaborators,
   contractInvitations,
+  userContacts,
 } from "@shared/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { supabaseAdmin } from "./supabase";
@@ -105,6 +108,11 @@ export interface IStorage {
     defaultEncounterType?: string | null;
     defaultContractDuration?: number | null;
   }): Promise<void>;
+
+  // User contacts methods
+  getUserContacts(userId: string): Promise<UserContact[]>;
+  addUserContact(userId: string, contactUsername: string, nickname?: string): Promise<UserContact>;
+  deleteUserContact(id: string, userId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -116,6 +124,7 @@ export class MemStorage implements IStorage {
   private userProfiles: Map<string, UserProfile>;
   private collaborators: Map<string, ContractCollaborator>;
   private invitations: Map<string, ContractInvitation>;
+  private contacts: Map<string, UserContact>;
 
   constructor() {
     this.universities = new Map();
@@ -126,6 +135,7 @@ export class MemStorage implements IStorage {
     this.userProfiles = new Map();
     this.collaborators = new Map();
     this.invitations = new Map();
+    this.contacts = new Map();
 
     // Seed with initial universities
     this.seedUniversities();
@@ -958,6 +968,32 @@ export class MemStorage implements IStorage {
   }): Promise<void> {
     await this.updateUserProfile(id, updates);
   }
+
+  async getUserContacts(userId: string): Promise<UserContact[]> {
+    return Array.from(this.contacts.values())
+      .filter(contact => contact.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async addUserContact(userId: string, contactUsername: string, nickname?: string): Promise<UserContact> {
+    const contact: UserContact = {
+      id: randomUUID(),
+      userId,
+      contactUsername,
+      nickname: nickname || null,
+      createdAt: new Date(),
+    };
+    this.contacts.set(contact.id, contact);
+    return contact;
+  }
+
+  async deleteUserContact(id: string, userId: string): Promise<boolean> {
+    const contact = this.contacts.get(id);
+    if (!contact || contact.userId !== userId) {
+      return false;
+    }
+    return this.contacts.delete(id);
+  }
 }
 
 // Database storage implementation
@@ -1761,6 +1797,33 @@ export class DbStorage implements IStorage {
     defaultContractDuration?: number | null;
   }): Promise<void> {
     await this.updateUserProfile(id, updates);
+  }
+
+  async getUserContacts(userId: string): Promise<UserContact[]> {
+    const result = await db
+      .select()
+      .from(userContacts)
+      .where(eq(userContacts.userId, userId))
+      .orderBy(desc(userContacts.createdAt));
+    return result;
+  }
+
+  async addUserContact(userId: string, contactUsername: string, nickname?: string): Promise<UserContact> {
+    const contact: InsertUserContact = {
+      userId,
+      contactUsername,
+      nickname: nickname || null,
+    };
+    const result = await db.insert(userContacts).values(contact).returning();
+    return result[0];
+  }
+
+  async deleteUserContact(id: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(userContacts)
+      .where(and(eq(userContacts.id, id), eq(userContacts.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 }
 
