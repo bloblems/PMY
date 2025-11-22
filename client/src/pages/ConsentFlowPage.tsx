@@ -120,22 +120,6 @@ export default function ConsentFlowPage() {
     queryKey: ["/api/auth/me"],
   });
 
-  // Require authentication for consent flow
-  if (!authLoading && !user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
-        <LogIn className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Sign in to create consent documentation</h2>
-        <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
-          You need to be logged in to create and manage consent contracts. This ensures secure and legally binding documentation.
-        </p>
-        <Button onClick={() => navigate('/auth')} data-testid="button-sign-in">
-          Sign In
-        </Button>
-      </div>
-    );
-  }
-
   // Load draft for resume editing
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -661,6 +645,22 @@ export default function ConsentFlowPage() {
       setStep(step - 1);
     }
   };
+
+  // Require authentication for consent flow
+  if (!authLoading && !user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        <LogIn className="h-16 w-16 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Sign in to create consent documentation</h2>
+        <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
+          You need to be logged in to create and manage consent contracts. This ensures secure and legally binding documentation.
+        </p>
+        <Button onClick={() => navigate('/auth')} data-testid="button-sign-in">
+          Sign In
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
