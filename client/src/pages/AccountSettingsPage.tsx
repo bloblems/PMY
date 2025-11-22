@@ -656,7 +656,7 @@ export default function AccountSettingsPage() {
             Data Retention
           </CardTitle>
           <CardDescription>
-            Choose how long your consent documents are kept before automatic deletion
+            Choose how long your consent documents are kept before automatic deletion. Warning: PMY does not keep copies of your contracts.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
