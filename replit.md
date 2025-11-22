@@ -50,6 +50,18 @@ The frontend is built with React 18 and TypeScript, utilizing Vite, Wouter for r
 - **Backend Frameworks/Libraries**: Express, Multer, SimpleWebAuthn, WS, Express Rate Limit
 - **iOS/Native Integration**: Capacitor, Capacitor Secure Storage Plugin
 - **AI Services**: OpenAI API (GPT-4o-mini, GPT-4, GPT-4o)
-- **Payment Processing**: Stripe
+- **Payment Processing**: Stripe (optional - only required for paid verification features, not core consent flow)
 - **Email Services**: Resend API
 - **Authentication**: Supabase (Client, SSR), SimpleWebAuthn (Browser)
+
+### Optional Dependencies
+
+**Stripe**: Payment processing is optional and only used for:
+- Paid university Title IX policy verification using advanced AI models (GPT-4, GPT-4o)
+- Billing/payment method management features
+
+The core consent documentation flow works completely without Stripe. When Stripe secrets are not configured:
+- Backend returns 503 (Service Unavailable) for payment endpoints with clear error messages
+- Frontend displays "Payment processing is not available" message on billing page
+- All other features function normally
+- E2E testing can proceed without Stripe configuration

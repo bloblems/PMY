@@ -70,25 +70,34 @@ function validateSignatureSize(dataURL: string, maxBytes: number = 2 * 1024 * 10
   }
 }
 
-const getStripeKey = () => {
+const getStripeKey = (): string | null => {
   const testingKey = process.env.TESTING_STRIPE_SECRET_KEY;
   const prodKey = process.env.STRIPE_SECRET_KEY;
   
   if (process.env.NODE_ENV === 'test' || testingKey) {
-    const key = testingKey || prodKey!;
-    const keyPrefix = key.substring(0, 7);
-    console.log(`[Stripe] Using testing secret key (prefix: ${keyPrefix}...)`);
-    return key;
+    const key = testingKey || prodKey;
+    if (key) {
+      const keyPrefix = key.substring(0, 7);
+      console.log(`[Stripe] Using testing secret key (prefix: ${keyPrefix}...)`);
+      return key;
+    }
   }
   
-  const keyPrefix = prodKey!.substring(0, 7);
-  console.log(`[Stripe] Using production secret key (prefix: ${keyPrefix}...)`);
-  return prodKey!;
+  if (prodKey) {
+    const keyPrefix = prodKey.substring(0, 7);
+    console.log(`[Stripe] Using production secret key (prefix: ${keyPrefix}...)`);
+    return prodKey;
+  }
+  
+  console.log('[Stripe] No Stripe keys configured - payment features will be disabled');
+  return null;
 };
 
-const stripe = new Stripe(getStripeKey(), {
+// Initialize Stripe only if keys are available
+const stripeKey = getStripeKey();
+const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: "2025-10-29.clover",
-});
+}) : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Supabase Auth handles signup/login/password-reset on the client side
@@ -1241,6 +1250,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create Stripe checkout session for verification
   app.post("/api/verify/create-checkout", async (req, res) => {
     try {
+      // Check if Stripe is configured
+      if (!stripe) {
+        return res.status(503).json({ 
+          error: "Payment processing is not available",
+          details: "Stripe is not configured on this server"
+        });
+      }
+
       const { universityId, gpuModel } = req.body;
 
       if (!universityId || !gpuModel) {
@@ -1305,6 +1322,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stripe webhook handler
   app.post("/api/verify/webhook", async (req, res) => {
+    // Check if Stripe is configured
+    if (!stripe) {
+      console.error("[Stripe Webhook] Stripe not configured");
+      return res.status(503).send("Payment processing is not available");
+    }
+
     const sig = req.headers["stripe-signature"];
 
     if (!sig) {
