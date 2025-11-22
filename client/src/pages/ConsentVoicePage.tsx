@@ -141,13 +141,9 @@ export default function ConsentVoicePage() {
 
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/consent-recordings"] });
-      toast({
-        title: "Recording Saved",
-        description: "Your voice consent has been saved successfully.",
-      });
-      navigate("/files");
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      navigate(`/consent/press-for-yes?contractId=${data.id}&encounterType=${encounterType || ''}`);
     },
     onError: (error: Error) => {
       toast({

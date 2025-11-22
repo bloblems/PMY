@@ -142,13 +142,9 @@ export default function ConsentBiometricPage() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
-      toast({
-        title: "Consent Recorded",
-        description: "Your cryptographically verified biometric consent has been saved successfully.",
-      });
-      navigate("/files");
+      navigate(`/consent/press-for-yes?contractId=${data.id}&encounterType=${encounterType || ''}`);
     },
     onError: (error: Error) => {
       toast({

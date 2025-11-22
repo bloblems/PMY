@@ -760,7 +760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No audio file provided" });
       }
 
-      const { universityId, encounterType, parties, duration } = req.body;
+      const { universityId, encounterType, parties, duration, contractText, contractStartTime, contractDuration, contractEndTime } = req.body;
 
       if (!duration) {
         return res.status(400).json({ error: "Missing required field: duration" });
@@ -776,7 +776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
       const userId = req.user!.id;
 
-      // Save to storage with enhanced fields
+      // First save the recording for reference
       const recording = await storage.createRecording({
         userId,
         universityId: universityId || undefined,
@@ -787,17 +787,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         duration,
       });
 
+      // Create a contract with the audio recording (status: draft until Press for Yes)
+      const contract = await storage.createContract({
+        userId,
+        universityId: universityId || undefined,
+        encounterType: encounterType || undefined,
+        parties: parsedParties,
+        contractStartTime: contractStartTime ? new Date(contractStartTime) : undefined,
+        contractDuration: contractDuration ? parseInt(contractDuration) : undefined,
+        contractEndTime: contractEndTime ? new Date(contractEndTime) : undefined,
+        method: "voice",
+        contractText: contractText || `Voice consent recorded on ${new Date().toLocaleDateString()} for ${encounterType || "encounter"}. Duration: ${duration} seconds.`,
+        signature1: fileUrl,
+        signature2: `Voice recording ${filename}`,
+        status: "draft",
+        isCollaborative: "false",
+      });
+
       // Log consent creation
       logConsentEvent(
         req,
         "create_recording",
-        "recording",
-        recording.id,
+        "contract",
+        contract.id,
         userId,
-        { duration, encounterType }
+        { duration, encounterType, method: "voice" }
       );
 
-      res.json(recording);
+      res.json(contract);
     } catch (error) {
       console.error("Error uploading consent recording:", error);
       const userId = req.user?.id;
@@ -805,7 +822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logConsentEvent(
           req,
           "create_failure",
-          "recording",
+          "contract",
           undefined,
           userId,
           { error: (error as Error).message }
@@ -832,7 +849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
       const userId = req.user!.id;
 
-      // Create a contract with the photo
+      // Create a contract with the photo (status: draft until Press for Yes)
       const contract = await storage.createContract({
         userId,
         universityId: universityId || undefined,
@@ -843,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         signature1: "Photo upload by party 1",
         signature2: "Mutual consent shown in photo",
         photoUrl,
-        status: "active",
+        status: "draft",
         isCollaborative: "false",
       });
 
@@ -929,10 +946,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
       const userId = req.user!.id;
 
-      // Create contract with verified biometric data
+      // Create contract with verified biometric data (status: draft until Press for Yes)
       const contract = await storage.createContract({
         ...parsed.data,
-        userId
+        userId,
+        status: "draft",
+        isCollaborative: "false",
       });
 
       // Log consent creation

@@ -194,13 +194,9 @@ The digital signatures below indicate that both parties have read, understood, a
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
-      toast({
-        title: "Contract Created",
-        description: "Your consent contract has been saved successfully.",
-      });
-      navigate("/files");
+      navigate(`/consent/press-for-yes?contractId=${data.id}&encounterType=${encounterType || ''}`);
     },
     onError: (error: Error) => {
       toast({
