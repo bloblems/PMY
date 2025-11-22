@@ -421,111 +421,6 @@ export default function AccountSettingsPage() {
         </p>
       </div>
 
-      {/* Profile Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" />
-            Profile
-          </CardTitle>
-          <CardDescription>
-            Customize your public profile information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Profile Picture</Label>
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={profilePictureUrl} alt="Profile" />
-                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 space-y-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  data-testid="input-profile-picture"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadPictureMutation.isPending}
-                  data-testid="button-upload-picture"
-                >
-                  {uploadPictureMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <ImageIcon className="mr-2 h-4 w-4" />
-                      Upload Picture
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  JPG, PNG or GIF. Max 5MB.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea
-              id="bio"
-              placeholder="Tell others about yourself"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={3}
-              data-testid="input-bio"
-            />
-            <p className="text-xs text-muted-foreground">
-              Brief description for your profile
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="website">Website</Label>
-            <div className="flex items-center gap-2">
-              <LinkIcon className="h-4 w-4 text-muted-foreground" />
-              <Input
-                id="website"
-                type="url"
-                placeholder="https://example.com"
-                value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
-                data-testid="input-website"
-              />
-            </div>
-          </div>
-
-          <Button
-            onClick={handleSaveProfile}
-            disabled={updateProfileMutation.isPending || !hasProfileChanges}
-            data-testid="button-save-profile"
-            className="w-full"
-          >
-            {updateProfileMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Profile
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* Account Information */}
       <Card>
         <CardHeader>
@@ -645,6 +540,111 @@ export default function AccountSettingsPage() {
             <div className="text-sm font-medium text-muted-foreground">Member Since</div>
             <div className="text-base">{memberSince}</div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Profile Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Profile
+          </CardTitle>
+          <CardDescription>
+            Customize your public profile information
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Profile Picture</Label>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={profilePictureUrl} alt="Profile" />
+                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  data-testid="input-profile-picture"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadPictureMutation.isPending}
+                  data-testid="button-upload-picture"
+                >
+                  {uploadPictureMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      Upload Picture
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  JPG, PNG or GIF. Max 5MB.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              placeholder="Tell others about yourself"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+              data-testid="input-bio"
+            />
+            <p className="text-xs text-muted-foreground">
+              Brief description for your profile
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="website">Website</Label>
+            <div className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-muted-foreground" />
+              <Input
+                id="website"
+                type="url"
+                placeholder="https://example.com"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                data-testid="input-website"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSaveProfile}
+            disabled={updateProfileMutation.isPending || !hasProfileChanges}
+            data-testid="button-save-profile"
+            className="w-full"
+          >
+            {updateProfileMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Profile
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
 
