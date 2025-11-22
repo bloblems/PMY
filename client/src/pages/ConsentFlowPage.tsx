@@ -103,7 +103,7 @@ const recordingMethods = [
 
 export default function ConsentFlowPage() {
   const [location, navigate] = useLocation();
-  const { state, updateState: updateFlowState } = useConsentFlow();
+  const { state, updateState: updateFlowState, isHydrated } = useConsentFlow();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
