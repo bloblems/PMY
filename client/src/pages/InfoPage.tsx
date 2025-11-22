@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import UniversitySelector from "@/components/UniversitySelector";
 import TitleIXInfo from "@/components/TitleIXInfo";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { BookOpen } from "lucide-react";
+import { BookOpen, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 
 interface University {
@@ -28,10 +29,6 @@ export default function InfoPage() {
   const universities = [...rawUniversities].sort((a, b) => a.name.localeCompare(b.name));
 
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
-  const [holdProgress, setHoldProgress] = useState(0);
-  const [isHolding, setIsHolding] = useState(false);
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const holdStartRef = useRef<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Check for success message from URL params
@@ -54,10 +51,7 @@ export default function InfoPage() {
     }
   }, []);
 
-  const HOLD_DURATION = 3000; // 3 seconds
-  const RETREAT_DURATION = 300; // 300ms for quick retreat
-
-  const handlePressForYes = () => {
+  const handleContinue = () => {
     if (selectedUniversity) {
       const params = new URLSearchParams({
         universityId: selectedUniversity.id,
@@ -66,64 +60,6 @@ export default function InfoPage() {
       navigate(`/?${params.toString()}`);
     }
   };
-
-  const startHold = () => {
-    setIsHolding(true);
-    holdStartRef.current = Date.now();
-
-    holdTimerRef.current = setInterval(() => {
-      if (holdStartRef.current) {
-        const elapsed = Date.now() - holdStartRef.current;
-        const progress = Math.min((elapsed / HOLD_DURATION) * 100, 100);
-        setHoldProgress(progress);
-
-        if (progress >= 100) {
-          stopHold();
-          handlePressForYes();
-        }
-      }
-    }, 16); // ~60fps updates
-  };
-
-  const stopHold = () => {
-    setIsHolding(false);
-    holdStartRef.current = null;
-    
-    if (holdTimerRef.current) {
-      clearInterval(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-
-    // Quick retreat animation
-    if (holdProgress < 100 && holdProgress > 0) {
-      const startProgress = holdProgress;
-      const retreatStart = Date.now();
-
-      const retreatInterval = setInterval(() => {
-        const elapsed = Date.now() - retreatStart;
-        const retreatProgress = (elapsed / RETREAT_DURATION) * 100;
-        const newProgress = startProgress - (startProgress * (retreatProgress / 100));
-        
-        if (newProgress <= 0 || retreatProgress >= 100) {
-          setHoldProgress(0);
-          clearInterval(retreatInterval);
-        } else {
-          setHoldProgress(newProgress);
-        }
-      }, 16);
-    } else if (holdProgress >= 100) {
-      setHoldProgress(0);
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (holdTimerRef.current) {
-        clearInterval(holdTimerRef.current);
-      }
-    };
-  }, []);
 
   // Auto-select first university when data loads
   useEffect(() => {
@@ -174,35 +110,17 @@ export default function InfoPage() {
         onSelect={setSelectedUniversity}
       />
       {selectedUniversity && (
-        <Card 
-          className="relative p-8 border-2 border-success cursor-pointer transition-transform overflow-hidden select-none" 
-          onMouseDown={startHold}
-          onMouseUp={stopHold}
-          onMouseLeave={stopHold}
-          onTouchStart={startHold}
-          onTouchEnd={stopHold}
-          data-testid="button-press-for-yes"
-        >
-          {/* Green fill overlay */}
-          <div 
-            className="absolute inset-0 bg-success/20 pointer-events-none"
-            style={{
-              width: `${holdProgress}%`,
-              transition: isHolding ? 'none' : `width ${RETREAT_DURATION}ms ease-out`,
-            }}
-          />
-          
-          <div className="relative text-center space-y-2">
-            <h2 className="text-2xl font-bold text-success">
-              {holdProgress >= 100 ? "Yes!" : holdProgress > 0 ? "Hold..." : "Press for Yes"}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {holdProgress > 0 && holdProgress < 100 
-                ? "Keep holding to continue" 
-                : "Hold to create your contract"}
-            </p>
-          </div>
-        </Card>
+        <div className="flex justify-center">
+          <Button 
+            onClick={handleContinue}
+            size="lg"
+            className="gap-2"
+            data-testid="button-continue"
+          >
+            Continue to Home
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       )}
       {selectedUniversity ? (
         <TitleIXInfo
