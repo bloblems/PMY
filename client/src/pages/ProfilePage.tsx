@@ -152,6 +152,34 @@ export default function ProfilePage() {
         </a>
       )}
 
+      {/* Get Verified CTA for non-verified users */}
+      {userData?.profile?.isVerified !== 'true' && (
+        <Card className="mb-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-500/20">
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Shield className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-sm">Get Verified</h3>
+                <p className="text-xs text-muted-foreground">
+                  Unlock premium features and gain trust
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setLocation('/verification')}
+              size="sm"
+              className="w-full"
+              data-testid="button-get-verified"
+            >
+              <BadgeCheck className="h-3.5 w-3.5 mr-1.5" />
+              Verify Account - $5
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Action Buttons */}
       <div className="grid grid-cols-3 gap-2 mb-6">
         <Button

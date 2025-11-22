@@ -47,10 +47,7 @@ export default function ContactsPage() {
 
   const addMutation = useMutation({
     mutationFn: async (data: AddContactFormData) => {
-      return await apiRequest('/api/profile/contacts', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return await apiRequest('POST', '/api/profile/contacts', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/profile/contacts'] });
@@ -72,9 +69,7 @@ export default function ContactsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/profile/contacts/${id}`, {
-        method: 'DELETE',
-      });
+      return await apiRequest('DELETE', `/api/profile/contacts/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/profile/contacts'] });

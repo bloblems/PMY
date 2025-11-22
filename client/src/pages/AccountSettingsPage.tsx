@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Trash2, Save, Clock, Shield, User, UserX, Eye, EyeOff, Image as ImageIcon, Link as LinkIcon } from "lucide-react";
+import { Loader2, Trash2, Save, Clock, Shield, User, UserX, Eye, EyeOff, Image as ImageIcon, Link as LinkIcon, BadgeCheck } from "lucide-react";
 
 interface UserData {
   user: {
@@ -27,6 +27,10 @@ interface UserData {
     profilePictureUrl?: string | null;
     bio?: string | null;
     websiteUrl?: string | null;
+    isVerified?: string;
+    verificationProvider?: string | null;
+    verifiedAt?: string | null;
+    verificationLevel?: string | null;
   };
 }
 
@@ -540,6 +544,78 @@ export default function AccountSettingsPage() {
             <div className="text-sm font-medium text-muted-foreground">Member Since</div>
             <div className="text-base">{memberSince}</div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Verification Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Verification Status
+          </CardTitle>
+          <CardDescription>
+            {userData.profile?.isVerified === 'true' 
+              ? 'Your account has been verified' 
+              : 'Verify your identity to unlock premium features'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {userData.profile?.isVerified === 'true' ? (
+            <>
+              <div className="flex items-center gap-3 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <div className="p-2 bg-green-500/10 rounded-full">
+                  <BadgeCheck className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-sm">Verified Account</div>
+                  <div className="text-xs text-muted-foreground">
+                    You have full access to all features
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Provider:</span>
+                  <span className="font-medium">
+                    {userData.profile.verificationProvider === 'stripe_identity' ? 'Stripe Identity' : userData.profile.verificationProvider}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Verified on:</span>
+                  <span className="font-medium">
+                    {userData.profile.verifiedAt ? new Date(userData.profile.verifiedAt).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Level:</span>
+                  <span className="font-medium">{userData.profile.verificationLevel || 'Standard'}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Verify your account to gain trust within the community and unlock premium features.
+                </p>
+                <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
+                  <li>Verified badge on your profile</li>
+                  <li>Increased trust with partners</li>
+                  <li>Access to advanced features</li>
+                  <li>Priority support</li>
+                </ul>
+              </div>
+              <Button
+                onClick={() => navigate('/verification')}
+                className="w-full"
+                data-testid="button-get-verified-account"
+              >
+                <BadgeCheck className="mr-2 h-4 w-4" />
+                Get Verified - $5
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 

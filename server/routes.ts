@@ -245,6 +245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: user.lastName,
         profilePictureUrl: user.profilePictureUrl,
         bio: user.bio,
+        isVerified: user.isVerified || "false",
+        verificationProvider: user.verificationProvider || null,
       }));
       
       return res.json({ users: results });
@@ -1449,6 +1451,278 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting verification status:", error);
       res.status(500).json({ error: "Failed to get verification status" });
+    }
+  });
+
+  // ================================================================
+  // ACCOUNT/IDENTITY VERIFICATION ENDPOINTS
+  // ================================================================
+  
+  // Initiate account verification (Stripe Identity)
+  app.post("/api/account-verification/initiate", requireAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { provider = "stripe_identity" } = req.body;
+
+      // Check if Stripe is configured
+      if (!stripe) {
+        return res.status(503).json({ 
+          error: "Verification service is not available",
+          details: "Stripe Identity is not configured on this server"
+        });
+      }
+
+      // Check if user is already verified
+      const profile = await storage.getUserProfile(user.id);
+      if (profile && profile.isVerified === "true") {
+        return res.status(400).json({ error: "Account is already verified" });
+      }
+
+      // Check retry eligibility (48-hour cooldown after failed attempt)
+      const retryCheck = await storage.checkRetryEligibility(user.id);
+      if (!retryCheck.canRetry) {
+        return res.status(429).json({ 
+          error: "Please wait before retrying verification",
+          canRetryAt: retryCheck.canRetryAt?.toISOString()
+        });
+      }
+
+      // Create PaymentIntent for $5 verification fee
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: 500, // $5.00 in cents
+        currency: "usd",
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          purpose: "account_verification",
+          userId: user.id,
+        },
+      });
+
+      // Create Stripe Identity VerificationSession
+      const verificationSession = await stripe.identity.verificationSessions.create({
+        type: "document",
+        metadata: {
+          userId: user.id,
+          paymentIntentId: paymentIntent.id,
+        },
+        options: {
+          document: {
+            require_matching_selfie: true, // Require selfie for higher security
+          },
+        },
+      });
+
+      // Store verification record in database
+      const verification = await storage.createAccountVerification({
+        userId: user.id,
+        provider,
+        sessionId: verificationSession.id,
+        stripePaymentIntentId: paymentIntent.id,
+        status: "pending",
+        paymentStatus: "pending",
+      });
+
+      res.json({
+        verificationSessionId: verificationSession.id,
+        clientSecret: verificationSession.client_secret,
+        paymentIntentClientSecret: paymentIntent.client_secret,
+        verificationId: verification.id,
+      });
+    } catch (error) {
+      console.error("Error initiating account verification:", error);
+      res.status(500).json({ error: "Failed to initiate verification" });
+    }
+  });
+
+  // Get account verification status
+  app.get("/api/account-verification/status", requireAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+      
+      // Get user's profile to check verified status
+      const profile = await storage.getUserProfile(user.id);
+      
+      // Get latest verification attempt
+      const latestVerification = await storage.getLatestAccountVerification(user.id);
+      
+      // Check retry eligibility
+      const retryCheck = await storage.checkRetryEligibility(user.id);
+
+      res.json({
+        isVerified: profile?.isVerified === "true",
+        verificationProvider: profile?.verificationProvider || null,
+        verifiedAt: profile?.verifiedAt?.toISOString() || null,
+        verificationLevel: profile?.verificationLevel || null,
+        latestAttempt: latestVerification || null,
+        canRetry: retryCheck.canRetry,
+        canRetryAt: retryCheck.canRetryAt?.toISOString() || null,
+      });
+    } catch (error) {
+      console.error("Error getting verification status:", error);
+      res.status(500).json({ error: "Failed to get verification status" });
+    }
+  });
+
+  // Stripe Identity webhook handler
+  app.post("/api/account-verification/webhook", async (req, res) => {
+    try {
+      if (!stripe) {
+        return res.status(503).json({ error: "Stripe is not configured" });
+      }
+
+      const sig = req.headers["stripe-signature"];
+      if (!sig || !process.env.STRIPE_WEBHOOK_SECRET) {
+        return res.status(400).send("Missing signature or webhook secret");
+      }
+
+      let event: Stripe.Event;
+
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+      } catch (err) {
+        console.error("Webhook signature verification failed:", err);
+        return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+
+      // Handle different event types
+      switch (event.type) {
+        case "identity.verification_session.verified":
+          {
+            const session = event.data.object as Stripe.Identity.VerificationSession;
+            console.log(`Verification session ${session.id} verified`);
+
+            // Update verification status to verified
+            await storage.updateAccountVerificationStatus(
+              session.id,
+              "verified",
+              JSON.stringify(session.verified_outputs || {}),
+              undefined,
+              session.type
+            );
+
+            // Get the verification record to find userId
+            const verification = await storage.getAccountVerificationBySessionId(session.id);
+            if (verification) {
+              // Mark user as verified in their profile
+              await storage.setUserVerified(
+                verification.userId,
+                "stripe_identity",
+                session.type,
+                JSON.stringify(session.verified_outputs || {})
+              );
+            }
+          }
+          break;
+
+        case "identity.verification_session.requires_input":
+          {
+            const session = event.data.object as Stripe.Identity.VerificationSession;
+            console.log(`Verification session ${session.id} requires input`);
+            
+            await storage.updateAccountVerificationStatus(
+              session.id,
+              "processing",
+              undefined,
+              "Additional input required"
+            );
+          }
+          break;
+
+        case "identity.verification_session.processing":
+          {
+            const session = event.data.object as Stripe.Identity.VerificationSession;
+            console.log(`Verification session ${session.id} is processing`);
+            
+            await storage.updateAccountVerificationStatus(
+              session.id,
+              "processing"
+            );
+          }
+          break;
+
+        case "identity.verification_session.canceled":
+          {
+            const session = event.data.object as Stripe.Identity.VerificationSession;
+            console.log(`Verification session ${session.id} was canceled`);
+            
+            await storage.updateAccountVerificationStatus(
+              session.id,
+              "failed",
+              undefined,
+              "Verification canceled by user"
+            );
+          }
+          break;
+
+        case "payment_intent.succeeded":
+          {
+            const paymentIntent = event.data.object as Stripe.PaymentIntent;
+            
+            // Check if this is an account verification payment
+            if (paymentIntent.metadata.purpose === "account_verification") {
+              console.log(`Payment succeeded for verification: ${paymentIntent.id}`);
+              
+              // Find verification by payment intent ID
+              const verifications = await storage.getLatestAccountVerification(
+                paymentIntent.metadata.userId
+              );
+              
+              if (verifications && verifications.stripePaymentIntentId === paymentIntent.id) {
+                await storage.updateAccountVerificationPaymentStatus(
+                  verifications.sessionId,
+                  "succeeded",
+                  paymentIntent.id
+                );
+              }
+            }
+          }
+          break;
+
+        case "payment_intent.payment_failed":
+          {
+            const paymentIntent = event.data.object as Stripe.PaymentIntent;
+            
+            // Check if this is an account verification payment
+            if (paymentIntent.metadata.purpose === "account_verification") {
+              console.log(`Payment failed for verification: ${paymentIntent.id}`);
+              
+              // Find verification by payment intent ID
+              const verifications = await storage.getLatestAccountVerification(
+                paymentIntent.metadata.userId
+              );
+              
+              if (verifications && verifications.stripePaymentIntentId === paymentIntent.id) {
+                await storage.updateAccountVerificationPaymentStatus(
+                  verifications.sessionId,
+                  "failed"
+                );
+                
+                // Also mark verification as failed since payment failed
+                await storage.updateAccountVerificationStatus(
+                  verifications.sessionId,
+                  "failed",
+                  undefined,
+                  "Payment failed"
+                );
+              }
+            }
+          }
+          break;
+
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Error handling verification webhook:", error);
+      res.status(500).json({ error: "Webhook handler failed" });
     }
   });
 

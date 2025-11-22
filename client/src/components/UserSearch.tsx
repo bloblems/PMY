@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, User } from "lucide-react";
+import { Search, User, BadgeCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface SearchUser {
@@ -13,6 +13,8 @@ interface SearchUser {
   lastName: string | null;
   profilePictureUrl: string | null;
   bio: string | null;
+  isVerified?: string;
+  verificationProvider?: string | null;
 }
 
 interface UserSearchProps {
@@ -106,6 +108,13 @@ export function UserSearch({ onSelectUser, selectedUserId, placeholder = "Search
                         <p className="font-medium truncate" data-testid={`text-name-${user.id}`}>
                           {getDisplayName(user)}
                         </p>
+                        {user.isVerified === 'true' && (
+                          <BadgeCheck 
+                            className="h-4 w-4 text-primary fill-primary/20 shrink-0" 
+                            data-testid={`icon-verified-${user.id}`}
+                            aria-label="Verified account"
+                          />
+                        )}
                         <Badge variant="secondary" className="text-xs" data-testid={`badge-pmy-${user.id}`}>
                           <User className="h-3 w-3 mr-1" />
                           PMY User

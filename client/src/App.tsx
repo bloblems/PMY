@@ -31,6 +31,7 @@ import ResetRequestPage from "@/pages/ResetRequestPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import ProfilePage from "@/pages/ProfilePage";
 import RewardsPage from "@/pages/RewardsPage";
+import VerificationPage from "@/pages/VerificationPage";
 
 function Router() {
   return (
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/auth/reset-password" component={ResetPasswordPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/rewards" component={RewardsPage} />
+      <Route path="/verification" component={VerificationPage} />
       <Route path="/" component={ConsentFlowPage} />
       <Route path="/titleix" component={InfoPage} />
       <Route path="/state-law" component={StateLawPage} />
