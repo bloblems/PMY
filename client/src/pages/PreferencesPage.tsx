@@ -64,20 +64,20 @@ export default function PreferencesPage() {
   const form = useForm<PreferencesFormData>({
     resolver: zodResolver(preferencesSchema),
     defaultValues: {
-      defaultUniversityId: "",
-      stateOfResidence: "",
-      defaultEncounterType: "",
-      defaultContractDuration: "",
+      defaultUniversityId: "none",
+      stateOfResidence: "none",
+      defaultEncounterType: "none",
+      defaultContractDuration: "none",
     },
   });
 
   useEffect(() => {
     if (preferences) {
       form.reset({
-        defaultUniversityId: preferences.defaultUniversityId || "",
-        stateOfResidence: preferences.stateOfResidence || "",
-        defaultEncounterType: preferences.defaultEncounterType || "",
-        defaultContractDuration: preferences.defaultContractDuration?.toString() || "",
+        defaultUniversityId: preferences.defaultUniversityId || "none",
+        stateOfResidence: preferences.stateOfResidence || "none",
+        defaultEncounterType: preferences.defaultEncounterType || "none",
+        defaultContractDuration: preferences.defaultContractDuration?.toString() || "none",
       });
     }
   }, [preferences, form]);
@@ -85,10 +85,10 @@ export default function PreferencesPage() {
   const updateMutation = useMutation({
     mutationFn: async (data: PreferencesFormData) => {
       const payload = {
-        defaultUniversityId: data.defaultUniversityId || null,
-        stateOfResidence: data.stateOfResidence || null,
-        defaultEncounterType: data.defaultEncounterType || null,
-        defaultContractDuration: data.defaultContractDuration ? parseInt(data.defaultContractDuration) : null,
+        defaultUniversityId: (data.defaultUniversityId && data.defaultUniversityId !== "none") ? data.defaultUniversityId : null,
+        stateOfResidence: (data.stateOfResidence && data.stateOfResidence !== "none") ? data.stateOfResidence : null,
+        defaultEncounterType: (data.defaultEncounterType && data.defaultEncounterType !== "none") ? data.defaultEncounterType : null,
+        defaultContractDuration: (data.defaultContractDuration && data.defaultContractDuration !== "none") ? parseInt(data.defaultContractDuration) : null,
       };
       
       const authHeaders = await getAuthHeaders();
@@ -167,7 +167,7 @@ export default function PreferencesPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {universities?.map((uni) => (
                           <SelectItem key={uni.id} value={uni.id}>
                             {uni.name} ({uni.state})
@@ -196,7 +196,7 @@ export default function PreferencesPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         <SelectItem value="AL">Alabama</SelectItem>
                         <SelectItem value="AK">Alaska</SelectItem>
                         <SelectItem value="AZ">Arizona</SelectItem>
@@ -270,7 +270,7 @@ export default function PreferencesPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {ENCOUNTER_TYPES.map((type) => (
                           <SelectItem key={type.value} value={type.value}>
                             {type.label}
@@ -299,7 +299,7 @@ export default function PreferencesPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None (Indefinite)</SelectItem>
+                        <SelectItem value="none">None (Indefinite)</SelectItem>
                         {DURATION_PRESETS.map((preset) => (
                           <SelectItem key={preset.value} value={preset.value}>
                             {preset.label}
