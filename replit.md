@@ -36,6 +36,8 @@ The frontend is built with React 18 and TypeScript, utilizing Vite, Wouter for r
 - **Navigation**: A bottom navigation bar with "Create", "Tools", "Contracts", and "Profile" tabs. The Contracts tab features sub-navigation with three tabs: Active Contracts (finalized documents), Drafts (pending approval), and Inbox (received invitations).
 - **Security**: Comprehensive measures include `requireAuth` middleware for sensitive endpoints, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, and rate limiting.
 - **Testing**: A comprehensive automated test strategy covers critical security, core functionality, integration, and polish, utilizing Playwright for E2E tests and specific strategies for Supabase Auth in test environments.
+- **Feature Flags**: The application includes a feature flag system (`client/src/lib/featureFlags.ts`) to control experimental and beta features. Feature flags are configured via environment variables prefixed with `VITE_ENABLE_`. Currently supports:
+  - `VITE_ENABLE_COLLABORATIVE_CONTRACTS`: Controls the visibility of collaborative contracts features (Save/Share buttons in consent flow, Drafts/Inbox tabs in Files page). When disabled (default), users can only create finalized contracts directly. When enabled, users can save drafts, share for approval, and collaborate asynchronously. This feature is currently in beta and may not be published in production on day one.
 
 ## External Dependencies
 
