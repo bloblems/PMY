@@ -1463,30 +1463,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Determine recipient type and share accordingly
       let result;
       if (recipientUserId) {
-        // PMY user: Create collaborator directly (in-app collaboration)
-        // For now, use email-based flow with userId - TODO: Optimize for in-app only
-        // Get recipient's email for the current flow
-        const recipientProfile = await storage.getUserProfile(recipientUserId);
-        if (!recipientProfile) {
-          return res.status(404).json({ error: "Recipient user not found" });
-        }
-        // For now, we'll still use email-based invitation but include userId
-        // TODO: Implement pure in-app collaboration without email
-        result = await storage.shareContract(id, recipientUserId, userId, userEmail);
+        // PMY user: Create collaborator directly (native in-app collaboration)
+        result = await storage.shareContract(id, userId, userEmail, recipientUserId);
       } else if (recipientEmail) {
         // External email: Use email-based invitation flow
-        result = await storage.shareContract(id, recipientEmail, userId, userEmail);
+        result = await storage.shareContract(id, userId, userEmail, undefined, recipientEmail);
       } else {
         return res.status(400).json({ error: "Either recipientEmail or recipientUserId must be provided" });
       }
       
-      // TODO: Send email notification to recipient with invitation code
-      // For now, return the invitation details
-      res.json({
-        success: true,
-        invitationCode: result.invitationCode,
-        message: "Contract shared successfully. Invitation code can be shared with recipient."
-      });
+      // Return success based on recipient type
+      if (recipientUserId) {
+        // PMY user: Collaborator created (in-app)
+        res.json({
+          success: true,
+          collaboratorId: result.collaboratorId,
+          message: "Contract shared with PMY user successfully. They can now view and approve in their Inbox."
+        });
+      } else {
+        // External email: Invitation sent
+        res.json({
+          success: true,
+          invitationId: result.invitationId,
+          invitationCode: result.invitationCode,
+          message: "Contract shared successfully. Invitation code can be shared with recipient."
+        });
+      }
     } catch (error) {
       console.error("Error sharing contract:", error);
       
@@ -1521,6 +1523,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching invitations:", error);
       res.status(500).json({ error: "Failed to fetch invitations" });
+    }
+  });
+
+  // Get in-app PMY user invitations (pending collaborator invitations)
+  app.get("/api/contracts/invitations/pmy", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Get pending in-app invitations where user is a recipient with pending status
+      const pendingInvitations = await storage.getPendingInAppInvitations(userId);
+      
+      res.json(pendingInvitations);
+    } catch (error) {
+      console.error("Error fetching PMY invitations:", error);
+      res.status(500).json({ error: "Failed to fetch PMY invitations" });
     }
   });
 

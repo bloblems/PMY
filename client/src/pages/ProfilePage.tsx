@@ -15,6 +15,7 @@ interface UserData {
     name: string | null;
   };
   profile?: {
+    username?: string;
     profilePictureUrl?: string | null;
     bio?: string | null;
     websiteUrl?: string | null;
@@ -110,11 +111,16 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Name */}
+      {/* Username & Name */}
       <div className="mb-2">
-        <h1 className="text-base font-semibold" data-testid="text-profile-name">
-          {userName || 'User'}
+        <h1 className="text-base font-semibold" data-testid="text-profile-username">
+          @{userData?.profile?.username || 'username'}
         </h1>
+        {userName && (
+          <p className="text-sm text-muted-foreground" data-testid="text-profile-name">
+            {userName}
+          </p>
+        )}
       </div>
 
       {/* Bio */}

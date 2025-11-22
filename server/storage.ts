@@ -66,8 +66,9 @@ export interface IStorage {
   // Collaborative contract methods
   getDraftsByUserId(userId: string): Promise<ConsentContract[]>;
   getSharedContractsByUserId(userId: string): Promise<ConsentContract[]>;
+  getPendingInAppInvitations(userId: string): Promise<Array<{ contract: ConsentContract; sender: UserProfile }>>;
   updateDraft(draftId: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | null>;
-  shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }>;
+  shareContract(contractId: string, senderId: string, senderEmail: string, recipientUserId?: string, recipientEmail?: string): Promise<{ invitationId?: string; invitationCode?: string; collaboratorId?: string }>;
   acceptInvitation(invitationCode: string, userId: string): Promise<{ contractId: string } | null>;
   getInvitationByCode(code: string): Promise<ContractInvitation | undefined>;
   getInvitationsByRecipientEmail(email: string): Promise<ContractInvitation[]>;
@@ -359,6 +360,27 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
+  async getPendingInAppInvitations(userId: string): Promise<Array<{ contract: ConsentContract; sender: UserProfile }>> {
+    // Find pending collaborator records where user is recipient with pending status
+    const pendingCollaborations = Array.from(this.collaborators.values())
+      .filter(c => c.userId === userId && c.status === "pending");
+    
+    const results: Array<{ contract: ConsentContract; sender: UserProfile }> = [];
+    
+    for (const collab of pendingCollaborations) {
+      const contract = this.contracts.get(collab.contractId);
+      if (!contract || !contract.userId) continue;
+      
+      // Get sender profile (contract owner)
+      const sender = this.userProfiles.get(contract.userId);
+      if (!sender) continue;
+      
+      results.push({ contract, sender });
+    }
+    
+    return results.sort((a, b) => b.contract.createdAt.getTime() - a.contract.createdAt.getTime());
+  }
+
   async updateDraft(draftId: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | null> {
     const draft = this.contracts.get(draftId);
     
@@ -386,7 +408,7 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }> {
+  async shareContract(contractId: string, senderId: string, senderEmail: string, recipientUserId?: string, recipientEmail?: string): Promise<{ invitationId?: string; invitationCode?: string; collaboratorId?: string }> {
     // Validate contract exists and belongs to sender
     const contract = this.contracts.get(contractId);
     if (!contract || contract.userId !== senderId) {
@@ -398,36 +420,10 @@ export class MemStorage implements IStorage {
       throw new Error("Only draft contracts can be shared");
     }
     
-    // Prevent self-invites by comparing emails
-    if (recipientEmail.toLowerCase() === senderEmail.toLowerCase()) {
-      throw new Error("Cannot share contract with yourself");
+    // Validate at least one recipient is provided
+    if (!recipientUserId && !recipientEmail) {
+      throw new Error("Either recipientUserId or recipientEmail must be provided");
     }
-    
-    // Check for any existing invitation to this email (regardless of status)
-    const existingInvitation = Array.from(this.invitations.values())
-      .find(inv => inv.contractId === contractId && inv.recipientEmail.toLowerCase() === recipientEmail.toLowerCase());
-    if (existingInvitation) {
-      throw new Error("An invitation has already been sent to this email");
-    }
-    
-    const invitationId = randomUUID();
-    const invitationCode = randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-    
-    // Create invitation
-    this.invitations.set(invitationId, {
-      id: invitationId,
-      contractId,
-      senderId,
-      recipientUserId: null,
-      recipientEmail,
-      invitationCode,
-      status: "pending",
-      createdAt: new Date(),
-      expiresAt,
-      acceptedAt: null,
-    });
     
     // Update contract to collaborative
     const updated = {
@@ -437,27 +433,107 @@ export class MemStorage implements IStorage {
     };
     this.contracts.set(contractId, updated);
     
-    // Create collaborator record for initiator if not exists
+    // Create collaborator record for initiator if not exists (idempotent)
     const existingInitiator = Array.from(this.collaborators.values())
       .find(c => c.contractId === contractId && c.userId === senderId);
     
     if (!existingInitiator) {
+      try {
+        const collaboratorId = randomUUID();
+        this.collaborators.set(collaboratorId, {
+          id: collaboratorId,
+          contractId,
+          userId: senderId,
+          role: "initiator",
+          status: "approved",
+          approvedAt: new Date(),
+          lastViewedAt: new Date(),
+          rejectedAt: null,
+          rejectionReason: null,
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        // If collaborator already exists (race condition), continue anyway
+        // The important part is ensuring the new recipient is added
+      }
+    }
+    
+    // PMY User Flow: Create collaborator directly (native in-app)
+    if (recipientUserId) {
+      // Prevent self-sharing
+      if (recipientUserId === senderId) {
+        throw new Error("Cannot share contract with yourself");
+      }
+      
+      // Validate recipient user exists
+      const recipientProfile = this.userProfiles.get(recipientUserId);
+      if (!recipientProfile) {
+        throw new Error("Recipient user not found");
+      }
+      
+      // Check for existing collaborator (don't create duplicates)
+      const existingCollaborator = Array.from(this.collaborators.values())
+        .find(collab => collab.contractId === contractId && collab.userId === recipientUserId);
+      if (existingCollaborator) {
+        // User is already a collaborator - return existing collaborator ID
+        return { collaboratorId: existingCollaborator.id };
+      }
+      
+      // Create new collaborator entry with pending approval status
       const collaboratorId = randomUUID();
       this.collaborators.set(collaboratorId, {
         id: collaboratorId,
         contractId,
-        userId: senderId,
-        role: "initiator",
-        status: "approved",
-        approvedAt: new Date(),
+        userId: recipientUserId,
+        role: "recipient",
+        status: "pending",
         lastViewedAt: new Date(),
+        approvedAt: null,
         rejectedAt: null,
         rejectionReason: null,
         createdAt: new Date(),
       });
+      
+      return { collaboratorId };
     }
     
-    return { invitationId, invitationCode };
+    // External Email Flow: Create email invitation (fallback for non-PMY users)
+    if (recipientEmail) {
+      // Prevent self-invites by comparing emails
+      if (recipientEmail.toLowerCase() === senderEmail.toLowerCase()) {
+        throw new Error("Cannot share contract with yourself");
+      }
+      
+      // Check for any existing invitation to this email (regardless of status)
+      const existingInvitation = Array.from(this.invitations.values())
+        .find(inv => inv.contractId === contractId && inv.recipientEmail.toLowerCase() === recipientEmail.toLowerCase());
+      if (existingInvitation) {
+        throw new Error("An invitation has already been sent to this email");
+      }
+      
+      const invitationId = randomUUID();
+      const invitationCode = randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
+      // Create invitation
+      this.invitations.set(invitationId, {
+        id: invitationId,
+        contractId,
+        senderId,
+        recipientUserId: null,
+        recipientEmail,
+        invitationCode,
+        status: "pending",
+        createdAt: new Date(),
+        expiresAt,
+        acceptedAt: null,
+      });
+      
+      return { invitationId, invitationCode };
+    }
+    
+    throw new Error("Invalid share operation");
   }
 
   async acceptInvitation(invitationCode: string, userId: string): Promise<{ contractId: string } | null> {
@@ -954,6 +1030,48 @@ export class DbStorage implements IStorage {
       .orderBy(desc(consentContracts.createdAt));
   }
 
+  async getPendingInAppInvitations(userId: string): Promise<Array<{ contract: ConsentContract; sender: UserProfile }>> {
+    // Get pending collaborator records where user is recipient with pending status
+    const pendingCollaborators = await db
+      .select()
+      .from(contractCollaborators)
+      .where(and(
+        eq(contractCollaborators.userId, userId),
+        eq(contractCollaborators.status, "pending")
+      ));
+    
+    if (pendingCollaborators.length === 0) return [];
+    
+    const results: Array<{ contract: ConsentContract; sender: UserProfile }> = [];
+    
+    for (const collab of pendingCollaborators) {
+      // Get contract
+      const contracts = await db
+        .select()
+        .from(consentContracts)
+        .where(eq(consentContracts.id, collab.contractId));
+      
+      if (contracts.length === 0) continue;
+      const contract = contracts[0];
+      
+      // Skip if contract has no userId (shouldn't happen but safety check)
+      if (!contract.userId) continue;
+      
+      // Get sender profile (contract owner)
+      const senders = await db
+        .select()
+        .from(userProfiles)
+        .where(eq(userProfiles.id, contract.userId));
+      
+      if (senders.length === 0) continue;
+      const sender = senders[0];
+      
+      results.push({ contract, sender });
+    }
+    
+    return results.sort((a, b) => b.contract.createdAt.getTime() - a.contract.createdAt.getTime());
+  }
+
   async updateDraft(draftId: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | null> {
     const updatedData: any = { ...updates };
     if (updates.contractStartTime) updatedData.contractStartTime = new Date(updates.contractStartTime);
@@ -974,10 +1092,10 @@ export class DbStorage implements IStorage {
     return result[0] || null;
   }
 
-  async shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }> {
-    // Prevent self-invites by comparing emails
-    if (recipientEmail.toLowerCase() === senderEmail.toLowerCase()) {
-      throw new Error("Cannot share contract with yourself");
+  async shareContract(contractId: string, senderId: string, senderEmail: string, recipientUserId?: string, recipientEmail?: string): Promise<{ invitationId?: string; invitationCode?: string; collaboratorId?: string }> {
+    // Validate at least one recipient is provided
+    if (!recipientUserId && !recipientEmail) {
+      throw new Error("Either recipientUserId or recipientEmail must be provided");
     }
     
     // Use transaction to ensure atomicity
@@ -997,45 +1115,14 @@ export class DbStorage implements IStorage {
         throw new Error("Only draft contracts can be shared");
       }
       
-      // Check for any existing invitation to this email (regardless of status)
-      const existingInvitation = await tx
-        .select()
-        .from(contractInvitations)
-        .where(and(
-          eq(contractInvitations.contractId, contractId),
-          sql`LOWER(${contractInvitations.recipientEmail}) = LOWER(${recipientEmail})`
-        ));
-      
-      if (existingInvitation.length > 0) {
-        throw new Error("An invitation has already been sent to this email");
-      }
-      
-      const invitationCode = randomUUID();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
-      
-      // Create invitation
-      const invitation = await tx.insert(contractInvitations).values({
-        contractId,
-        senderId,
-        recipientEmail,
-        invitationCode,
-        expiresAt,
-      }).returning();
-      
       // Update contract to collaborative
       await tx
         .update(consentContracts)
         .set({ isCollaborative: "true", updatedAt: new Date() })
         .where(eq(consentContracts.id, contractId));
       
-      // Create collaborator record for initiator if not exists
-      const existingInitiator = await tx
-        .select()
-        .from(contractCollaborators)
-        .where(and(eq(contractCollaborators.contractId, contractId), eq(contractCollaborators.userId, senderId)));
-      
-      if (existingInitiator.length === 0) {
+      // Create collaborator record for initiator if not exists (idempotent)
+      try {
         await tx.insert(contractCollaborators).values({
           userId: senderId,
           contractId,
@@ -1044,9 +1131,95 @@ export class DbStorage implements IStorage {
           approvedAt: new Date(),
           lastViewedAt: new Date(),
         });
+      } catch (error: unknown) {
+        // If unique constraint violated (collaborator already exists), continue anyway
+        // This can happen if contract was previously shared
+        // The important part is ensuring the new recipient is added below
+        if (error instanceof Error && !(error.message.includes("unique") || error.message.includes("duplicate"))) {
+          throw error; // Re-throw non-duplicate errors
+        }
       }
       
-      return { invitationId: invitation[0].id, invitationCode };
+      // PMY User Flow: Create collaborator directly (native in-app)
+      if (recipientUserId) {
+        // Prevent self-sharing
+        if (recipientUserId === senderId) {
+          throw new Error("Cannot share contract with yourself");
+        }
+        
+        // Validate recipient user exists
+        const recipientProfile = await tx
+          .select()
+          .from(userProfiles)
+          .where(eq(userProfiles.id, recipientUserId));
+        
+        if (recipientProfile.length === 0) {
+          throw new Error("Recipient user not found");
+        }
+        
+        // Check for existing collaborator (don't create duplicates)
+        const existingCollaborator = await tx
+          .select()
+          .from(contractCollaborators)
+          .where(and(
+            eq(contractCollaborators.contractId, contractId),
+            eq(contractCollaborators.userId, recipientUserId)
+          ));
+        
+        if (existingCollaborator.length > 0) {
+          // User is already a collaborator - return existing collaborator ID
+          return { collaboratorId: existingCollaborator[0].id };
+        }
+        
+        // Create new collaborator entry with pending approval status
+        const collaborator = await tx.insert(contractCollaborators).values({
+          userId: recipientUserId,
+          contractId,
+          role: "recipient",
+          status: "pending",
+          lastViewedAt: new Date(),
+        }).returning();
+        
+        return { collaboratorId: collaborator[0].id };
+      }
+      
+      // External Email Flow: Create email invitation (fallback for non-PMY users)
+      if (recipientEmail) {
+        // Prevent self-invites by comparing emails
+        if (recipientEmail.toLowerCase() === senderEmail.toLowerCase()) {
+          throw new Error("Cannot share contract with yourself");
+        }
+        
+        // Check for any existing invitation to this email (regardless of status)
+        const existingInvitation = await tx
+          .select()
+          .from(contractInvitations)
+          .where(and(
+            eq(contractInvitations.contractId, contractId),
+            sql`LOWER(${contractInvitations.recipientEmail}) = LOWER(${recipientEmail})`
+          ));
+        
+        if (existingInvitation.length > 0) {
+          throw new Error("An invitation has already been sent to this email");
+        }
+        
+        const invitationCode = randomUUID();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+        
+        // Create invitation
+        const invitation = await tx.insert(contractInvitations).values({
+          contractId,
+          senderId,
+          recipientEmail,
+          invitationCode,
+          expiresAt,
+        }).returning();
+        
+        return { invitationId: invitation[0].id, invitationCode };
+      }
+      
+      throw new Error("Invalid share operation");
     });
   }
 

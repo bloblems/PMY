@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Heart, Users, Coffee, Briefcase, FileText, ArrowRight, Inbox, FilePlus, Check, X, Clock, Edit } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
@@ -59,6 +60,24 @@ interface ContractInvitation {
   status: "pending" | "accepted" | "rejected";
   createdAt: string;
   expiresAt: string;
+}
+
+interface PmyInvitation {
+  contract: {
+    id: string;
+    userId: string;
+    encounterType: string | null;
+    parties: string[] | null;
+    createdAt: string;
+    status: string;
+  };
+  sender: {
+    id: string;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+    profilePictureUrl: string | null;
+  };
 }
 
 interface ContractTemplate {
@@ -115,9 +134,14 @@ export default function FilesPage() {
     queryKey: ["/api/contracts/drafts"],
   });
 
-  // Fetch invitations
+  // Fetch email-based invitations
   const { data: invitations = [] } = useQuery<ContractInvitation[]>({
     queryKey: ["/api/contracts/invitations"],
+  });
+
+  // Fetch in-app PMY user invitations
+  const { data: pmyInvitations = [] } = useQuery<PmyInvitation[]>({
+    queryKey: ["/api/contracts/invitations/pmy"],
   });
 
   const deleteRecordingMutation = useMutation({
@@ -538,13 +562,80 @@ export default function FilesPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Accept invitations to collaborate on consent contracts
               </p>
-              {invitations.length === 0 ? (
+              {pmyInvitations.length === 0 && invitations.length === 0 ? (
                 <Card className="p-8 text-center">
                   <Inbox className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground">No pending invitations</p>
                 </Card>
               ) : (
                 <div className="space-y-3">
+                  {/* PMY User Invitations (In-App) */}
+                  {pmyInvitations.map((invitation) => {
+                    const senderName = invitation.sender.firstName && invitation.sender.lastName
+                      ? `${invitation.sender.firstName} ${invitation.sender.lastName}`
+                      : null;
+                    const initials = senderName
+                      ?.split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2) || invitation.sender.username.slice(0, 2).toUpperCase();
+                    
+                    return (
+                      <Card key={invitation.contract.id} className="p-4" data-testid={`card-pmy-invitation-${invitation.contract.id}`}>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={invitation.sender.profilePictureUrl || undefined} alt={invitation.sender.username} />
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-sm">Contract Invitation</h3>
+                                <Badge variant="default" className="bg-success/10 text-success border-success/20">
+                                  PMY User
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-1">
+                                From: <span className="font-medium">@{invitation.sender.username}</span>
+                                {senderName && <span className="text-muted-foreground/70"> ({senderName})</span>}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Received {format(new Date(invitation.contract.createdAt), "MMM d, yyyy")}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => approveContractMutation.mutate(invitation.contract.id)}
+                              disabled={approveContractMutation.isPending}
+                              data-testid={`button-approve-pmy-${invitation.contract.id}`}
+                            >
+                              <Check className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => rejectContractMutation.mutate({ contractId: invitation.contract.id })}
+                              disabled={rejectContractMutation.isPending}
+                              data-testid={`button-reject-pmy-${invitation.contract.id}`}
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                  
+                  {/* Email Invitations (External Users) */}
                   {invitations.filter(inv => inv.status === "pending").map((invitation) => (
                     <Card key={invitation.id} className="p-4" data-testid={`card-invitation-${invitation.id}`}>
                       <div className="space-y-3">
