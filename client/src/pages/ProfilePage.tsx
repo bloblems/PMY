@@ -4,9 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Link as LinkIcon, FileText, CheckCircle2, Grid3x3, FileSignature, Share2, Gift } from "lucide-react";
-import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { User, Link as LinkIcon, Share2, Gift, Calendar, Shield, MapPin, Clock, Users, Award } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface UserData {
   user: {
@@ -19,6 +18,14 @@ interface UserData {
     profilePictureUrl?: string | null;
     bio?: string | null;
     websiteUrl?: string | null;
+    createdAt?: string;
+    dataRetentionPolicy?: string;
+    defaultUniversityId?: string | null;
+    stateOfResidence?: string | null;
+    defaultEncounterType?: string | null;
+    defaultContractDuration?: number | null;
+    referralCount?: number;
+    referralCode?: string;
   };
 }
 
@@ -31,7 +38,6 @@ interface ConsentStats {
 export default function ProfilePage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<'contracts' | 'recordings'>('contracts');
 
   // Fetch user profile
   const { data: userData } = useQuery<UserData>({
@@ -43,18 +49,6 @@ export default function ProfilePage() {
   const { data: stats } = useQuery<ConsentStats>({
     queryKey: ['/api/profile/stats'],
     enabled: !!user,
-  });
-
-  // Fetch user's contracts
-  const { data: contracts = [] } = useQuery<any[]>({
-    queryKey: ['/api/contracts'],
-    enabled: !!user && activeTab === 'contracts',
-  });
-
-  // Fetch user's recordings
-  const { data: recordings = [] } = useQuery<any[]>({
-    queryKey: ['/api/recordings'],
-    enabled: !!user && activeTab === 'recordings',
   });
 
   if (!user) {
@@ -176,98 +170,120 @@ export default function ProfilePage() {
 
       <Separator className="mb-6" />
 
-      {/* Tab Navigation */}
-      <div className="flex items-center justify-around border-b border-card-border mb-6">
-        <button
-          onClick={() => setActiveTab('contracts')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 border-b-2 transition-colors ${
-            activeTab === 'contracts'
-              ? 'border-success text-success'
-              : 'border-transparent text-muted-foreground'
-          }`}
-          data-testid="tab-contracts"
-        >
-          <FileSignature className="h-5 w-5" />
-          <span className="text-sm font-medium">Contracts</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('recordings')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 border-b-2 transition-colors ${
-            activeTab === 'recordings'
-              ? 'border-success text-success'
-              : 'border-transparent text-muted-foreground'
-          }`}
-          data-testid="tab-recordings"
-        >
-          <Grid3x3 className="h-5 w-5" />
-          <span className="text-sm font-medium">Recordings</span>
-        </button>
-      </div>
+      {/* Profile Details Section */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Profile Details
+        </h3>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-3 gap-1">
-        {activeTab === 'contracts' && contracts.length === 0 && (
-          <div className="col-span-3 flex flex-col items-center justify-center py-16 px-4">
-            <FileText className="h-12 w-12 text-muted-foreground/50 mb-3" />
-            <p className="text-sm text-muted-foreground text-center">No contracts yet</p>
-            <p className="text-xs text-muted-foreground/70 text-center mt-1">
-              Start by creating your first consent contract
-            </p>
-          </div>
-        )}
-
-        {activeTab === 'recordings' && recordings.length === 0 && (
-          <div className="col-span-3 flex flex-col items-center justify-center py-16 px-4">
-            <Grid3x3 className="h-12 w-12 text-muted-foreground/50 mb-3" />
-            <p className="text-sm text-muted-foreground text-center">No recordings yet</p>
-            <p className="text-xs text-muted-foreground/70 text-center mt-1">
-              Document consent with audio recordings
-            </p>
-          </div>
-        )}
-
-        {activeTab === 'contracts' &&
-          contracts.map((contract) => (
-            <Link
-              key={contract.id}
-              href={`/files`}
-              className="aspect-square bg-card border border-card-border hover-elevate active-elevate-2 relative overflow-hidden"
-              data-testid={`card-contract-${contract.id}`}
-            >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <FileSignature className="h-8 w-8 text-muted-foreground" />
+        {/* Account Information */}
+        <Card className="p-4" data-testid="card-account-info">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Member since</p>
+                <p className="text-sm font-medium" data-testid="text-member-since">
+                  {userData?.profile?.createdAt 
+                    ? new Date(userData.profile.createdAt).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        year: 'numeric' 
+                      })
+                    : 'Recently'}
+                </p>
               </div>
-              {contract.verifiedAt && (
-                <div className="absolute top-2 right-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Shield className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Data retention</p>
+                <p className="text-sm font-medium capitalize" data-testid="text-retention-policy">
+                  {userData?.profile?.dataRetentionPolicy?.replace('days', ' days').replace('year', ' year') || 'Forever'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Award className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Referrals</p>
+                <p className="text-sm font-medium" data-testid="text-referrals">
+                  {userData?.profile?.referralCount || 0} friends invited
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Default Preferences */}
+        {(userData?.profile?.stateOfResidence || 
+          userData?.profile?.defaultEncounterType || 
+          userData?.profile?.defaultContractDuration) && (
+          <Card className="p-4" data-testid="card-preferences">
+            <h4 className="text-sm font-semibold mb-3">Default Preferences</h4>
+            <div className="space-y-3">
+              {userData?.profile?.stateOfResidence && (
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">State</p>
+                    <p className="text-sm font-medium" data-testid="text-state">
+                      {userData.profile.stateOfResidence}
+                    </p>
+                  </div>
                 </div>
               )}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-2">
-                <p className="text-xs text-white font-medium truncate">
-                  {contract.method || 'Contract'}
-                </p>
-              </div>
-            </Link>
-          ))}
 
-        {activeTab === 'recordings' &&
-          recordings.map((recording) => (
-            <Link
-              key={recording.id}
-              href={`/files`}
-              className="aspect-square bg-card border border-card-border hover-elevate active-elevate-2 relative overflow-hidden"
-              data-testid={`card-recording-${recording.id}`}
+              {userData?.profile?.defaultEncounterType && (
+                <div className="flex items-center gap-3">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Encounter type</p>
+                    <p className="text-sm font-medium capitalize" data-testid="text-encounter-type">
+                      {userData.profile.defaultEncounterType}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {userData?.profile?.defaultContractDuration && (
+                <div className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Default duration</p>
+                    <p className="text-sm font-medium" data-testid="text-duration">
+                      {userData.profile.defaultContractDuration} minutes
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Quick Actions */}
+        <Card className="p-4" data-testid="card-quick-actions">
+          <h4 className="text-sm font-semibold mb-3">Quick Actions</h4>
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => setLocation('/files')}
+              data-testid="button-view-files"
             >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Grid3x3 className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-2">
-                <p className="text-xs text-white font-medium truncate">
-                  {recording.duration || 'Recording'}
-                </p>
-              </div>
-            </Link>
-          ))}
+              View all contracts & recordings
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => setLocation('/settings/preferences')}
+              data-testid="button-edit-preferences"
+            >
+              Edit default preferences
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   );
