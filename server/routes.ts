@@ -625,6 +625,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all state laws
+  app.get("/api/state-laws", async (_req, res) => {
+    try {
+      const stateLaws = await storage.getAllStateLaws();
+      res.json(stateLaws);
+    } catch (error) {
+      console.error("Error fetching state laws:", error);
+      res.status(500).json({ error: "Failed to fetch state laws" });
+    }
+  });
+
+  // Get a single state law by state code
+  app.get("/api/state-laws/:stateCode", async (req, res) => {
+    try {
+      const { stateCode } = req.params;
+      const stateLaw = await storage.getStateLaw(stateCode.toUpperCase());
+      
+      if (!stateLaw) {
+        return res.status(404).json({ error: "State law not found" });
+      }
+
+      res.json(stateLaw);
+    } catch (error) {
+      console.error("Error fetching state law:", error);
+      res.status(500).json({ error: "Failed to fetch state law" });
+    }
+  });
+
   // Get user's recordings (requires authentication)
   app.get("/api/recordings", requireAuth, async (req, res) => {
     try {

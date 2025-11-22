@@ -14,6 +14,21 @@ export const universities = pgTable("universities", {
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
 });
 
+// State consent laws table
+export const stateLaws = pgTable("state_laws", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stateCode: text("state_code").notNull().unique(), // 2-letter state code (e.g., "CA", "NY")
+  stateName: text("state_name").notNull(), // Full state name (e.g., "California")
+  consentLawInfo: text("consent_law_info").notNull(), // Comprehensive consent law information
+  ageOfConsent: integer("age_of_consent").notNull(), // Legal age of consent
+  romeoJulietLaw: text("romeo_juliet_law"), // Close-in-age exemptions details
+  affirmativeConsentRequired: text("affirmative_consent_required"), // "yes", "no", or details
+  reportingRequirements: text("reporting_requirements"), // Mandatory reporting requirements
+  sourceUrl: text("source_url"), // Link to official state law source
+  lastUpdated: timestamp("last_updated", { withTimezone: true }).notNull().defaultNow(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }), // When verified by paid AI service
+});
+
 // User profiles table - links to auth.users (managed by Supabase Auth)
 export const userProfiles = pgTable("users", {
   id: text("id").primaryKey(), // References auth.users(id)
@@ -179,6 +194,10 @@ export const insertUniversitySchema = createInsertSchema(universities).omit({
   id: true,
 });
 
+export const insertStateLawSchema = createInsertSchema(stateLaws).omit({
+  id: true,
+});
+
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
   id: true,
   createdAt: true,
@@ -308,6 +327,9 @@ export const rejectContractSchema = z.object({
 
 export type InsertUniversity = z.infer<typeof insertUniversitySchema>;
 export type University = typeof universities.$inferSelect;
+
+export type InsertStateLaw = z.infer<typeof insertStateLawSchema>;
+export type StateLaw = typeof stateLaws.$inferSelect;
 
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;

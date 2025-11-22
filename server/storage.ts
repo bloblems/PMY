@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import {
   type University,
   type InsertUniversity,
+  type StateLaw,
+  type InsertStateLaw,
   type ConsentRecording,
   type InsertConsentRecording,
   type ConsentContract,
@@ -23,6 +25,7 @@ import { universityData } from "./university-data";
 import { db } from "./db";
 import {
   universities,
+  stateLaws,
   consentRecordings,
   consentContracts,
   universityReports,
@@ -43,6 +46,13 @@ export interface IStorage {
   createUniversity(university: InsertUniversity): Promise<University>;
   updateUniversityTitleIX(id: string, titleIXInfo: string, titleIXUrl?: string): Promise<University | undefined>;
   verifyUniversity(id: string): Promise<University | undefined>;
+
+  // State law methods
+  getAllStateLaws(): Promise<StateLaw[]>;
+  getStateLaw(stateCode: string): Promise<StateLaw | undefined>;
+  createStateLaw(stateLaw: InsertStateLaw): Promise<StateLaw>;
+  updateStateLaw(stateCode: string, updates: Partial<InsertStateLaw>): Promise<StateLaw | undefined>;
+  verifyStateLaw(stateCode: string): Promise<StateLaw | undefined>;
 
   // University report methods
   createReport(report: InsertUniversityReport): Promise<UniversityReport>;
@@ -135,6 +145,7 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private universities: Map<string, University>;
+  private stateLaws: Map<string, StateLaw>;
   private recordings: Map<string, ConsentRecording>;
   private contracts: Map<string, ConsentContract>;
   private reports: Map<string, UniversityReport>;
@@ -146,6 +157,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.universities = new Map();
+    this.stateLaws = new Map();
     this.recordings = new Map();
     this.contracts = new Map();
     this.reports = new Map();
@@ -228,6 +240,53 @@ export class MemStorage implements IStorage {
       verifiedAt: new Date(),
     };
     this.universities.set(id, verified);
+    return verified;
+  }
+
+  async getAllStateLaws(): Promise<StateLaw[]> {
+    return Array.from(this.stateLaws.values());
+  }
+
+  async getStateLaw(stateCode: string): Promise<StateLaw | undefined> {
+    return Array.from(this.stateLaws.values()).find(
+      (law) => law.stateCode === stateCode
+    );
+  }
+
+  async createStateLaw(insertStateLaw: InsertStateLaw): Promise<StateLaw> {
+    const id = randomUUID();
+    const stateLaw: StateLaw = {
+      ...insertStateLaw,
+      id,
+      lastUpdated: new Date(),
+      verifiedAt: null,
+    };
+    this.stateLaws.set(id, stateLaw);
+    return stateLaw;
+  }
+
+  async updateStateLaw(stateCode: string, updates: Partial<InsertStateLaw>): Promise<StateLaw | undefined> {
+    const stateLaw = await this.getStateLaw(stateCode);
+    if (!stateLaw) return undefined;
+
+    const updated: StateLaw = {
+      ...stateLaw,
+      ...updates,
+      lastUpdated: new Date(),
+    };
+    this.stateLaws.set(stateLaw.id, updated);
+    return updated;
+  }
+
+  async verifyStateLaw(stateCode: string): Promise<StateLaw | undefined> {
+    const stateLaw = await this.getStateLaw(stateCode);
+    if (!stateLaw) return undefined;
+
+    const verified: StateLaw = {
+      ...stateLaw,
+      verifiedAt: new Date(),
+    };
+    this.stateLaws.set(stateLaw.id, verified);
     return verified;
   }
 
@@ -1098,6 +1157,38 @@ export class DbStorage implements IStorage {
       .update(universities)
       .set({ verifiedAt: new Date() })
       .where(eq(universities.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getAllStateLaws(): Promise<StateLaw[]> {
+    return await db.select().from(stateLaws);
+  }
+
+  async getStateLaw(stateCode: string): Promise<StateLaw | undefined> {
+    const result = await db.select().from(stateLaws).where(eq(stateLaws.stateCode, stateCode));
+    return result[0];
+  }
+
+  async createStateLaw(insertStateLaw: InsertStateLaw): Promise<StateLaw> {
+    const result = await db.insert(stateLaws).values(insertStateLaw).returning();
+    return result[0];
+  }
+
+  async updateStateLaw(stateCode: string, updates: Partial<InsertStateLaw>): Promise<StateLaw | undefined> {
+    const result = await db
+      .update(stateLaws)
+      .set({ ...updates, lastUpdated: new Date() })
+      .where(eq(stateLaws.stateCode, stateCode))
+      .returning();
+    return result[0];
+  }
+
+  async verifyStateLaw(stateCode: string): Promise<StateLaw | undefined> {
+    const result = await db
+      .update(stateLaws)
+      .set({ verifiedAt: new Date() })
+      .where(eq(stateLaws.stateCode, stateCode))
       .returning();
     return result[0];
   }

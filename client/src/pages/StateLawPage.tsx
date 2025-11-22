@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Scale, MapPin, Info } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Scale, MapPin, Info, CheckCircle2 } from "lucide-react";
+import type { StateLaw } from "@shared/schema";
 
 const US_STATES = [
   { code: "AL", name: "Alabama" },
@@ -59,6 +62,11 @@ const US_STATES = [
 
 export default function StateLawPage() {
   const [selectedState, setSelectedState] = useState<string>("");
+
+  const { data: stateLaw, isLoading } = useQuery<StateLaw>({
+    queryKey: ['/api/state-laws', selectedState],
+    enabled: !!selectedState,
+  });
 
   return (
     <div className="h-full overflow-y-auto">
@@ -120,43 +128,99 @@ export default function StateLawPage() {
                 <CardTitle>
                   {US_STATES.find(s => s.code === selectedState)?.name} Consent Laws
                 </CardTitle>
-                <Badge variant="secondary" className="text-xs">
-                  Coming Soon
-                </Badge>
+                {stateLaw?.verifiedAt && (
+                  <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Verified
+                  </Badge>
+                )}
               </div>
               <CardDescription>
                 Detailed information about consent requirements in {US_STATES.find(s => s.code === selectedState)?.name}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border bg-muted/50 p-4">
-                <p className="text-sm text-muted-foreground text-center">
-                  State-specific consent law information is currently being compiled. 
-                  This feature will be available soon with comprehensive details about:
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Age of consent requirements</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Legal definitions of consent</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Romeo and Juliet laws (close-in-age exemptions)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Affirmative consent requirements</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Reporting requirements and resources</span>
-                  </li>
-                </ul>
-              </div>
+              {isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+              ) : stateLaw ? (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="rounded-lg border bg-card p-4 space-y-2">
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" />
+                        Age of Consent
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {stateLaw.ageOfConsent} years old
+                      </p>
+                    </div>
+
+                    {stateLaw.romeoJulietLaw && (
+                      <div className="rounded-lg border bg-card p-4 space-y-2">
+                        <h3 className="font-semibold text-sm">Romeo and Juliet Law</h3>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {stateLaw.romeoJulietLaw}
+                        </p>
+                      </div>
+                    )}
+
+                    {stateLaw.affirmativeConsentRequired && (
+                      <div className="rounded-lg border bg-card p-4 space-y-2">
+                        <h3 className="font-semibold text-sm">Affirmative Consent Required</h3>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {stateLaw.affirmativeConsentRequired}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border bg-card p-4 space-y-2">
+                      <h3 className="font-semibold text-sm">Consent Law Overview</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {stateLaw.consentLawInfo}
+                      </p>
+                    </div>
+
+                    {stateLaw.reportingRequirements && (
+                      <div className="rounded-lg border bg-card p-4 space-y-2">
+                        <h3 className="font-semibold text-sm">Reporting Requirements</h3>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {stateLaw.reportingRequirements}
+                        </p>
+                      </div>
+                    )}
+
+                    {stateLaw.sourceUrl && (
+                      <div className="rounded-lg border bg-card p-4 space-y-2">
+                        <h3 className="font-semibold text-sm">Official Source</h3>
+                        <a
+                          href={stateLaw.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline"
+                          data-testid="link-source"
+                        >
+                          View Official State Law Documentation
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Last updated: {new Date(stateLaw.lastUpdated).toLocaleDateString()}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border bg-muted/50 p-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    State-specific consent law information is currently being compiled. 
+                    This feature will be available soon with comprehensive details about consent laws in {US_STATES.find(s => s.code === selectedState)?.name}.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
