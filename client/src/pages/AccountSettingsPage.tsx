@@ -64,6 +64,7 @@ export default function AccountSettingsPage() {
   const [bio, setBio] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Change email state
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
@@ -85,6 +86,60 @@ export default function AccountSettingsPage() {
   const { data: userData, isLoading } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
     retry: false,
+  });
+
+  // Initialize profile fields when user data loads
+  useEffect(() => {
+    if (userData?.profile) {
+      setProfilePictureUrl(userData.profile.profilePictureUrl || "");
+      setBio(userData.profile.bio || "");
+      setWebsiteUrl(userData.profile.websiteUrl || "");
+    }
+  }, [userData]);
+
+  const uploadPictureMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("picture", file);
+      const response = await apiRequest("POST", "/api/profile/upload-picture", formData);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setProfilePictureUrl(data.profilePictureUrl);
+      toast({
+        title: "Picture uploaded",
+        description: "Your profile picture has been updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload profile picture",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (updates: { profilePictureUrl?: string; bio?: string; websiteUrl?: string }) => {
+      const response = await apiRequest("PATCH", "/api/profile", updates);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setIsProfileEditing(false);
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
+      });
+    },
   });
 
   const updatePolicyMutation = useMutation({
@@ -212,6 +267,41 @@ export default function AccountSettingsPage() {
     }
   }, [userData]);
 
+  // Handle file input change for profile picture
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      uploadPictureMutation.mutate(file);
+    }
+  };
+
+  // Save profile changes
+  const handleSaveProfile = () => {
+    updateProfileMutation.mutate({
+      profilePictureUrl,
+      bio,
+      websiteUrl,
+    });
+  };
+
   // Hold button functions for delete account
   const startHold = () => {
     if (deleteConfirmText.toLowerCase() !== "delete") return;
@@ -309,6 +399,19 @@ export default function AccountSettingsPage() {
     return `${obscuredLocal}@${domain}`;
   };
 
+  const userName = userData?.user.name || "";
+  const initials = userName
+    .split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
+
+  const hasProfileChanges = 
+    profilePictureUrl !== (userData?.profile?.profilePictureUrl || "") ||
+    bio !== (userData?.profile?.bio || "") ||
+    websiteUrl !== (userData?.profile?.websiteUrl || "");
+
   return (
     <div className="space-y-6">
       <div>
@@ -317,6 +420,111 @@ export default function AccountSettingsPage() {
           Manage your account preferences and data retention policy
         </p>
       </div>
+
+      {/* Profile Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Profile
+          </CardTitle>
+          <CardDescription>
+            Customize your public profile information
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Profile Picture</Label>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={profilePictureUrl} alt="Profile" />
+                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  data-testid="input-profile-picture"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadPictureMutation.isPending}
+                  data-testid="button-upload-picture"
+                >
+                  {uploadPictureMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      Upload Picture
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  JPG, PNG or GIF. Max 5MB.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              placeholder="Tell others about yourself"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+              data-testid="input-bio"
+            />
+            <p className="text-xs text-muted-foreground">
+              Brief description for your profile
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="website">Website</Label>
+            <div className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-muted-foreground" />
+              <Input
+                id="website"
+                type="url"
+                placeholder="https://example.com"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                data-testid="input-website"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSaveProfile}
+            disabled={updateProfileMutation.isPending || !hasProfileChanges}
+            data-testid="button-save-profile"
+            className="w-full"
+          >
+            {updateProfileMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Profile
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Account Information */}
       <Card>
