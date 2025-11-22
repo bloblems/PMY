@@ -1699,6 +1699,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Confirm consent (Press for Yes) - final activation step
+  app.post("/api/contracts/:id/confirm-consent", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Verify user has access (owner or collaborator)
+      const hasAccess = await storage.hasContractAccess(id, userId);
+      
+      if (!hasAccess) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      // Confirm consent for this user
+      const result = await storage.confirmConsent(id, userId);
+      
+      if (!result) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      res.json({
+        success: true,
+        message: result.allPartiesConfirmed 
+          ? "All parties confirmed! Contract is now active." 
+          : "Your confirmation recorded. Waiting for other parties.",
+        allPartiesConfirmed: result.allPartiesConfirmed,
+        contractStatus: result.contractStatus
+      });
+    } catch (error) {
+      console.error("Error confirming consent:", error);
+      res.status(500).json({ error: "Failed to confirm consent" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

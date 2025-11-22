@@ -75,6 +75,7 @@ export interface IStorage {
   hasContractAccess(contractId: string, userId: string): Promise<boolean>;
   approveContract(contractId: string, userId: string): Promise<boolean>;
   rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean>;
+  confirmConsent(contractId: string, userId: string): Promise<{ allPartiesConfirmed: boolean; contractStatus: string } | null>;
 
   // User profile methods (Supabase auth.users managed separately)
   getUserProfile(id: string): Promise<UserProfile | undefined>;
@@ -450,6 +451,7 @@ export class MemStorage implements IStorage {
           lastViewedAt: new Date(),
           rejectedAt: null,
           rejectionReason: null,
+          confirmedAt: null,
           createdAt: new Date(),
         });
       } catch (error) {
@@ -491,6 +493,7 @@ export class MemStorage implements IStorage {
         approvedAt: null,
         rejectedAt: null,
         rejectionReason: null,
+        confirmedAt: null,
         createdAt: new Date(),
       });
       
@@ -582,6 +585,7 @@ export class MemStorage implements IStorage {
       approvedAt: null,
       rejectedAt: null,
       rejectionReason: null,
+      confirmedAt: null,
       createdAt: new Date(),
     });
     
@@ -692,6 +696,49 @@ export class MemStorage implements IStorage {
     }
     
     return true;
+  }
+
+  async confirmConsent(contractId: string, userId: string): Promise<{ allPartiesConfirmed: boolean; contractStatus: string } | null> {
+    // Find collaborator record
+    const collaborator = Array.from(this.collaborators.values())
+      .find(c => c.contractId === contractId && c.userId === userId);
+    
+    if (!collaborator) return null;
+    
+    // Set confirmedAt timestamp
+    collaborator.confirmedAt = new Date();
+    this.collaborators.set(collaborator.id, collaborator);
+    
+    // Check if all collaborators have confirmed
+    const allCollaborators = Array.from(this.collaborators.values())
+      .filter(c => c.contractId === contractId);
+    
+    const allConfirmed = allCollaborators.every(c => c.confirmedAt !== null && c.confirmedAt !== undefined);
+    
+    // If all parties confirmed, activate the contract
+    if (allConfirmed) {
+      const contract = this.contracts.get(contractId);
+      if (contract) {
+        const updated = {
+          ...contract,
+          status: "active",
+          updatedAt: new Date(),
+        };
+        this.contracts.set(contractId, updated);
+        
+        return {
+          allPartiesConfirmed: true,
+          contractStatus: "active"
+        };
+      }
+    }
+    
+    // Get current contract status
+    const contract = this.contracts.get(contractId);
+    return {
+      allPartiesConfirmed: false,
+      contractStatus: contract?.status || "draft"
+    };
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -1420,6 +1467,61 @@ export class DbStorage implements IStorage {
         .where(eq(consentContracts.id, contractId));
       
       return true;
+    });
+  }
+
+  async confirmConsent(contractId: string, userId: string): Promise<{ allPartiesConfirmed: boolean; contractStatus: string } | null> {
+    return await db.transaction(async (tx) => {
+      // Find collaborator record
+      const collaborators = await tx
+        .select()
+        .from(contractCollaborators)
+        .where(and(
+          eq(contractCollaborators.contractId, contractId),
+          eq(contractCollaborators.userId, userId)
+        ));
+      
+      if (collaborators.length === 0) return null;
+      const collaborator = collaborators[0];
+      
+      // Update confirmedAt timestamp (idempotent - can be called multiple times)
+      await tx
+        .update(contractCollaborators)
+        .set({ confirmedAt: new Date() })
+        .where(eq(contractCollaborators.id, collaborator.id));
+      
+      // Check if all collaborators have confirmed
+      const allCollaborators = await tx
+        .select()
+        .from(contractCollaborators)
+        .where(eq(contractCollaborators.contractId, contractId));
+      
+      const allConfirmed = allCollaborators.every(c => c.confirmedAt !== null);
+      
+      // If all parties confirmed, activate the contract
+      if (allConfirmed) {
+        await tx
+          .update(consentContracts)
+          .set({ status: "active", updatedAt: new Date() })
+          .where(eq(consentContracts.id, contractId));
+        
+        return {
+          allPartiesConfirmed: true,
+          contractStatus: "active"
+        };
+      }
+      
+      // Get current contract status
+      const contracts = await tx
+        .select({ status: consentContracts.status })
+        .from(consentContracts)
+        .where(eq(consentContracts.id, contractId))
+        .limit(1);
+      
+      return {
+        allPartiesConfirmed: false,
+        contractStatus: contracts[0]?.status || "draft"
+      };
     });
   }
 
