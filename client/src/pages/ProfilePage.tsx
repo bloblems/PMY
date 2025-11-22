@@ -333,7 +333,7 @@ export default function ProfilePage() {
                     <UserCircle className="h-5 w-5" />
                   </div>
                   <div className="flex-1">
-                    <h5 className="font-semibold text-sm mb-0.5">Manage Contacts</h5>
+                    <h5 className="font-semibold text-sm mb-0.5">My Contacts</h5>
                     <p className="text-xs text-muted-foreground">
                       Save frequently used contacts
                     </p>
@@ -379,7 +379,7 @@ export default function ProfilePage() {
                     <Shield className="h-5 w-5" />
                   </div>
                   <div className="flex-1">
-                    <h5 className="font-semibold text-sm mb-0.5">View All Files</h5>
+                    <h5 className="font-semibold text-sm mb-0.5">Manage Contracts</h5>
                     <p className="text-xs text-muted-foreground">
                       Browse contracts & recordings
                     </p>
