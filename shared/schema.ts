@@ -36,6 +36,11 @@ export const userProfiles = pgTable("users", {
   stateOfResidence: text("state_of_residence"), // 2-letter state code (e.g., "CA", "NY")
   defaultEncounterType: text("default_encounter_type"), // Default encounter type
   defaultContractDuration: integer("default_contract_duration"), // Default duration in minutes
+  // Identity verification status
+  isVerified: text("is_verified").notNull().default("false"), // "true" or "false" - verified account badge
+  verificationProvider: text("verification_provider"), // "stripe_identity" or "persona"
+  verifiedAt: timestamp("verified_at", { withTimezone: true }), // When verification was completed
+  verificationLevel: text("verification_level"), // Provider-specific verification level/tier
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -148,6 +153,24 @@ export const userContacts = pgTable("user_contacts", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Account verification sessions - tracks ID verification attempts
+export const accountVerifications = pgTable("account_verifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(), // References auth.users(id)
+  provider: text("provider").notNull(), // "stripe_identity" or "persona"
+  sessionId: text("session_id").notNull().unique(), // Provider's verification session ID
+  status: text("status").notNull().default("pending"), // pending, processing, verified, failed
+  stripePaymentIntentId: text("stripe_payment_intent_id"), // $5 payment tracking
+  paymentStatus: text("payment_status").notNull().default("pending"), // pending, succeeded, failed
+  verificationLevel: text("verification_level"), // Provider-specific level (e.g., "document", "document+selfie")
+  failureReason: text("failure_reason"), // Reason for verification failure
+  canRetryAt: timestamp("can_retry_at", { withTimezone: true }), // 48-hour cooldown after failure
+  verifiedData: text("verified_data"), // JSON string of verified info (name, DOB, etc.) - NOT the ID images
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ================================================================
 // INSERT SCHEMAS AND TYPES
 // ================================================================
@@ -252,6 +275,20 @@ export const insertUserContactSchema = createInsertSchema(userContacts).omit({
   nickname: z.string().max(50).optional(),
 });
 
+export const insertAccountVerificationSchema = createInsertSchema(accountVerifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+}).extend({
+  provider: z.enum(["stripe_identity", "persona"]),
+  status: z.enum(["pending", "processing", "verified", "failed"]).default("pending"),
+  paymentStatus: z.enum(["pending", "succeeded", "failed"]).default("pending"),
+  verificationLevel: z.string().optional(),
+  failureReason: z.string().optional(),
+  verifiedData: z.string().optional(),
+});
+
 // API request validation schemas for collaborative contracts
 export const shareContractSchema = z.object({
   recipientEmail: z.string().email("Invalid email format").optional(),
@@ -295,3 +332,6 @@ export type VerificationPayment = typeof verificationPayments.$inferSelect;
 
 export type InsertUserContact = z.infer<typeof insertUserContactSchema>;
 export type UserContact = typeof userContacts.$inferSelect;
+
+export type InsertAccountVerification = z.infer<typeof insertAccountVerificationSchema>;
+export type AccountVerification = typeof accountVerifications.$inferSelect;

@@ -16,6 +16,8 @@ import {
   type ContractCollaborator,
   type UserContact,
   type InsertUserContact,
+  type AccountVerification,
+  type InsertAccountVerification,
 } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
@@ -29,6 +31,7 @@ import {
   contractCollaborators,
   contractInvitations,
   userContacts,
+  accountVerifications,
 } from "@shared/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { supabaseAdmin } from "./supabase";
@@ -113,6 +116,21 @@ export interface IStorage {
   getUserContacts(userId: string): Promise<UserContact[]>;
   addUserContact(userId: string, contactUsername: string, nickname?: string): Promise<UserContact>;
   deleteUserContact(id: string, userId: string): Promise<boolean>;
+  
+  // Account verification methods
+  createAccountVerification(verification: InsertAccountVerification): Promise<AccountVerification>;
+  getAccountVerificationBySessionId(sessionId: string): Promise<AccountVerification | undefined>;
+  getLatestAccountVerification(userId: string): Promise<AccountVerification | undefined>;
+  updateAccountVerificationStatus(
+    sessionId: string,
+    status: string,
+    verifiedData?: string,
+    failureReason?: string,
+    verificationLevel?: string
+  ): Promise<AccountVerification | undefined>;
+  updateAccountVerificationPaymentStatus(sessionId: string, paymentStatus: string, paymentIntentId?: string): Promise<AccountVerification | undefined>;
+  setUserVerified(userId: string, provider: string, verificationLevel?: string, verifiedData?: string): Promise<UserProfile | undefined>;
+  checkRetryEligibility(userId: string): Promise<{ canRetry: boolean; canRetryAt?: Date }>;
 }
 
 export class MemStorage implements IStorage {
@@ -889,6 +907,10 @@ export class MemStorage implements IStorage {
       stateOfResidence: profile.stateOfResidence ?? null,
       defaultEncounterType: profile.defaultEncounterType ?? null,
       defaultContractDuration: profile.defaultContractDuration ?? null,
+      isVerified: "false",
+      verificationProvider: null,
+      verifiedAt: null,
+      verificationLevel: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -993,6 +1015,49 @@ export class MemStorage implements IStorage {
       return false;
     }
     return this.contacts.delete(id);
+  }
+
+  async createAccountVerification(verification: InsertAccountVerification): Promise<AccountVerification> {
+    throw new Error("Account verification not supported in MemStorage");
+  }
+
+  async getAccountVerificationBySessionId(sessionId: string): Promise<AccountVerification | undefined> {
+    throw new Error("Account verification not supported in MemStorage");
+  }
+
+  async getLatestAccountVerification(userId: string): Promise<AccountVerification | undefined> {
+    throw new Error("Account verification not supported in MemStorage");
+  }
+
+  async updateAccountVerificationStatus(
+    sessionId: string,
+    status: string,
+    verifiedData?: string,
+    failureReason?: string,
+    verificationLevel?: string
+  ): Promise<AccountVerification | undefined> {
+    throw new Error("Account verification not supported in MemStorage");
+  }
+
+  async updateAccountVerificationPaymentStatus(
+    sessionId: string,
+    paymentStatus: string,
+    paymentIntentId?: string
+  ): Promise<AccountVerification | undefined> {
+    throw new Error("Account verification not supported in MemStorage");
+  }
+
+  async setUserVerified(
+    userId: string,
+    provider: string,
+    verificationLevel?: string,
+    verifiedData?: string
+  ): Promise<UserProfile | undefined> {
+    throw new Error("Account verification not supported in MemStorage");
+  }
+
+  async checkRetryEligibility(userId: string): Promise<{ canRetry: boolean; canRetryAt?: Date }> {
+    throw new Error("Account verification not supported in MemStorage");
   }
 }
 
@@ -1812,9 +1877,9 @@ export class DbStorage implements IStorage {
     const contact: InsertUserContact = {
       userId,
       contactUsername,
-      nickname: nickname || null,
+      nickname: nickname || undefined,
     };
-    const result = await db.insert(userContacts).values(contact).returning();
+    const result = await db.insert(userContacts).values([contact]).returning();
     return result[0];
   }
 
@@ -1824,6 +1889,136 @@ export class DbStorage implements IStorage {
       .where(and(eq(userContacts.id, id), eq(userContacts.userId, userId)))
       .returning();
     return result.length > 0;
+  }
+
+  async createAccountVerification(verification: InsertAccountVerification): Promise<AccountVerification> {
+    const result = await db.insert(accountVerifications).values([verification]).returning();
+    return result[0];
+  }
+
+  async getAccountVerificationBySessionId(sessionId: string): Promise<AccountVerification | undefined> {
+    const result = await db
+      .select()
+      .from(accountVerifications)
+      .where(eq(accountVerifications.sessionId, sessionId))
+      .limit(1);
+    return result[0];
+  }
+
+  async getLatestAccountVerification(userId: string): Promise<AccountVerification | undefined> {
+    const result = await db
+      .select()
+      .from(accountVerifications)
+      .where(eq(accountVerifications.userId, userId))
+      .orderBy(desc(accountVerifications.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateAccountVerificationStatus(
+    sessionId: string,
+    status: string,
+    verifiedData?: string,
+    failureReason?: string,
+    verificationLevel?: string
+  ): Promise<AccountVerification | undefined> {
+    const updates: any = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (status === 'verified' || status === 'failed') {
+      updates.completedAt = new Date();
+    }
+
+    if (status === 'failed' && failureReason) {
+      updates.failureReason = failureReason;
+      updates.canRetryAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    }
+
+    if (verifiedData) {
+      updates.verifiedData = verifiedData;
+    }
+
+    if (verificationLevel) {
+      updates.verificationLevel = verificationLevel;
+    }
+
+    const result = await db
+      .update(accountVerifications)
+      .set(updates)
+      .where(eq(accountVerifications.sessionId, sessionId))
+      .returning();
+
+    return result[0];
+  }
+
+  async updateAccountVerificationPaymentStatus(
+    sessionId: string,
+    paymentStatus: string,
+    paymentIntentId?: string
+  ): Promise<AccountVerification | undefined> {
+    const updates: any = {
+      paymentStatus,
+      updatedAt: new Date(),
+    };
+
+    if (paymentIntentId) {
+      updates.stripePaymentIntentId = paymentIntentId;
+    }
+
+    const result = await db
+      .update(accountVerifications)
+      .set(updates)
+      .where(eq(accountVerifications.sessionId, sessionId))
+      .returning();
+
+    return result[0];
+  }
+
+  async setUserVerified(
+    userId: string,
+    provider: string,
+    verificationLevel?: string,
+    verifiedData?: string
+  ): Promise<UserProfile | undefined> {
+    const updates: any = {
+      isVerified: 'true',
+      verificationProvider: provider,
+      verifiedAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    if (verificationLevel) {
+      updates.verificationLevel = verificationLevel;
+    }
+
+    const result = await db
+      .update(userProfiles)
+      .set(updates)
+      .where(eq(userProfiles.id, userId))
+      .returning();
+
+    return result[0];
+  }
+
+  async checkRetryEligibility(userId: string): Promise<{ canRetry: boolean; canRetryAt?: Date }> {
+    const latest = await this.getLatestAccountVerification(userId);
+
+    if (!latest || latest.status === 'verified') {
+      return { canRetry: true };
+    }
+
+    if (latest.status === 'failed' && latest.canRetryAt) {
+      const now = new Date();
+      const canRetry = now >= latest.canRetryAt;
+      return {
+        canRetry,
+        canRetryAt: latest.canRetryAt,
+      };
+    }
+
+    return { canRetry: latest.status !== 'processing' && latest.status !== 'pending' };
   }
 }
 
