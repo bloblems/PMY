@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { School, Shield, CheckCircle, ArrowRight } from "lucide-react";
+import { School, Shield, CheckCircle, ArrowRight, Scale } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface ToolPanel {
@@ -47,6 +47,17 @@ const toolPanels: ToolPanel[] = [
     action: {
       label: "View Policies",
       path: "/titleix"
+    }
+  },
+  {
+    id: "state-law",
+    title: "State Law",
+    description: "Explore consent laws and requirements across all 50 U.S. states for comprehensive legal understanding.",
+    icon: <Scale className="h-6 w-6" />,
+    iconBgColor: "bg-amber-500/10 dark:bg-amber-400/10",
+    action: {
+      label: "View State Laws",
+      path: "/state-law"
     }
   }
 ];

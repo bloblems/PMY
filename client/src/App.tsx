@@ -10,6 +10,7 @@ import SettingsMenu from "@/components/SettingsMenu";
 import PMYLogo from "@/components/PMYLogo";
 import InfoPage from "@/pages/InfoPage";
 import FilesPage from "@/pages/FilesPage";
+import StateLawPage from "@/pages/StateLawPage";
 import AdminPage from "@/pages/AdminPage";
 import CustomPage from "@/pages/CustomPage";
 import SharePage from "@/pages/SharePage";
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/rewards" component={RewardsPage} />
       <Route path="/" component={ConsentFlowPage} />
       <Route path="/titleix" component={InfoPage} />
+      <Route path="/state-law" component={StateLawPage} />
       <Route path="/files" component={FilesPage} />
       <Route path="/custom" component={CustomPage} />
       <Route path="/share" component={SharePage} />
