@@ -307,6 +307,23 @@ export class MemStorage implements IStorage {
   }
 
   async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
+    const now = new Date();
+    const userContracts = Array.from(this.contracts.values())
+      .filter(c => c.userId === userId);
+    
+    // Auto-update contracts that have passed their end time
+    for (const contract of userContracts) {
+      if (contract.status === "active" && contract.contractEndTime && contract.contractEndTime < now) {
+        const updated: ConsentContract = {
+          ...contract,
+          status: "completed",
+          updatedAt: new Date(),
+        };
+        this.contracts.set(contract.id, updated);
+      }
+    }
+    
+    // Re-fetch after updates and return sorted
     return Array.from(this.contracts.values())
       .filter(c => c.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -1014,6 +1031,18 @@ export class DbStorage implements IStorage {
   }
 
   async getContractsByUserId(userId: string): Promise<ConsentContract[]> {
+    // Auto-update contracts that have passed their end time
+    await db
+      .update(consentContracts)
+      .set({ status: "completed", updatedAt: new Date() })
+      .where(and(
+        eq(consentContracts.userId, userId),
+        eq(consentContracts.status, "active"),
+        sql`${consentContracts.contractEndTime} IS NOT NULL`,
+        sql`${consentContracts.contractEndTime} < NOW()`
+      ));
+    
+    // Return all user contracts sorted by creation date
     return await db
       .select()
       .from(consentContracts)

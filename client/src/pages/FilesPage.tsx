@@ -428,14 +428,46 @@ export default function FilesPage() {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-semibold mb-3">Active Contracts</h2>
-                {contracts.length === 0 ? (
+                <p className="text-sm text-muted-foreground mb-4">
+                  Contracts still within their agreed duration period
+                </p>
+                {contracts.filter(c => c.status === "active").length === 0 ? (
                   <Card className="p-8 text-center">
                     <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                     <p className="text-sm text-muted-foreground">No active contracts</p>
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
-                    {contracts.map((contract) => (
+                    {contracts.filter(c => c.status === "active").map((contract) => (
+                      <ContractTile
+                        key={contract.id}
+                        id={contract.id}
+                        encounterType={contract.encounterType}
+                        parties={contract.parties}
+                        createdAt={contract.createdAt}
+                        method={contract.method}
+                        variant="active"
+                        onDownload={() => handleDownload(contract.id)}
+                        onDelete={() => handleDelete(contract.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold mb-3">Completed Contracts</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Contracts that have fully transpired their duration
+                </p>
+                {contracts.filter(c => c.status === "completed").length === 0 ? (
+                  <Card className="p-8 text-center">
+                    <Check className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">No completed contracts</p>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {contracts.filter(c => c.status === "completed").map((contract) => (
                       <ContractTile
                         key={contract.id}
                         id={contract.id}

@@ -76,7 +76,7 @@ export const consentContracts = pgTable("consent_contracts", {
   authenticatedAt: timestamp("authenticated_at", { withTimezone: true }),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   // Collaboration fields
-  status: text("status").notNull().default("draft"), // draft, pending_approval, active, rejected
+  status: text("status").notNull().default("draft"), // draft, pending_approval, active, completed, rejected
   isCollaborative: text("is_collaborative").notNull().default("false"), // "true" or "false"
   lastEditedBy: text("last_edited_by"), // References auth.users(id)
   intimateActs: text("intimate_acts"), // JSON string of intimate acts selections
@@ -188,7 +188,7 @@ export const insertConsentContractSchema = createInsertSchema(consentContracts).
   credentialBackedUp: z.string().optional(),
   authenticatedAt: z.string().optional(),
   verifiedAt: z.string().optional(),
-  status: z.enum(["draft", "pending_approval", "active", "rejected"]).default("draft"),
+  status: z.enum(["draft", "pending_approval", "active", "completed", "rejected"]).default("draft"),
   isCollaborative: z.enum(["true", "false"]).default("false"),
   intimateActs: z.string().optional(),
 });
