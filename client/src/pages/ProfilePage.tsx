@@ -176,63 +176,51 @@ export default function ProfilePage() {
           Profile Details
         </h3>
 
-        {/* Account Information - Individual Cards */}
-        <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-member-since">
+        {/* Account Information - Merged Card */}
+        <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-account-info">
           <div className="relative">
-            <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
-            <div className="bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-teal-500/20 dark:from-blue-500/30 dark:via-cyan-500/25 dark:to-teal-500/30 p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 p-2.5 rounded-lg bg-blue-500/20 dark:bg-blue-400/30 backdrop-blur-sm">
-                  <Calendar className="h-5 w-5" />
+            <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-amber-500" />
+            <div className="bg-gradient-to-br from-blue-500/20 via-purple-500/15 to-amber-500/20 dark:from-blue-500/30 dark:via-purple-500/25 dark:to-amber-500/30 p-4 backdrop-blur-sm">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-blue-500/20 dark:bg-blue-400/30 backdrop-blur-sm">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground mb-0.5">Member since</p>
+                    <p className="text-sm font-semibold" data-testid="text-member-since">
+                      {userData?.profile?.createdAt 
+                        ? new Date(userData.profile.createdAt).toLocaleDateString('en-US', { 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })
+                        : 'Recently'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground mb-0.5">Member since</p>
-                  <p className="text-sm font-semibold" data-testid="text-member-since">
-                    {userData?.profile?.createdAt 
-                      ? new Date(userData.profile.createdAt).toLocaleDateString('en-US', { 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })
-                      : 'Recently'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
 
-        <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-retention">
-          <div className="relative">
-            <div className="h-1 bg-gradient-to-r from-red-500 to-orange-500" />
-            <div className="bg-gradient-to-br from-red-500/20 via-orange-500/15 to-amber-500/20 dark:from-red-500/30 dark:via-orange-500/25 dark:to-amber-500/30 p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 p-2.5 rounded-lg bg-red-500/20 dark:bg-red-400/30 backdrop-blur-sm">
-                  <Shield className="h-5 w-5" />
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-red-500/20 dark:bg-red-400/30 backdrop-blur-sm">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground mb-0.5">Data retention</p>
+                    <p className="text-sm font-semibold capitalize" data-testid="text-retention-policy">
+                      {userData?.profile?.dataRetentionPolicy?.replace('days', ' days').replace('year', ' year') || 'Forever'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground mb-0.5">Data retention</p>
-                  <p className="text-sm font-semibold capitalize" data-testid="text-retention-policy">
-                    {userData?.profile?.dataRetentionPolicy?.replace('days', ' days').replace('year', ' year') || 'Forever'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
 
-        <Card className="overflow-hidden hover-elevate active-elevate-2" data-testid="card-referrals">
-          <div className="relative">
-            <div className="h-1 bg-gradient-to-r from-amber-500 to-yellow-500" />
-            <div className="bg-gradient-to-br from-amber-500/20 via-yellow-500/15 to-orange-500/20 dark:from-amber-500/30 dark:via-yellow-500/25 dark:to-orange-500/30 p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 p-2.5 rounded-lg bg-amber-500/20 dark:bg-amber-400/30 backdrop-blur-sm">
-                  <Award className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground mb-0.5">Referrals</p>
-                  <p className="text-sm font-semibold" data-testid="text-referrals">
-                    {userData?.profile?.referralCount || 0} friends invited
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-amber-500/20 dark:bg-amber-400/30 backdrop-blur-sm">
+                    <Award className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground mb-0.5">Referrals</p>
+                    <p className="text-sm font-semibold" data-testid="text-referrals">
+                      {userData?.profile?.referralCount || 0} friends invited
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
