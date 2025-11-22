@@ -66,9 +66,11 @@ export interface IStorage {
   // Collaborative contract methods
   getDraftsByUserId(userId: string): Promise<ConsentContract[]>;
   getSharedContractsByUserId(userId: string): Promise<ConsentContract[]>;
+  updateDraft(draftId: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | null>;
   shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }>;
   acceptInvitation(invitationCode: string, userId: string): Promise<{ contractId: string } | null>;
   getInvitationByCode(code: string): Promise<ContractInvitation | undefined>;
+  getInvitationsByRecipientEmail(email: string): Promise<ContractInvitation[]>;
   hasContractAccess(contractId: string, userId: string): Promise<boolean>;
   approveContract(contractId: string, userId: string): Promise<boolean>;
   rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean>;
@@ -355,6 +357,33 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
+  async updateDraft(draftId: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | null> {
+    const draft = this.contracts.get(draftId);
+    
+    // Verify draft exists, belongs to user, and is still a draft
+    if (!draft || draft.userId !== userId || draft.status !== "draft") {
+      return null;
+    }
+    
+    // Don't allow updating collaborative drafts (those should go through approval flow)
+    if (draft.isCollaborative === "true") {
+      return null;
+    }
+    
+    const updatedData: any = { ...updates };
+    if (updates.contractStartTime) updatedData.contractStartTime = new Date(updates.contractStartTime);
+    if (updates.contractEndTime) updatedData.contractEndTime = new Date(updates.contractEndTime);
+    
+    const updated: ConsentContract = {
+      ...draft,
+      ...updatedData,
+      updatedAt: new Date(),
+    };
+    
+    this.contracts.set(draftId, updated);
+    return updated;
+  }
+
   async shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }> {
     // Validate contract exists and belongs to sender
     const contract = this.contracts.get(contractId);
@@ -495,6 +524,11 @@ export class MemStorage implements IStorage {
   async getInvitationByCode(code: string): Promise<ContractInvitation | undefined> {
     return Array.from(this.invitations.values())
       .find(inv => inv.invitationCode === code);
+  }
+
+  async getInvitationsByRecipientEmail(email: string): Promise<ContractInvitation[]> {
+    return Array.from(this.invitations.values())
+      .filter(inv => inv.recipientEmail === email);
   }
 
   async hasContractAccess(contractId: string, userId: string): Promise<boolean> {
@@ -901,6 +935,26 @@ export class DbStorage implements IStorage {
       .orderBy(desc(consentContracts.createdAt));
   }
 
+  async updateDraft(draftId: string, userId: string, updates: Partial<InsertConsentContract>): Promise<ConsentContract | null> {
+    const updatedData: any = { ...updates };
+    if (updates.contractStartTime) updatedData.contractStartTime = new Date(updates.contractStartTime);
+    if (updates.contractEndTime) updatedData.contractEndTime = new Date(updates.contractEndTime);
+    
+    // Update draft only if it belongs to user, is still a draft, and is not collaborative
+    const result = await db
+      .update(consentContracts)
+      .set({ ...updatedData, updatedAt: new Date() })
+      .where(and(
+        eq(consentContracts.id, draftId),
+        eq(consentContracts.userId, userId),
+        eq(consentContracts.status, "draft"),
+        eq(consentContracts.isCollaborative, "false")
+      ))
+      .returning();
+    
+    return result[0] || null;
+  }
+
   async shareContract(contractId: string, recipientEmail: string, senderId: string, senderEmail: string): Promise<{ invitationId: string; invitationCode: string }> {
     // Prevent self-invites by comparing emails
     if (recipientEmail.toLowerCase() === senderEmail.toLowerCase()) {
@@ -1052,6 +1106,14 @@ export class DbStorage implements IStorage {
       .from(contractInvitations)
       .where(eq(contractInvitations.invitationCode, code));
     return result[0];
+  }
+
+  async getInvitationsByRecipientEmail(email: string): Promise<ContractInvitation[]> {
+    const result = await db
+      .select()
+      .from(contractInvitations)
+      .where(eq(contractInvitations.recipientEmail, email));
+    return result;
   }
 
   async hasContractAccess(contractId: string, userId: string): Promise<boolean> {

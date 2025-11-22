@@ -1289,6 +1289,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create a draft contract (doesn't require signatures)
+  app.post("/api/contracts/draft", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Validate basic required fields
+      const { encounterType, parties, method, contractText, ...rest } = req.body;
+      
+      if (!encounterType || !encounterType.trim()) {
+        return res.status(400).json({ error: "Encounter type is required" });
+      }
+      
+      if (!Array.isArray(parties) || parties.length === 0) {
+        return res.status(400).json({ error: "At least one party is required" });
+      }
+      
+      if (!method) {
+        return res.status(400).json({ error: "Method is required" });
+      }
+      
+      if (!contractText) {
+        return res.status(400).json({ error: "Contract text is required" });
+      }
+      
+      // Create draft contract with status "draft"
+      const contract = await storage.createContract({
+        ...rest,
+        userId,
+        encounterType,
+        parties,
+        method,
+        contractText,
+        status: "draft",
+        isCollaborative: rest.isCollaborative || false,
+        // Drafts don't have signatures yet
+        signature1: null,
+        signature2: null,
+      });
+      
+      res.json(contract);
+    } catch (error) {
+      console.error("Error creating draft:", error);
+      res.status(500).json({ error: "Failed to create draft" });
+    }
+  });
+
+  // Update an existing draft contract
+  app.patch("/api/contracts/draft/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      
+      const updated = await storage.updateDraft(id, userId, req.body);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Draft not found or cannot be updated" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating draft:", error);
+      res.status(500).json({ error: "Failed to update draft" });
+    }
+  });
+
   // Get contracts user is collaborating on
   app.get("/api/contracts/shared", requireAuth, async (req, res) => {
     try {
@@ -1363,6 +1428,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ error: "Failed to share contract" });
+    }
+  });
+
+  // Get all invitations for current user
+  app.get("/api/contracts/invitations", requireAuth, async (req, res) => {
+    try {
+      const userEmail = req.user!.email;
+      
+      if (!userEmail) {
+        return res.status(400).json({ error: "User email not found" });
+      }
+      
+      // Get all invitations for this user's email
+      const allInvitations = await storage.getInvitationsByRecipientEmail(userEmail);
+      
+      res.json(allInvitations);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      res.status(500).json({ error: "Failed to fetch invitations" });
     }
   });
 

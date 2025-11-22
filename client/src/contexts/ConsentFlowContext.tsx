@@ -14,6 +14,9 @@ export interface ConsentFlowState {
   contractDuration?: number; // Duration in minutes
   contractEndTime?: string; // ISO string for end date/time
   method: "signature" | "voice" | "photo" | "biometric" | null;
+  draftId?: string; // Track saved draft ID to enable sharing existing drafts
+  isCollaborative?: boolean; // Track if draft is collaborative to prevent PATCH on shared drafts
+  contractText?: string; // Store generated contract text for resume editing
 }
 
 interface ConsentFlowContextType {
@@ -41,6 +44,9 @@ const getDefaultState = (preferences?: UserPreferences): ConsentFlowState => ({
   contractDuration: preferences?.defaultContractDuration || undefined,
   contractEndTime: undefined,
   method: null,
+  draftId: undefined,
+  isCollaborative: false,
+  contractText: undefined,
 });
 
 const STORAGE_KEY = "pmy_consent_flow_state";
@@ -105,6 +111,7 @@ export function ConsentFlowProvider({ children }: { children: ReactNode }) {
             contractDuration: (typeof parsed.contractDuration === 'number' && parsed.contractDuration > 0) ? parsed.contractDuration : defaultStateWithPrefs.contractDuration,
             contractEndTime: (typeof parsed.contractEndTime === 'string' && parsed.contractEndTime !== '') ? parsed.contractEndTime : defaultStateWithPrefs.contractEndTime,
             method: validMethods.includes(parsed.method) ? parsed.method : defaultStateWithPrefs.method,
+            draftId: (typeof parsed.draftId === 'string' && parsed.draftId !== '') ? parsed.draftId : undefined,
           };
           
           setState(validatedState);

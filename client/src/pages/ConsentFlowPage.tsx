@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useConsentFlow, type ConsentFlowState } from "@/contexts/ConsentFlowContext";
 import { Card } from "@/components/ui/card";
@@ -7,10 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2 } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
 import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
 import ContractDurationStep from "@/components/ContractDurationStep";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 type University = {
   id: string;
@@ -81,6 +91,12 @@ const recordingMethods = [
 export default function ConsentFlowPage() {
   const [location, navigate] = useLocation();
   const { state, updateState: updateFlowState } = useConsentFlow();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Share dialog state
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
   
   // Fetch universities
   const { data: universities = [] } = useQuery<University[]>({
@@ -92,11 +108,222 @@ export default function ConsentFlowPage() {
     queryKey: ["/api/auth/me"],
   });
 
+  // Load draft for resume editing
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const resumeDraftId = params.get('resumeDraftId');
+    
+    if (resumeDraftId) {
+      // Fetch the draft and load it into the consent flow context
+      fetch(`/api/contracts/${resumeDraftId}`)
+        .then(res => res.json())
+        .then(draft => {
+          // Parse intimateActs from JSON string if needed
+          let parsedIntimateActs = {};
+          if (typeof draft.intimateActs === 'string') {
+            try {
+              parsedIntimateActs = JSON.parse(draft.intimateActs);
+            } catch (e) {
+              console.error('Failed to parse intimateActs:', e);
+            }
+          } else if (draft.intimateActs) {
+            parsedIntimateActs = draft.intimateActs;
+          }
+          
+          // Load draft data into consent flow state
+          updateFlowState({
+            draftId: draft.id,
+            universityId: draft.universityId || "",
+            universityName: draft.universityName || "",
+            encounterType: draft.encounterType || "",
+            parties: draft.parties || ["", ""],
+            intimateActs: parsedIntimateActs,
+            contractStartTime: draft.contractStartTime || undefined,
+            contractDuration: draft.contractDuration || undefined,
+            contractEndTime: draft.contractEndTime || undefined,
+            method: draft.method || null,
+            isCollaborative: draft.isCollaborative === "true",
+            contractText: draft.contractText || undefined,
+          });
+          
+          // Clear the query param from URL
+          params.delete('resumeDraftId');
+          const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+          window.history.replaceState({}, '', newUrl);
+        })
+        .catch(err => {
+          console.error('Failed to load draft:', err);
+          toast({
+            title: "Error",
+            description: "Failed to load draft for editing",
+            variant: "destructive",
+          });
+        });
+    }
+  }, []);
+
+  // Save as draft mutation
+  const saveAsDraftMutation = useMutation({
+    mutationFn: async () => {
+      // Check if draft is collaborative - can't save collaborative drafts
+      if (state.isCollaborative) {
+        throw new Error("Cannot save changes to a collaborative draft. It is in the approval workflow.");
+      }
+      
+      const draftData = {
+        contractText: `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
+        universityId: state.universityId || null,
+        encounterType: state.encounterType,
+        parties: state.parties.filter(p => p.trim()),
+        intimateActs: state.intimateActs,
+        contractStartTime: state.contractStartTime || null,
+        contractDuration: state.contractDuration || null,
+        contractEndTime: state.contractEndTime || null,
+        method: state.method,
+        status: "draft",
+        isCollaborative: false,
+      };
+      
+      let response;
+      if (state.draftId && !state.isCollaborative) {
+        // Update existing non-collaborative draft
+        response = await apiRequest("PATCH", `/api/contracts/draft/${state.draftId}`, draftData);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to update draft (${response.status})`);
+        }
+      } else {
+        // Create new draft
+        response = await apiRequest("POST", "/api/contracts/draft", draftData);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to create draft (${response.status})`);
+        }
+      }
+      
+      return response.json();
+    },
+    onSuccess: (draft) => {
+      // Store draft ID for future updates
+      updateFlowState({ draftId: draft.id });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/drafts"] });
+      toast({
+        title: "Draft saved",
+        description: "Your consent contract has been saved as a draft",
+      });
+      navigate("/files?tab=drafts");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save draft",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Share contract mutation
+  const shareContractMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const draftData = {
+        contractText: `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
+        universityId: state.universityId || null,
+        encounterType: state.encounterType,
+        parties: state.parties.filter(p => p.trim()),
+        intimateActs: state.intimateActs,
+        contractStartTime: state.contractStartTime || null,
+        contractDuration: state.contractDuration || null,
+        contractEndTime: state.contractEndTime || null,
+        method: state.method,
+        status: "draft",
+        // Keep isCollaborative=false for PATCH (backend will set to true on share)
+        isCollaborative: false,
+      };
+      
+      let draftId;
+      if (state.draftId && !state.isCollaborative) {
+        // Update existing non-collaborative draft with latest form data before sharing
+        const updateResponse = await apiRequest("PATCH", `/api/contracts/draft/${state.draftId}`, draftData);
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text();
+          throw new Error(errorText || `Failed to update draft before sharing (${updateResponse.status})`);
+        }
+        const updated = await updateResponse.json();
+        draftId = updated.id;
+      } else if (state.draftId && state.isCollaborative) {
+        // Draft is already collaborative, cannot update it - just re-share
+        draftId = state.draftId;
+      } else {
+        // Create new draft (will be made collaborative by share endpoint)
+        const createResponse = await apiRequest("POST", "/api/contracts/draft", draftData);
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text();
+          throw new Error(errorText || `Failed to create draft (${createResponse.status})`);
+        }
+        const created = await createResponse.json();
+        draftId = created.id;
+      }
+      
+      // Share the draft (backend sets isCollaborative=true and creates invitation)
+      const shareResponse = await apiRequest("POST", `/api/contracts/${draftId}/share`, {
+        recipientEmail: email,
+      });
+      if (!shareResponse.ok) {
+        const errorText = await shareResponse.text();
+        throw new Error(errorText || `Failed to share contract (${shareResponse.status})`);
+      }
+      return shareResponse.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/drafts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/invitations"] });
+      setShowShareDialog(false);
+      setShareEmail("");
+      toast({
+        title: "Contract shared",
+        description: `Invitation sent to ${shareEmail}`,
+      });
+      
+      // Clear draft ID to prevent reuse in new flows
+      updateFlowState({ draftId: undefined });
+      
+      navigate("/files?tab=drafts");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to share contract",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Track selected university object for the selector
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
   
   // Track whether user selected "Not Applicable" for university
   const [universityNotApplicable, setUniversityNotApplicable] = useState(false);
+
+  // Validate if consent flow has minimum required data for saving/sharing
+  const canSaveOrShare = () => {
+    // Must have encounter type
+    if (!state.encounterType || state.encounterType.trim() === "") {
+      return false;
+    }
+    
+    // Must have at least one party name
+    const hasParties = state.parties.some(p => p.trim() !== "");
+    if (!hasParties) {
+      return false;
+    }
+    
+    // Must have selected a method (at final step)
+    if (!state.method) {
+      return false;
+    }
+    
+    return true;
+  };
 
   // Sync selectedUniversity when universities load or state.universityId changes
   // Only sync if encounter type requires university AND universityId exists in state
@@ -681,28 +908,120 @@ export default function ConsentFlowPage() {
         </div>
       )}
 
-      <div className="flex gap-3 pt-4">
-        {step > flowSteps.encounterType && (
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            className="flex-1"
-            data-testid="button-back-footer"
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+      {/* Action buttons */}
+      <div className="space-y-3 pt-4">
+        {step === flowSteps.recordingMethod && (
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (canSaveOrShare()) {
+                  saveAsDraftMutation.mutate();
+                } else {
+                  toast({
+                    title: "Incomplete form",
+                    description: "Please fill in encounter type, at least one party name, and select a method",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={saveAsDraftMutation.isPending || !canSaveOrShare()}
+              className="flex-1"
+              data-testid="button-save-draft"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save as Draft
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (canSaveOrShare()) {
+                  setShowShareDialog(true);
+                } else {
+                  toast({
+                    title: "Incomplete form",
+                    description: "Please fill in encounter type, at least one party name, and select a method",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={shareContractMutation.isPending || !canSaveOrShare()}
+              className="flex-1"
+              data-testid="button-share"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
+          </div>
         )}
-        <Button
-          onClick={handleNext}
-          disabled={!canProceed()}
-          className={step > flowSteps.encounterType ? "flex-1 bg-success hover:bg-success/90" : "w-full bg-success hover:bg-success/90"}
-          data-testid="button-next"
-        >
-          {step === flowSteps.recordingMethod ? "Continue" : "Next"}
-          <ChevronRight className="h-4 w-4 ml-2" />
-        </Button>
+        
+        <div className="flex gap-3">
+          {step > flowSteps.encounterType && (
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              className="flex-1"
+              data-testid="button-back-footer"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          )}
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed()}
+            className={step > flowSteps.encounterType ? "flex-1 bg-success hover:bg-success/90" : "w-full bg-success hover:bg-success/90"}
+            data-testid="button-next"
+          >
+            {step === flowSteps.recordingMethod ? "Continue" : "Next"}
+            <ChevronRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
       </div>
+
+      {/* Share Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent data-testid="dialog-share-contract">
+          <DialogHeader>
+            <DialogTitle>Share Contract</DialogTitle>
+            <DialogDescription>
+              Enter the email address of the person you want to collaborate with. They'll receive an invitation to review and approve this consent contract.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="share-email">Recipient Email</Label>
+              <Input
+                id="share-email"
+                type="email"
+                placeholder="partner@example.com"
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+                data-testid="input-share-email"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowShareDialog(false);
+                setShareEmail("");
+              }}
+              data-testid="button-cancel-share"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => shareContractMutation.mutate(shareEmail)}
+              disabled={!shareEmail || shareContractMutation.isPending}
+              data-testid="button-confirm-share"
+            >
+              {shareContractMutation.isPending ? "Sharing..." : "Send Invitation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
