@@ -174,6 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           verificationProvider: profile?.verificationProvider || null,
           verifiedAt: profile?.verifiedAt?.toISOString() || null,
           verificationLevel: profile?.verificationLevel || null,
+          referralCount: profile?.referralCount || 0,
         },
         profile: {
           username: profile?.username || null,

@@ -12,6 +12,7 @@ interface UserData {
     id: string;
     email: string;
     name: string | null;
+    referralCount?: number;
   };
   profile?: {
     username?: string;
@@ -101,9 +102,9 @@ export default function ProfilePage() {
               <div className="text-lg font-semibold text-success">{stats?.activeContracts || 0}</div>
               <div className="text-xs text-muted-foreground">active</div>
             </div>
-            <div data-testid="stat-recordings">
-              <div className="text-lg font-semibold">{stats?.totalRecordings || 0}</div>
-              <div className="text-xs text-muted-foreground">recordings</div>
+            <div data-testid="stat-referrals">
+              <div className="text-lg font-semibold">{userData?.user?.referralCount || 0}</div>
+              <div className="text-xs text-muted-foreground">referrals</div>
             </div>
           </div>
         </div>
