@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FileList from "@/components/FileList";
+import ContractTile from "@/components/ContractTile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -426,8 +427,48 @@ export default function FilesPage() {
           <TabsContent value="active" className="space-y-6">
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold mb-3">Saved Documents</h2>
-                <FileList files={files} onDownload={handleDownload} onDelete={handleDelete} />
+                <h2 className="text-lg font-semibold mb-3">Active Contracts</h2>
+                {contracts.length === 0 ? (
+                  <Card className="p-8 text-center">
+                    <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">No active contracts</p>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {contracts.map((contract) => (
+                      <ContractTile
+                        key={contract.id}
+                        id={contract.id}
+                        encounterType={contract.encounterType}
+                        parties={contract.parties}
+                        createdAt={contract.createdAt}
+                        method={contract.method}
+                        variant="active"
+                        onDownload={() => handleDownload(contract.id)}
+                        onDelete={() => handleDelete(contract.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <h2 className="text-lg font-semibold mb-3">Audio Recordings</h2>
+                <FileList 
+                  files={recordings.map((r) => ({
+                    id: r.id,
+                    name: r.filename,
+                    type: "audio" as const,
+                    date: new Date(r.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }),
+                    duration: r.duration,
+                  }))} 
+                  onDownload={handleDownload} 
+                  onDelete={handleDelete} 
+                />
               </div>
 
               <div>
@@ -485,70 +526,24 @@ export default function FilesPage() {
                   <p className="text-sm text-muted-foreground">No drafts found</p>
                 </Card>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-4">
                   {drafts.map((draft) => (
-                    <Card key={draft.id} className="p-4" data-testid={`card-draft-${draft.id}`}>
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-sm">
-                                {draft.encounterType || "Consent Contract"}
-                              </h3>
-                              <Badge variant={draft.status === "pending_approval" ? "secondary" : "outline"}>
-                                {draft.status === "pending_approval" ? "Awaiting Approval" : "Draft"}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Created {format(new Date(draft.createdAt), "MMM d, yyyy")}
-                              {draft.updatedAt && ` • Updated ${format(new Date(draft.updatedAt), "MMM d, yyyy")}`}
-                            </p>
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {draft.contractText.substring(0, 150)}...
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {draft.status === "pending_approval" && draft.isCollaborative && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => approveContractMutation.mutate(draft.id)}
-                              disabled={approveContractMutation.isPending}
-                              data-testid={`button-approve-${draft.id}`}
-                            >
-                              <Check className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => rejectContractMutation.mutate({ contractId: draft.id })}
-                              disabled={rejectContractMutation.isPending}
-                              data-testid={`button-reject-${draft.id}`}
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                        
-                        {!draft.isCollaborative && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => setLocation(`/?resumeDraftId=${draft.id}`)}
-                              data-testid={`button-resume-${draft.id}`}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Resume Editing
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
+                    <ContractTile
+                      key={draft.id}
+                      id={draft.id}
+                      encounterType={draft.encounterType}
+                      parties={draft.parties}
+                      createdAt={draft.createdAt}
+                      updatedAt={draft.updatedAt}
+                      status={draft.status}
+                      contractText={draft.contractText}
+                      isCollaborative={draft.isCollaborative}
+                      variant="draft"
+                      onApprove={() => approveContractMutation.mutate(draft.id)}
+                      onReject={() => rejectContractMutation.mutate({ contractId: draft.id })}
+                      onResume={() => setLocation(`/?resumeDraftId=${draft.id}`)}
+                      isPending={approveContractMutation.isPending || rejectContractMutation.isPending}
+                    />
                   ))}
                 </div>
               )}
