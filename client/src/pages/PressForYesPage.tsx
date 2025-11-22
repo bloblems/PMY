@@ -171,8 +171,8 @@ export default function PressForYesPage() {
           {/* Icon */}
           <div className="flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-pink-500/20 via-rose-500/20 to-purple-500/20 rounded-full blur-2xl" />
-              <div className="relative bg-gradient-to-br from-pink-500 to-purple-500 p-6 rounded-full">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20 rounded-full blur-2xl" />
+              <div className="relative bg-gradient-to-br from-green-500 to-emerald-500 p-6 rounded-full">
                 <Heart className="h-12 w-12 text-white fill-white" />
               </div>
             </div>
@@ -203,7 +203,7 @@ export default function PressForYesPage() {
               disabled={confirmConsentMutation.isPending}
               className={`
                 relative w-48 h-48 mx-auto rounded-full
-                bg-gradient-to-br from-pink-500 via-rose-500 to-purple-500
+                bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500
                 shadow-2xl
                 transition-all duration-200 ease-out
                 disabled:opacity-50 disabled:cursor-not-allowed
@@ -246,7 +246,7 @@ export default function PressForYesPage() {
               
               {/* Glow effect */}
               <div className={`
-                absolute inset-0 rounded-full bg-gradient-to-br from-pink-400 to-purple-400
+                absolute inset-0 rounded-full bg-gradient-to-br from-green-400 to-emerald-400
                 blur-xl opacity-0 transition-opacity duration-300
                 ${isPressed ? 'opacity-60' : ''}
               `} />
