@@ -17,6 +17,16 @@ export interface ConsentFlowState {
   draftId?: string; // Track saved draft ID to enable sharing existing drafts
   isCollaborative?: boolean; // Track if draft is collaborative to prevent PATCH on shared drafts
   contractText?: string; // Store generated contract text for resume editing
+  // Method-specific fields for full draft fidelity
+  signature1?: string; // Base64 signature data URL
+  signature2?: string; // Base64 signature data URL
+  photoUrl?: string; // Object storage URL for photo method
+  credentialId?: string; // WebAuthn credential ID
+  credentialPublicKey?: string; // WebAuthn public key
+  credentialCounter?: string; // WebAuthn counter
+  credentialDeviceType?: string; // WebAuthn device type
+  credentialBackedUp?: string; // WebAuthn backup status
+  authenticatedAt?: string; // ISO string for biometric authentication timestamp
 }
 
 interface ConsentFlowContextType {
@@ -47,6 +57,15 @@ const getDefaultState = (preferences?: UserPreferences): ConsentFlowState => ({
   draftId: undefined,
   isCollaborative: false,
   contractText: undefined,
+  signature1: undefined,
+  signature2: undefined,
+  photoUrl: undefined,
+  credentialId: undefined,
+  credentialPublicKey: undefined,
+  credentialCounter: undefined,
+  credentialDeviceType: undefined,
+  credentialBackedUp: undefined,
+  authenticatedAt: undefined,
 });
 
 const STORAGE_KEY = "pmy_consent_flow_state";

@@ -130,7 +130,7 @@ export default function ConsentFlowPage() {
             parsedIntimateActs = draft.intimateActs;
           }
           
-          // Load draft data into consent flow state
+          // Load draft data into consent flow state with full fidelity
           updateFlowState({
             draftId: draft.id,
             universityId: draft.universityId || "",
@@ -144,6 +144,16 @@ export default function ConsentFlowPage() {
             method: draft.method || null,
             isCollaborative: draft.isCollaborative === "true",
             contractText: draft.contractText || undefined,
+            // Method-specific fields for full draft fidelity
+            signature1: draft.signature1 || undefined,
+            signature2: draft.signature2 || undefined,
+            photoUrl: draft.photoUrl || undefined,
+            credentialId: draft.credentialId || undefined,
+            credentialPublicKey: draft.credentialPublicKey || undefined,
+            credentialCounter: draft.credentialCounter || undefined,
+            credentialDeviceType: draft.credentialDeviceType || undefined,
+            credentialBackedUp: draft.credentialBackedUp || undefined,
+            authenticatedAt: draft.authenticatedAt || undefined,
           });
           
           // Clear the query param from URL
@@ -171,7 +181,7 @@ export default function ConsentFlowPage() {
       }
       
       const draftData = {
-        contractText: `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
+        contractText: state.contractText || `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
         universityId: state.universityId || null,
         encounterType: state.encounterType,
         parties: state.parties.filter(p => p.trim()),
@@ -182,6 +192,16 @@ export default function ConsentFlowPage() {
         method: state.method,
         status: "draft",
         isCollaborative: false,
+        // Method-specific fields for full draft fidelity
+        signature1: state.signature1 || null,
+        signature2: state.signature2 || null,
+        photoUrl: state.photoUrl || null,
+        credentialId: state.credentialId || null,
+        credentialPublicKey: state.credentialPublicKey || null,
+        credentialCounter: state.credentialCounter || null,
+        credentialDeviceType: state.credentialDeviceType || null,
+        credentialBackedUp: state.credentialBackedUp || null,
+        authenticatedAt: state.authenticatedAt || null,
       };
       
       let response;
@@ -226,7 +246,7 @@ export default function ConsentFlowPage() {
   const shareContractMutation = useMutation({
     mutationFn: async (email: string) => {
       const draftData = {
-        contractText: `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
+        contractText: state.contractText || `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
         universityId: state.universityId || null,
         encounterType: state.encounterType,
         parties: state.parties.filter(p => p.trim()),
@@ -238,6 +258,16 @@ export default function ConsentFlowPage() {
         status: "draft",
         // Keep isCollaborative=false for PATCH (backend will set to true on share)
         isCollaborative: false,
+        // Method-specific fields for full draft fidelity
+        signature1: state.signature1 || null,
+        signature2: state.signature2 || null,
+        photoUrl: state.photoUrl || null,
+        credentialId: state.credentialId || null,
+        credentialPublicKey: state.credentialPublicKey || null,
+        credentialCounter: state.credentialCounter || null,
+        credentialDeviceType: state.credentialDeviceType || null,
+        credentialBackedUp: state.credentialBackedUp || null,
+        authenticatedAt: state.authenticatedAt || null,
       };
       
       let draftId;
