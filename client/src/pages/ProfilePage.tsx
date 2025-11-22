@@ -309,29 +309,6 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 gap-3">
           <Card
             className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
-            onClick={() => setLocation('/files')}
-            data-testid="card-view-files"
-          >
-            <div className="relative">
-              <div className="h-1 bg-gradient-to-r from-slate-500 to-gray-500" />
-              <div className="bg-gradient-to-br from-slate-500/20 via-gray-500/15 to-zinc-500/20 dark:from-slate-500/30 dark:via-gray-500/25 dark:to-zinc-500/30 p-4 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-slate-500/20 dark:bg-slate-400/30 backdrop-blur-sm">
-                    <Shield className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h5 className="font-semibold text-sm mb-0.5">View All Files</h5>
-                    <p className="text-xs text-muted-foreground">
-                      Browse contracts & recordings
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card
-            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
             onClick={() => setLocation('/settings/preferences')}
             data-testid="card-edit-preferences"
           >
@@ -346,6 +323,29 @@ export default function ProfilePage() {
                     <h5 className="font-semibold text-sm mb-0.5">Edit Preferences</h5>
                     <p className="text-xs text-muted-foreground">
                       Update default settings
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
+            onClick={() => setLocation('/files')}
+            data-testid="card-view-files"
+          >
+            <div className="relative">
+              <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-500" />
+              <div className="bg-gradient-to-br from-green-500/20 via-emerald-500/15 to-teal-500/20 dark:from-green-500/30 dark:via-emerald-500/25 dark:to-teal-500/30 p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-green-500/20 dark:bg-green-400/30 backdrop-blur-sm">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-sm mb-0.5">View All Files</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Browse contracts & recordings
                     </p>
                   </div>
                 </div>
