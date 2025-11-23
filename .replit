@@ -96,3 +96,6 @@ defaultBucketID = "replit-objstore-444033f1-1047-4f67-81d0-831b6c10355d"
 
 [userenv.shared]
 VITE_ENABLE_COLLABORATIVE_CONTRACTS = "true"
+
+[userenv.development]
+DISABLE_STRIPE_FOR_TESTS = "true"

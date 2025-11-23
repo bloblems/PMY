@@ -79,6 +79,12 @@ function validateSignatureSize(dataURL: string, maxBytes: number = 2 * 1024 * 10
 }
 
 const getStripeKey = (): string | null => {
+  // Allow completely disabling Stripe for testing environments
+  if (process.env.DISABLE_STRIPE_FOR_TESTS === 'true') {
+    console.log('[Stripe] Disabled for testing environment');
+    return null;
+  }
+  
   const testingKey = process.env.TESTING_STRIPE_SECRET_KEY;
   const prodKey = process.env.STRIPE_SECRET_KEY;
   
