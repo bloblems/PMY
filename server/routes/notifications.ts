@@ -7,6 +7,7 @@
 import { Router } from "express";
 import { requireAuth } from "../supabaseAuth";
 import storage from "../storage";
+import { stateChangeRateLimiter } from "../middleware/rateLimiting";
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.get("/unread/count", requireAuth, async (req, res) => {
 });
 
 // Mark specific notification as read
-router.patch("/:id/read", requireAuth, async (req, res) => {
+router.patch("/:id/read", stateChangeRateLimiter, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
@@ -54,7 +55,7 @@ router.patch("/:id/read", requireAuth, async (req, res) => {
 });
 
 // Mark all notifications as read
-router.patch("/read-all", requireAuth, async (req, res) => {
+router.patch("/read-all", stateChangeRateLimiter, requireAuth, async (req, res) => {
   try {
     const userId = req.user!.id;
     await storage.markAllNotificationsAsRead(userId);
