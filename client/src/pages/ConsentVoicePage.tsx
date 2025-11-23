@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Mic, Square, Play, Pause, Upload } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ChevronLeft, Mic, Square, Play, Pause, Upload, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useConsentFlow } from "@/contexts/ConsentFlowContext";
@@ -176,6 +177,22 @@ export default function ConsentVoicePage() {
           <p className="text-sm text-muted-foreground">{universityName}</p>
         </div>
       </div>
+
+      {/* Recording Consent Disclaimer */}
+      <Alert variant="destructive" className="border-amber-500 bg-amber-500/10 dark:bg-amber-500/20" data-testid="alert-recording-consent">
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <AlertTitle className="text-amber-900 dark:text-amber-100">Recording Consent Required</AlertTitle>
+        <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+          <p className="mb-2">Before recording, ensure:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>All parties explicitly consent</strong> to being recorded</li>
+            <li>You comply with your state's recording laws (some states require two-party consent)</li>
+            <li>Recording is not a substitute for ongoing, enthusiastic consent throughout any encounter</li>
+            <li>Consent can be withdrawn at any time, even after recording</li>
+          </ul>
+          <p className="mt-2 font-medium">This recording is for documentation purposes only and does not guarantee legal protection.</p>
+        </AlertDescription>
+      </Alert>
 
       <Card className="p-6">
         <div className="space-y-4">

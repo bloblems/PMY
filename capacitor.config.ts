@@ -7,9 +7,18 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https'
   },
+  ios: {
+    contentInset: 'automatic',
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 0
+    },
+    Camera: {
+      quality: 90,
+      saveToGallery: true,
+      allowEditing: false,
+      resultType: 'uri'
     }
   }
 };

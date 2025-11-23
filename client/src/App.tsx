@@ -32,6 +32,8 @@ import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import ProfilePage from "@/pages/ProfilePage";
 import RewardsPage from "@/pages/RewardsPage";
 import VerificationPage from "@/pages/VerificationPage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import TermsOfServicePage from "@/pages/TermsOfServicePage";
 
 function Router() {
   return (
@@ -54,6 +56,8 @@ function Router() {
       <Route path="/settings/preferences" component={PreferencesPage} />
       <Route path="/settings/contacts" component={ContactsPage} />
       <Route path="/settings/billing" component={BillingPage} />
+      <Route path="/legal/privacy" component={PrivacyPolicyPage} />
+      <Route path="/legal/terms" component={TermsOfServicePage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/consent/signature" component={ConsentSignaturePage} />
       <Route path="/consent/voice" component={ConsentVoicePage} />

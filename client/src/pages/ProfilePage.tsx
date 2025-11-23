@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { User, Link as LinkIcon, Share2, Gift, Calendar, Shield, MapPin, Clock, Users, Award, UserCircle, BadgeCheck } from "lucide-react";
+import { User, Link as LinkIcon, Share2, Gift, Calendar, Shield, MapPin, Clock, Users, Award, UserCircle, BadgeCheck, FileText, Scale } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface UserData {
@@ -418,6 +418,96 @@ export default function ProfilePage() {
             </div>
           </Card>
         </div>
+
+        {/* Legal & Compliance */}
+        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-6 mb-3">
+          Legal & Compliance
+        </h4>
+        
+        <div className="grid grid-cols-1 gap-3">
+          <Card
+            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
+            onClick={() => setLocation('/legal/privacy')}
+            data-testid="card-privacy-policy"
+          >
+            <div className="relative">
+              <div className="h-1 bg-gradient-to-r from-slate-500 to-gray-500" />
+              <div className="bg-gradient-to-br from-slate-500/20 via-gray-500/15 to-zinc-500/20 dark:from-slate-500/30 dark:via-gray-500/25 dark:to-zinc-500/30 p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-slate-500/20 dark:bg-slate-400/30 backdrop-blur-sm">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-sm mb-0.5">Privacy Policy</h5>
+                    <p className="text-xs text-muted-foreground">
+                      How we protect your data
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
+            onClick={() => setLocation('/legal/terms')}
+            data-testid="card-terms-of-service"
+          >
+            <div className="relative">
+              <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+              <div className="bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-yellow-500/20 dark:from-amber-500/30 dark:via-orange-500/25 dark:to-yellow-500/30 p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 p-2.5 rounded-lg bg-amber-500/20 dark:bg-amber-400/30 backdrop-blur-sm">
+                    <Scale className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-sm mb-0.5">Terms of Service</h5>
+                    <p className="text-xs text-muted-foreground">
+                      User agreement & guidelines
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Data Retention Notice */}
+        <Card className="overflow-hidden mt-3" data-testid="card-data-retention">
+          <div className="relative">
+            <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
+            <div className="bg-muted/50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 p-2 rounded-lg bg-blue-500/10 dark:bg-blue-400/20">
+                  <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <h5 className="font-semibold text-sm">Data Retention Policy</h5>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>
+                      <strong>Active Account:</strong> Your consent contracts and recordings are stored securely for as long as your account remains active.
+                    </p>
+                    <p>
+                      <strong>Deletion:</strong> You may delete individual contracts or recordings at any time through the Contracts page.
+                    </p>
+                    <p>
+                      <strong>Account Closure:</strong> Upon account deletion, all personal data, contracts, and recordings are permanently removed from our servers within 30 days, unless required by law to retain certain information.
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground italic">
+                      For full details, please review our <span 
+                        onClick={(e) => { e.stopPropagation(); setLocation('/legal/privacy'); }}
+                        className="text-primary hover:underline cursor-pointer"
+                        data-testid="link-privacy-inline"
+                      >
+                        Privacy Policy
+                      </span>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Fingerprint, Check, AlertCircle, Shield } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ChevronLeft, Fingerprint, Check, AlertCircle, Shield, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { startRegistration } from "@simplewebauthn/browser";
@@ -171,6 +172,23 @@ export default function ConsentBiometricPage() {
           <p className="text-sm text-muted-foreground">{universityName}</p>
         </div>
       </div>
+
+      {/* Biometric Consent Disclaimer */}
+      <Alert variant="destructive" className="border-amber-500 bg-amber-500/10 dark:bg-amber-500/20" data-testid="alert-biometric-consent">
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <AlertTitle className="text-amber-900 dark:text-amber-100">Biometric Authentication Notice</AlertTitle>
+        <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+          <p className="mb-2">Important information about biometric consent documentation:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Your biometric data never leaves your device</strong> - only cryptographic proof is shared</li>
+            <li>Biometric authentication verifies your identity at the time of consent</li>
+            <li>This does not replace the need for ongoing, enthusiastic consent</li>
+            <li>Consent can be withdrawn at any time, even after biometric verification</li>
+            <li>This creates a cryptographic record, not a legal guarantee</li>
+          </ul>
+          <p className="mt-2 font-medium">Biometric documentation is for identity verification only and does not constitute legal protection.</p>
+        </AlertDescription>
+      </Alert>
 
       <Card className="p-6">
         <div className="space-y-4 text-center">

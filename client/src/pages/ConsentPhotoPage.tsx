@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Camera, Upload, X } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ChevronLeft, Camera, Upload, X, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { useConsentFlow } from "@/contexts/ConsentFlowContext";
@@ -121,6 +122,23 @@ export default function ConsentPhotoPage() {
           <p className="text-sm text-muted-foreground">{universityName}</p>
         </div>
       </div>
+
+      {/* Photo Consent Disclaimer */}
+      <Alert variant="destructive" className="border-amber-500 bg-amber-500/10 dark:bg-amber-500/20" data-testid="alert-photo-consent">
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <AlertTitle className="text-amber-900 dark:text-amber-100">Photography Consent Required</AlertTitle>
+        <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+          <p className="mb-2">Before taking or uploading photos:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>All parties must explicitly consent</strong> to being photographed</li>
+            <li>Photos should only show faces and appropriate gestures (thumbs up, peace sign, etc.)</li>
+            <li>Never include identifying locations, backgrounds, or inappropriate content</li>
+            <li>Photo documentation does not replace ongoing consent during any encounter</li>
+            <li>Consent can be withdrawn at any time, even after the photo is taken</li>
+          </ul>
+          <p className="mt-2 font-medium">This photo is for documentation purposes only and does not guarantee legal protection.</p>
+        </AlertDescription>
+      </Alert>
 
       <Card className="p-6">
         <div className="space-y-4">
