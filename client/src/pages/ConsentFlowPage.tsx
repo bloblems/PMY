@@ -978,23 +978,23 @@ export default function ConsentFlowPage() {
               const getGradient = () => {
                 switch(type.id) {
                   case "date":
-                    return "border-blue-500/30 bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-teal-500/20 dark:from-blue-500/30 dark:via-cyan-500/25 dark:to-teal-500/30";
-                  case "conversation":
                     return "border-purple-500/30 bg-gradient-to-br from-purple-500/20 via-violet-500/15 to-indigo-500/20 dark:from-purple-500/30 dark:via-violet-500/25 dark:to-indigo-500/30";
+                  case "conversation":
+                    return "border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-green-500/20 dark:from-emerald-500/30 dark:via-teal-500/25 dark:to-green-500/30";
                   case "medical":
-                    return "border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-cyan-500/20 dark:from-emerald-500/30 dark:via-teal-500/25 dark:to-cyan-500/30";
+                    return "border-blue-500/30 bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-teal-500/20 dark:from-blue-500/30 dark:via-cyan-500/25 dark:to-teal-500/30";
                   case "professional":
-                    return "border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-violet-500/20 dark:from-indigo-500/30 dark:via-blue-500/25 dark:to-violet-500/30";
+                    return "border-amber-500/30 bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-yellow-500/20 dark:from-amber-500/30 dark:via-orange-500/25 dark:to-yellow-500/30";
                   default:
                     return "";
                 }
               };
               const getIconColor = () => {
                 switch(type.id) {
-                  case "date": return "text-blue-500";
-                  case "conversation": return "text-purple-500";
-                  case "medical": return "text-emerald-500";
-                  case "professional": return "text-indigo-500";
+                  case "date": return "text-purple-500";
+                  case "conversation": return "text-emerald-500";
+                  case "medical": return "text-blue-500";
+                  case "professional": return "text-amber-500";
                   default: return "";
                 }
               };
