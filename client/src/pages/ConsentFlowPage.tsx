@@ -609,26 +609,43 @@ export default function ConsentFlowPage() {
 
   const normalizeUsername = (input: string): string => {
     if (!input || input.trim() === '') return '';
-    let normalized = input.trim();
-    // Ensure starts with @
-    if (!normalized.startsWith('@')) {
-      normalized = `@${normalized}`;
+    const trimmed = input.trim();
+    
+    // If starts with @, treat as PMY username - normalize to canonical format
+    if (trimmed.startsWith('@')) {
+      // Remove anything that's not @, alphanumeric, or underscore
+      let normalized = trimmed.replace(/[^@a-zA-Z0-9_]/g, '');
+      // Lowercase for canonical format
+      normalized = normalized.toLowerCase();
+      return normalized;
     }
-    // Remove anything that's not @, alphanumeric, or underscore
-    normalized = normalized.replace(/[^@a-zA-Z0-9_]/g, '');
-    // Lowercase for canonical format
-    normalized = normalized.toLowerCase();
-    return normalized;
+    
+    // Otherwise, treat as legal name - preserve as-is
+    return trimmed;
   };
 
-  const validateUsername = (username: string): string | null => {
-    if (!username || username.trim() === '') return null;
-    const trimmed = username.trim();
-    // Canonical username format: @alphanumeric_underscore only (lowercase)
-    const usernameRegex = /^@[a-z0-9_]+$/;
-    if (!usernameRegex.test(trimmed)) {
-      return "Username must be @lowercase_letters_numbers_underscores only";
+  const validateUsername = (input: string): string | null => {
+    if (!input || input.trim() === '') return null;
+    const trimmed = input.trim();
+    
+    // Two valid formats:
+    // 1. PMY username: @alphanumeric_underscore only (lowercase)
+    // 2. Legal name: any text without @ prefix
+    
+    if (trimmed.startsWith('@')) {
+      // Validate PMY username format
+      const usernameRegex = /^@[a-z0-9_]+$/;
+      if (!usernameRegex.test(trimmed)) {
+        return "PMY username must be @lowercase_letters_numbers_underscores";
+      }
+    } else {
+      // Legal name - accept any non-empty text
+      // Could add additional validation here if needed (e.g., min length)
+      if (trimmed.length < 2) {
+        return "Name must be at least 2 characters";
+      }
     }
+    
     return null;
   };
 
@@ -1148,9 +1165,25 @@ export default function ConsentFlowPage() {
           <div>
             <h2 className="text-lg font-semibold mb-1">Step {flowSteps.parties}: Parties Involved</h2>
             <p className="text-sm text-muted-foreground">
-              Add the names of other participants (in addition to yourself)
+              Add participants by legal name or search PMY users with @username
             </p>
           </div>
+
+          <Card className="bg-muted/30 border-muted" data-testid="card-party-help">
+            <CardContent className="p-3 text-sm text-muted-foreground">
+              <div className="flex gap-2">
+                <div className="flex-shrink-0 mt-0.5">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <strong>Legal name</strong>: For partners without PMY accounts (e.g., "Jane Smith")<br />
+                  <strong>@username</strong>: Search our network of PMY users (e.g., "@jane_smith")
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {contacts.length > 0 && (
             <div className="space-y-2">
@@ -1191,11 +1224,12 @@ export default function ConsentFlowPage() {
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <Input
-                      placeholder={index === 0 ? "@username (You)" : `@username (Participant ${index + 1})`}
+                      placeholder={index === 0 ? "@username (You)" : `Legal name or @username`}
                       value={party}
                       onChange={(e) => updateParty(index, e.target.value)}
                       data-testid={`input-party-${index}`}
                       className={partyErrors[index] ? "border-destructive" : ""}
+                      disabled={index === 0}
                     />
                   </div>
                   {state.parties.length > 1 && (
