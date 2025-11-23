@@ -183,6 +183,31 @@ export async function sendDocumentEmail({
           </p>
         </div>
         
+        <!-- Join PMY Invite Section -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 8px; margin: 30px 0; text-align: center;">
+          <h3 style="color: white; margin: 0 0 10px 0; font-size: 20px;">Get Digital Verification with PMY</h3>
+          <p style="color: rgba(255,255,255,0.95); margin: 0 0 20px 0; font-size: 15px;">
+            Create a free PMY account to receive digital verification, notifications, and full protection for all your consent documentation.
+          </p>
+          
+          <div style="margin: 20px 0;">
+            <a href="${process.env.REPLIT_DOMAINS?.split(',')[0] || 'https://pmy.app'}/auth?action=signup" style="display: inline-block; background: white; color: #667eea; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              Join PMY Free
+            </a>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 6px; margin-top: 20px;">
+            <p style="color: white; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Why Join PMY?</p>
+            <ul style="color: rgba(255,255,255,0.95); margin: 0; padding-left: 20px; font-size: 13px; text-align: left; display: inline-block;">
+              <li>Get instant notifications for all contract updates</li>
+              <li>Digital verification for all your consent documentation</li>
+              <li>Secure, encrypted storage with Title IX compliance</li>
+              <li>Access your documents anytime, anywhere</li>
+              <li>Legally recognized consent contracts</li>
+            </ul>
+          </div>
+        </div>
+        
         <p style="font-size: 14px; color: #888; border-top: 1px solid #e5e5e5; padding-top: 20px; margin-top: 30px;">
           This document was sent via PMY's secure document sharing feature.
         </p>
@@ -208,6 +233,23 @@ Shared By: ${from}
 ${pdfAttachment ? `Attachment: ${pdfAttachment.filename}` : 'The document details are included in this email for your records.'}
 
 IMPORTANT: This is a legal consent document. Please store it securely and do not share it with unauthorized parties.
+
+─────────────────────────────────────────────────
+
+GET DIGITAL VERIFICATION WITH PMY
+
+Create a free PMY account to receive digital verification, notifications, and full protection for all your consent documentation.
+
+Join PMY Free: ${process.env.REPLIT_DOMAINS?.split(',')[0] || 'https://pmy.app'}/auth?action=signup
+
+Why Join PMY?
+• Get instant notifications for all contract updates
+• Digital verification for all your consent documentation
+• Secure, encrypted storage with Title IX compliance
+• Access your documents anytime, anywhere
+• Legally recognized consent contracts
+
+─────────────────────────────────────────────────
 
 This document was sent via PMY's secure document sharing feature.
   `.trim();
