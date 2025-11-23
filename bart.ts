@@ -338,10 +338,11 @@ class APITestAgent {
     );
 
     await this.testEndpoint(
-      'GET /api/recordings/:id',
-      '/api/recordings/test-123',
-      [401, 403, 404],
-      []
+      'POST /api/recordings',
+      '/api/recordings',
+      [400, 401, 403],
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
@@ -386,78 +387,71 @@ class APITestAgent {
 
     // Auth router (6 endpoints)
     await this.testEndpoint(
-      'POST /api/auth/signup',
-      '/api/auth/signup',
-      [400],
-      [404],
-      'POST'
-    );
-
-    await this.testEndpoint(
-      'POST /api/auth/login',
-      '/api/auth/login',
-      [400],
-      [404],
-      'POST'
-    );
-
-    await this.testEndpoint(
       'POST /api/auth/logout',
       '/api/auth/logout',
-      [200, 401],
-      [404],
-      'POST'
-    );
-
-    await this.testEndpoint(
-      'GET /api/auth/user',
-      '/api/auth/user',
-      [200, 401],
-      [404]
-    );
-
-    await this.testEndpoint(
-      'POST /api/auth/webauthn/challenge',
-      '/api/auth/webauthn/challenge',
       [200],
       [404],
       'POST'
     );
 
     await this.testEndpoint(
-      'POST /api/auth/webauthn/verify',
-      '/api/auth/webauthn/verify',
-      [400],
-      [404],
-      'POST'
-    );
-
-    // Profile router (8 endpoints)
-    await this.testEndpoint(
-      'GET /api/profile',
-      '/api/profile',
-      [200, 401, 403],
+      'GET /api/auth/me',
+      '/api/auth/me',
+      [200, 401],
       [404]
     );
 
     await this.testEndpoint(
-      'PATCH /api/profile',
-      '/api/profile',
-      [400, 401, 403],
+      'PATCH /api/auth/retention-policy',
+      '/api/auth/retention-policy',
+      [400, 401],
       [404],
       'PATCH'
     );
 
     await this.testEndpoint(
-      'GET /api/profile/:username',
-      '/api/profile/testuser',
-      [200, 404],
-      []
+      'PATCH /api/auth/change-email',
+      '/api/auth/change-email',
+      [400, 401],
+      [404],
+      'PATCH'
     );
 
     await this.testEndpoint(
-      'PATCH /api/profile/preferences',
-      '/api/profile/preferences',
+      'DELETE /api/auth/delete-all-data',
+      '/api/auth/delete-all-data',
+      [200, 401],
+      [404],
+      'DELETE'
+    );
+
+    await this.testEndpoint(
+      'DELETE /api/auth/delete-account',
+      '/api/auth/delete-account',
+      [200, 401],
+      [404],
+      'DELETE'
+    );
+
+    // Profile router (8 endpoints)
+    await this.testEndpoint(
+      'GET /api/profile/stats',
+      '/api/profile/stats',
+      [200, 401, 403],
+      [404]
+    );
+
+    await this.testEndpoint(
+      'POST /api/profile/upload-picture',
+      '/api/profile/upload-picture',
+      [400, 401, 403],
+      [404],
+      'POST'
+    );
+
+    await this.testEndpoint(
+      'PATCH /api/profile',
+      '/api/profile',
       [400, 401, 403],
       [404],
       'PATCH'
@@ -471,27 +465,34 @@ class APITestAgent {
     );
 
     await this.testEndpoint(
-      'POST /api/profile/email-notifications',
-      '/api/profile/email-notifications',
+      'PATCH /api/profile/preferences',
+      '/api/profile/preferences',
+      [400, 401, 403],
+      [404],
+      'PATCH'
+    );
+
+    await this.testEndpoint(
+      'GET /api/profile/contacts',
+      '/api/profile/contacts',
+      [200, 401, 403],
+      [404]
+    );
+
+    await this.testEndpoint(
+      'POST /api/profile/contacts',
+      '/api/profile/contacts',
       [400, 401, 403],
       [404],
       'POST'
     );
 
     await this.testEndpoint(
-      'DELETE /api/profile/account',
-      '/api/profile/account',
-      [401, 403],
-      [404],
+      'DELETE /api/profile/contacts/:id',
+      '/api/profile/contacts/test-123',
+      [401, 403, 404],
+      [],
       'DELETE'
-    );
-
-    await this.testEndpoint(
-      'PATCH /api/profile/email',
-      '/api/profile/email',
-      [400, 401, 403],
-      [404],
-      'PATCH'
     );
   }
 
@@ -507,10 +508,10 @@ class APITestAgent {
 
     await this.runTest('Stripe is disabled', async () => {
       // Verify Stripe endpoints return 503 (service unavailable)
-      const response = await fetch(`${APP_URL}/api/verify/start`, {
+      const response = await fetch(`${APP_URL}/api/verify/create-checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ universityId: 'test', model: 'gpt-4o-mini' })
+        body: JSON.stringify({ universityId: 'test', gpuModel: 'gpt-4o-mini' })
       });
       
       if (response.status !== 503) {
