@@ -150,15 +150,12 @@ async function notifyAmendmentRequest(
       }
     }
     
-    // Ensure contract creator is always notified (multiple fallback fields for backward compatibility)
-    if (contract.createdBy) {
-      allPartyIds.add(contract.createdBy);
-    }
+    // Ensure contract creator is always notified
     if (contract.userId) {
       allPartyIds.add(contract.userId);
     }
-    // Legacy fallback: if no creator fields set, try to extract first PMY username from parties as initiator
-    if (!contract.createdBy && !contract.userId && contract.parties && contract.parties.length > 0) {
+    // Legacy fallback: if no userId set, try to extract first PMY username from parties as initiator
+    if (!contract.userId && contract.parties && contract.parties.length > 0) {
       const firstParty = contract.parties[0];
       if (firstParty && firstParty.trim()) {
         let normalized = firstParty.trim().replace(/\s*\(.*?\)\s*$/, '').trim();
