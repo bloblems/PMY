@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useConsentFlow, type ConsentFlowState } from "@/contexts/ConsentFlowContext";
@@ -512,7 +512,8 @@ export default function ConsentFlowPage() {
     }
   };
 
-  const flowSteps = getFlowSteps();
+  // Use useMemo to ensure flowSteps is recalculated when encounterType changes
+  const flowSteps = useMemo(() => getFlowSteps(), [state.encounterType]);
 
   // Determine initial step based on state
   const getInitialStep = (fromState: ConsentFlowState) => {
@@ -534,8 +535,9 @@ export default function ConsentFlowPage() {
     if (Object.keys(fromState.intimateActs).length > 0) return steps.duration; // Intimate acts completed, move to duration
     if (fromState.parties.some((p: string) => p.trim() !== "")) return steps.intimateActs; // Parties completed, move to intimate acts
     
-    // If university is set, we've completed that step, move to parties
+    // If university or state is set, we've completed that step, move to parties
     if (fromState.universityId && steps.university) return steps.parties;
+    if (fromState.stateCode && fromState.stateName && steps.university) return steps.parties;
     
     // If encounter type is set but nothing else, determine next step
     if (fromState.encounterType) {
@@ -549,15 +551,32 @@ export default function ConsentFlowPage() {
 
   const [step, setStep] = useState(() => {
     const initialStep = getInitialStep(state);
-    console.log('[ConsentFlow] Initializing step:', initialStep, 'flowSteps:', getFlowSteps());
+    console.log('[ConsentFlow] Initializing step:', initialStep, 'flowSteps:', flowSteps);
     return initialStep;
   });
 
+  // Correct step when flowSteps changes (e.g., after context hydration)
+  useEffect(() => {
+    // If we're on a university step that no longer exists, move to the appropriate step
+    if (step === 2 && flowSteps.university === null) {
+      // University step was removed, move to parties
+      setStep(flowSteps.parties);
+    } else if (step > 1 && step < flowSteps.parties && flowSteps.university === 2 && state.encounterType) {
+      // If we should have a university step but we're somehow past it without completing it
+      // and we don't have university/state selected, go back to university step
+      if (!state.universityId && !state.stateCode && state.selectionMode !== "not-applicable") {
+        setStep(flowSteps.university);
+      }
+    }
+  }, [flowSteps, state.encounterType, state.universityId, state.stateCode, state.selectionMode, isHydrated]);
+
   // Handle encounter type changes (must be after step state declaration)
   const prevEncounterTypeRef = useRef(state.encounterType);
+  const prevSelectionModeRef = useRef(state.selectionMode);
   useEffect(() => {
     // Only run when encounter type actually changes (not on initial mount or during selection)
     // Don't auto-advance if we're still on step 1 (encounter type selection)
+    // Don't auto-advance if only selectionMode changed (not encounter type)
     if (prevEncounterTypeRef.current && 
         prevEncounterTypeRef.current !== state.encounterType && 
         step !== 1) {
@@ -577,9 +596,10 @@ export default function ConsentFlowPage() {
       setStep(newFlowSteps.university || newFlowSteps.parties);
     }
     
-    // Update ref for next comparison
+    // Update refs for next comparison
     prevEncounterTypeRef.current = state.encounterType;
-  }, [state.encounterType, step]);
+    prevSelectionModeRef.current = state.selectionMode;
+  }, [state.encounterType, state.selectionMode, step]);
 
   const addParty = () => {
     updateFlowState({ parties: [...state.parties, ""] });
