@@ -118,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register modular domain-specific routers
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/recordings", recordingsRouter);
-  app.use("/api", amendmentsRouter);
+  app.use("/api/amendments", amendmentsRouter);
   app.use("/api/universities", universitiesRouter);
   app.use("/api/state-laws", stateRouter);
   app.use("/api/auth", authRouter);

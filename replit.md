@@ -45,11 +45,13 @@ The backend implements modular Express Router architecture with domain-based sep
 - **Contract Lifecycle & Modification**: Active contracts can be paused and resumed. Completed contracts are immutable to ensure legal accountability.
 - **Security**: Comprehensive measures include `requireAuth` middleware, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, and rate limiting.
 - **Testing**: Comprehensive testing strategy includes:
-  - **Bart** - Custom AI-powered API testing agent (bypasses Replit's Stripe blocker)
-  - Tests 53+ endpoints across all 8 domain routers
-  - AI-powered failure analysis via OpenAI GPT-4o-mini
+  - **Bart** - PMY's distinguished first user, a high-net-worth professional whose career depends on PMY working flawlessly
+  - Bart serves as both a comprehensive API testing agent and a trusted advisor for product decisions
+  - Tests 53+ endpoints across all 8 domain routers with AI-powered failure analysis (OpenAI GPT-4o-mini)
+  - Bart's perspective: demands absolute reliability, legal compliance, and professional polish
+  - We regularly consult with Bart for feedback on features and UX decisions
   - Run with: `npx tsx bart.ts`
-  - See `BART_README.md` and `BART_QUICK_START.md` for details
+  - See `BART_README.md` and `BART_QUICK_START.md` for Bart's full persona and technical details
 - **Feature Flags**: Environment variable-controlled feature flag system (`VITE_ENABLE_COLLABORATIVE_CONTRACTS`) for experimental and beta features.
 
 ## External Dependencies

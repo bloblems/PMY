@@ -20,9 +20,9 @@ import {
 const router = Router();
 
 // Create amendment request for a contract
-router.post("/contracts/:id/amendments", requireAuth, async (req, res) => {
+router.post("/contract/:contractId", requireAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { contractId: id } = req.params;
     const userId = req.user!.id;
 
     // Verify user has access to the contract
@@ -119,9 +119,9 @@ router.post("/contracts/:id/amendments", requireAuth, async (req, res) => {
 });
 
 // Get all amendments for a contract
-router.get("/contracts/:id/amendments", requireAuth, async (req, res) => {
+router.get("/contract/:contractId", requireAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { contractId: id } = req.params;
     const userId = req.user!.id;
 
     // Verify user has access to the contract

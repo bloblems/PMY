@@ -1,10 +1,19 @@
 #!/usr/bin/env tsx
 /**
- * Bart - The PMY Testing Agent
+ * Bart - PMY's Distinguished First User
  * 
- * A comprehensive AI-powered testing tool that verifies API endpoints,
- * routing, and application health without browser automation.
- * Works perfectly in Replit's environment, no Stripe blocker!
+ * Bart is a high-net-worth individual whose career success depends on PMY
+ * working flawlessly. As one of PMY's first users, Bart provides invaluable
+ * feedback and validates that the platform meets the needs of sophisticated
+ * users who require reliable, legally-compliant consent documentation.
+ * 
+ * This testing agent embodies Bart's perspective - thorough, exacting, and
+ * focused on ensuring PMY performs at the highest standards.
+ * 
+ * Technical Features:
+ * - Comprehensive API endpoint verification (53+ endpoints)
+ * - AI-powered failure analysis via OpenAI GPT-4o-mini
+ * - No browser automation needed (bypasses Replit's Stripe prerequisite)
  * 
  * Usage:
  *   npx tsx bart.ts              - Run all tests
@@ -49,10 +58,15 @@ class APITestAgent {
     name: string,
     path: string,
     expectedStatus: number[],
-    notExpectedStatus?: number[]
+    notExpectedStatus?: number[],
+    method: string = 'GET'
   ): Promise<void> {
     await this.runTest(name, async () => {
-      const response = await fetch(`${APP_URL}${path}`);
+      const response = await fetch(`${APP_URL}${path}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: method !== 'GET' && method !== 'HEAD' ? JSON.stringify({}) : undefined
+      });
       const status = response.status;
       
       if (notExpectedStatus && notExpectedStatus.includes(status)) {
@@ -89,28 +103,32 @@ class APITestAgent {
       'POST /api/contracts',
       '/api/contracts',
       [400, 401, 403],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'DELETE /api/contracts/:id',
       '/api/contracts/test-id-123',
       [401, 403, 404],
-      []
+      [],
+      'DELETE'
     );
 
     await this.testEndpoint(
       'POST /api/contracts/:id/pause',
       '/api/contracts/test-id-123/pause',
       [401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/contracts/:id/resume',
       '/api/contracts/test-id-123/resume',
       [401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     // Consent creation endpoints
@@ -118,28 +136,32 @@ class APITestAgent {
       'POST /api/consent-contracts',
       '/api/consent-contracts',
       [400, 401, 403, 200],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/consent-recordings',
       '/api/consent-recordings',
       [400, 401, 403, 200],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/consent-photos',
       '/api/consent-photos',
       [400, 401, 403, 200],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/consent-biometric',
       '/api/consent-biometric',
       [400, 401, 403, 200],
-      [404]
+      [404],
+      'POST'
     );
 
     // Collaborative contract endpoints
@@ -154,14 +176,16 @@ class APITestAgent {
       'POST /api/contracts/draft',
       '/api/contracts/draft',
       [400, 401, 403],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'PATCH /api/contracts/draft/:id',
       '/api/contracts/draft/test-123',
       [400, 401, 403, 404],
-      []
+      [],
+      'PATCH'
     );
 
     await this.testEndpoint(
@@ -175,7 +199,8 @@ class APITestAgent {
       'POST /api/contracts/:id/share',
       '/api/contracts/test-123/share',
       [400, 401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
@@ -203,35 +228,40 @@ class APITestAgent {
       'POST /api/contracts/invitations/:code/accept',
       '/api/contracts/invitations/test-code-123/accept',
       [400, 401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/contracts/:id/approve',
       '/api/contracts/test-123/approve',
       [400, 401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/contracts/:id/reject',
       '/api/contracts/test-123/reject',
       [400, 401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/contracts/:id/confirm-consent',
       '/api/contracts/test-123/confirm-consent',
       [400, 401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/consent/interpret-custom-text',
       '/api/consent/interpret-custom-text',
       [400, 401, 403],
-      [404]
+      [404],
+      'POST'
     );
   }
 
@@ -277,8 +307,8 @@ class APITestAgent {
     );
 
     await this.testEndpoint(
-      'GET /api/notifications/unread-count',
-      '/api/notifications/unread-count',
+      'GET /api/notifications/unread/count',
+      '/api/notifications/unread/count',
       [200, 401, 403],
       [404]
     );
@@ -287,14 +317,16 @@ class APITestAgent {
       'PATCH /api/notifications/:id/read',
       '/api/notifications/test-123/read',
       [401, 403, 404],
-      []
+      [],
+      'PATCH'
     );
 
     await this.testEndpoint(
       'PATCH /api/notifications/read-all',
       '/api/notifications/read-all',
       [401, 403],
-      [404]
+      [404],
+      'PATCH'
     );
 
     // Recordings router (3 endpoints)
@@ -316,15 +348,17 @@ class APITestAgent {
       'DELETE /api/recordings/:id',
       '/api/recordings/test-123',
       [401, 403, 404],
-      []
+      [],
+      'DELETE'
     );
 
     // Amendments router (4 endpoints)
     await this.testEndpoint(
-      'POST /api/amendments',
-      '/api/amendments',
-      [400, 401, 403],
-      [404]
+      'POST /api/amendments/contract/:contractId',
+      '/api/amendments/contract/test-123',
+      [400, 401, 403, 404],
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
@@ -338,14 +372,16 @@ class APITestAgent {
       'POST /api/amendments/:id/approve',
       '/api/amendments/test-123/approve',
       [400, 401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/amendments/:id/reject',
       '/api/amendments/test-123/reject',
       [400, 401, 403, 404],
-      []
+      [],
+      'POST'
     );
 
     // Auth router (6 endpoints)
@@ -353,21 +389,24 @@ class APITestAgent {
       'POST /api/auth/signup',
       '/api/auth/signup',
       [400],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/auth/login',
       '/api/auth/login',
       [400],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/auth/logout',
       '/api/auth/logout',
       [200, 401],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
@@ -381,14 +420,16 @@ class APITestAgent {
       'POST /api/auth/webauthn/challenge',
       '/api/auth/webauthn/challenge',
       [200],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'POST /api/auth/webauthn/verify',
       '/api/auth/webauthn/verify',
       [400],
-      [404]
+      [404],
+      'POST'
     );
 
     // Profile router (8 endpoints)
@@ -403,7 +444,8 @@ class APITestAgent {
       'PATCH /api/profile',
       '/api/profile',
       [400, 401, 403],
-      [404]
+      [404],
+      'PATCH'
     );
 
     await this.testEndpoint(
@@ -417,7 +459,8 @@ class APITestAgent {
       'PATCH /api/profile/preferences',
       '/api/profile/preferences',
       [400, 401, 403],
-      [404]
+      [404],
+      'PATCH'
     );
 
     await this.testEndpoint(
@@ -431,21 +474,24 @@ class APITestAgent {
       'POST /api/profile/email-notifications',
       '/api/profile/email-notifications',
       [400, 401, 403],
-      [404]
+      [404],
+      'POST'
     );
 
     await this.testEndpoint(
       'DELETE /api/profile/account',
       '/api/profile/account',
       [401, 403],
-      [404]
+      [404],
+      'DELETE'
     );
 
     await this.testEndpoint(
       'PATCH /api/profile/email',
       '/api/profile/email',
       [400, 401, 403],
-      [404]
+      [404],
+      'PATCH'
     );
   }
 
@@ -564,10 +610,12 @@ Be concise and actionable.`;
 async function main() {
   const agent = new APITestAgent();
 
-  console.log('🤖 Bart - The PMY Testing Agent');
-  console.log('Comprehensive API endpoint verification\n');
-  console.log('Coverage: 51+ endpoints across 8 domain routers');
-  console.log('No Stripe blocker, no browser needed, just pure API testing!\n');
+  console.log('👔 Bart - PMY\'s Distinguished First User');
+  console.log('═══════════════════════════════════════\n');
+  console.log('Testing with the standards of a high-net-worth professional');
+  console.log('whose career depends on PMY\'s reliability and legal compliance.\n');
+  console.log('Coverage: 53+ endpoints across 8 domain routers');
+  console.log('Powered by OpenAI GPT-4o-mini for intelligent failure analysis\n');
 
   try {
     await agent.testAppHealth();
@@ -576,6 +624,12 @@ async function main() {
     await agent.analyzeWithAI();
     
     const report = agent.generateReport();
+    
+    if (report.failed > 0) {
+      console.log('\n⚠️  Bart is concerned - these failures could impact user trust and legal compliance.');
+    } else {
+      console.log('\n✨ Bart approves - PMY is performing to professional standards.');
+    }
     
     process.exit(report.failed > 0 ? 1 : 0);
   } catch (error) {
