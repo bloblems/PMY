@@ -22,6 +22,8 @@ import {
   type InsertAccountVerification,
   type ContractAmendment,
   type InsertContractAmendment,
+  type Notification,
+  type InsertNotification,
 } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
@@ -38,6 +40,7 @@ import {
   userContacts,
   accountVerifications,
   contractAmendments,
+  notifications,
 } from "@shared/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { supabaseAdmin } from "./supabase";
@@ -152,6 +155,13 @@ export interface IStorage {
   updateAccountVerificationPaymentStatus(sessionId: string, paymentStatus: string, paymentIntentId?: string): Promise<AccountVerification | undefined>;
   setUserVerified(userId: string, provider: string, verificationLevel?: string, verifiedData?: string): Promise<UserProfile | undefined>;
   checkRetryEligibility(userId: string): Promise<{ canRetry: boolean; canRetryAt?: Date }>;
+
+  // Notification methods
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
+  markNotificationAsRead(notificationId: string, userId: string): Promise<boolean>;
+  markAllNotificationsAsRead(userId: string): Promise<boolean>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -1153,6 +1163,26 @@ export class MemStorage implements IStorage {
   async getContractAmendmentCount(contractId: string): Promise<number> {
     throw new Error("Contract amendments not supported in MemStorage");
   }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    throw new Error("Notifications not supported in MemStorage");
+  }
+
+  async getUserNotifications(userId: string, limit?: number): Promise<Notification[]> {
+    throw new Error("Notifications not supported in MemStorage");
+  }
+
+  async markNotificationAsRead(notificationId: string, userId: string): Promise<boolean> {
+    throw new Error("Notifications not supported in MemStorage");
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<boolean> {
+    throw new Error("Notifications not supported in MemStorage");
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    throw new Error("Notifications not supported in MemStorage");
+  }
 }
 
 // Database storage implementation
@@ -2145,6 +2175,66 @@ export class DbStorage implements IStorage {
     }
 
     return { canRetry: latest.status !== 'processing' && latest.status !== 'pending' };
+  }
+
+  // Notification methods
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const result = await db
+      .insert(notifications)
+      .values({
+        ...insertNotification,
+        createdAt: new Date(),
+      })
+      .returning();
+    
+    return result[0];
+  }
+
+  async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit);
+  }
+
+  async markNotificationAsRead(notificationId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .update(notifications)
+      .set({ isRead: "true" })
+      .where(
+        and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, userId)
+        )
+      )
+      .returning();
+    
+    return result.length > 0;
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<boolean> {
+    await db
+      .update(notifications)
+      .set({ isRead: "true" })
+      .where(eq(notifications.userId, userId));
+    
+    return true;
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, "false")
+        )
+      );
+    
+    return Number(result[0]?.count || 0);
   }
 
   // Contract amendment methods
