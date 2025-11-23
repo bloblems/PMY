@@ -1164,16 +1164,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contractEndTime: parsed.data.contractEndTime
       });
 
-      // Validate all parties use canonical @username format (lowercase alphanumeric_underscore)
+      // Validate parties: Accept either @username (PMY users) OR legal names (non-PMY participants)
       if (parsed.data.parties && parsed.data.parties.length > 0) {
-        const usernameRegex = /^@[a-z0-9_]+$/;
+        const usernameRegex = /^@[a-z0-9_]+$/; // PMY username format
         const invalidParties = parsed.data.parties.filter((party: string) => {
           const trimmed = party.trim();
-          return trimmed && !usernameRegex.test(trimmed);
+          if (!trimmed) return true; // Empty string is invalid
+          
+          // Two valid formats:
+          // 1. PMY username: @lowercase_alphanumeric_underscore
+          // 2. Legal name: any non-empty text without @ prefix (minimum 2 chars)
+          if (trimmed.startsWith('@')) {
+            return !usernameRegex.test(trimmed); // Validate PMY username format
+          } else {
+            return trimmed.length < 2; // Legal names must be at least 2 characters
+          }
         });
         if (invalidParties.length > 0) {
           return res.status(400).json({ 
-            error: "All parties must use canonical @username format (lowercase letters, numbers, underscores only)",
+            error: "Parties must be either @username (PMY users) or legal names (min 2 characters)",
             invalidParties: invalidParties
           });
         }

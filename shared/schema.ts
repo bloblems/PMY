@@ -107,10 +107,14 @@ export const consentContracts = pgTable("consent_contracts", {
 });
 
 // Contract collaborators table - tracks all participants in a collaborative contract
+// Supports both PMY users (with userId) and non-PMY participants (with legalName only)
 export const contractCollaborators = pgTable("contract_collaborators", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   contractId: varchar("contract_id").notNull(), // References consent_contracts(id)
-  userId: text("user_id").notNull(), // References auth.users(id)
+  userId: text("user_id"), // References auth.users(id) - NULL for non-PMY participants
+  legalName: text("legal_name"), // Full name for non-PMY participants, also stored for PMY users as display name
+  contactInfo: text("contact_info"), // Email, phone, or other contact info for non-PMY participants
+  participantType: text("participant_type").notNull().default("pmy_user"), // "pmy_user" or "external"
   role: text("role").notNull(), // "initiator" or "recipient"
   status: text("status").notNull().default("pending"), // pending, reviewing, approved, rejected
   lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
@@ -281,6 +285,10 @@ export const insertContractCollaboratorSchema = createInsertSchema(contractColla
   id: true,
   createdAt: true,
 }).extend({
+  userId: z.string().optional(), // Optional - NULL for non-PMY participants
+  legalName: z.string().optional(), // Required for external participants, optional for PMY users
+  contactInfo: z.string().optional(), // Optional contact info (email, phone) for external participants
+  participantType: z.enum(["pmy_user", "external"]).default("pmy_user"),
   role: z.enum(["initiator", "recipient"]),
   status: z.enum(["pending", "reviewing", "approved", "rejected"]).default("pending"),
   lastViewedAt: z.string().optional(),
