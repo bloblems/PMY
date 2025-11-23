@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FileList from "@/components/FileList";
 import ContractTile from "@/components/ContractTile";
 import { AmendmentRequestDialog } from "@/components/AmendmentRequestDialog";
+import { AmendmentApprovalCard } from "@/components/AmendmentApprovalCard";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, Users, Coffee, Briefcase, FileText, ArrowRight, Inbox, FilePlus, Check, X, Clock, Edit } from "lucide-react";
+import { Heart, Users, Coffee, Briefcase, FileText, ArrowRight, Inbox, FilePlus, Check, X, Clock, Edit, FileEdit } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
@@ -85,6 +86,22 @@ interface PmyInvitation {
   };
 }
 
+interface Amendment {
+  id: string;
+  contractId: string;
+  requestedBy: string;
+  amendmentType: string;
+  status: string;
+  changes: string;
+  reason: string;
+  approvers: string[] | null;
+  createdAt: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectionReason?: string | null;
+}
+
 interface ContractTemplate {
   id: string;
   name: string;
@@ -127,6 +144,11 @@ export default function FilesPage() {
   const [, setLocation] = useLocation();
   const [amendmentContract, setAmendmentContract] = useState<Contract | null>(null);
 
+  // Fetch current user data
+  const { data: userData } = useQuery<{ id: string }>({
+    queryKey: ['/api/auth/me'],
+  });
+
   const { data: recordings = [] } = useQuery<Recording[]>({
     queryKey: ["/api/recordings"],
   });
@@ -148,6 +170,36 @@ export default function FilesPage() {
   // Fetch in-app PMY user invitations
   const { data: pmyInvitations = [] } = useQuery<PmyInvitation[]>({
     queryKey: ["/api/contracts/invitations/pmy"],
+  });
+
+  // Fetch all pending amendments across all contracts
+  const { data: allAmendments = [] } = useQuery<Amendment[]>({
+    queryKey: ["/api/amendments/all", ...contracts.map(c => c.id).sort()],
+    queryFn: async () => {
+      // Guard: if no contracts, return empty array
+      if (contracts.length === 0) {
+        return [];
+      }
+
+      // Fetch amendments for all contracts
+      const amendmentPromises = contracts.map(async (contract) => {
+        try {
+          const response = await fetch(`/api/contracts/${contract.id}/amendments`);
+          if (!response.ok) return [];
+          const data = await response.json();
+          return data.amendments || [];
+        } catch (error) {
+          console.error(`Failed to fetch amendments for contract ${contract.id}:`, error);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(amendmentPromises);
+      const allAmendments = results.flat();
+      
+      // Filter only pending amendments
+      return allAmendments.filter((a: Amendment) => a.status === "pending");
+    },
   });
 
   const deleteRecordingMutation = useMutation({
@@ -314,6 +366,7 @@ export default function FilesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/amendments/all"] });
       setAmendmentContract(null);
       toast({
         title: "Amendment requested",
@@ -324,6 +377,52 @@ export default function FilesPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to create amendment request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Approve amendment mutation
+  const approveAmendmentMutation = useMutation({
+    mutationFn: async (amendmentId: string) => {
+      const response = await apiRequest("POST", `/api/amendments/${amendmentId}/approve`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/amendments/all"] });
+      toast({
+        title: data.allPartiesApproved ? "Amendment approved!" : "Approval recorded",
+        description: data.message,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve amendment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject amendment mutation
+  const rejectAmendmentMutation = useMutation({
+    mutationFn: async ({ amendmentId, reason }: { amendmentId: string; reason?: string }) => {
+      const response = await apiRequest("POST", `/api/amendments/${amendmentId}/reject`, { reason });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/amendments/all"] });
+      toast({
+        title: "Amendment rejected",
+        description: "The amendment has been rejected",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject amendment",
         variant: "destructive",
       });
     },
@@ -549,10 +648,14 @@ export default function FilesPage() {
         </div>
 
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className={`grid w-full ${featureFlags.collaborativeContracts ? 'grid-cols-3' : 'grid-cols-1'} mb-6`}>
+          <TabsList className={`grid w-full ${featureFlags.collaborativeContracts ? 'grid-cols-4' : 'grid-cols-2'} mb-6`}>
             <TabsTrigger value="active" data-testid="tab-active-contracts">
               <FileText className="h-4 w-4 mr-2" />
               Active
+            </TabsTrigger>
+            <TabsTrigger value="amendments" data-testid="tab-amendments">
+              <FileEdit className="h-4 w-4 mr-2" />
+              Amendments {allAmendments.length > 0 && <Badge variant="secondary" className="ml-2">{allAmendments.length}</Badge>}
             </TabsTrigger>
             {featureFlags.collaborativeContracts && (
               <>
@@ -883,6 +986,75 @@ export default function FilesPage() {
                       </div>
                     </Card>
                   ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Amendments Tab */}
+          <TabsContent value="amendments" className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Pending Amendments</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Review and approve or reject proposed changes to existing contracts
+              </p>
+              {allAmendments.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <FileEdit className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">No pending amendments</p>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {allAmendments.map((amendment) => {
+                    const contract = contracts.find(c => c.id === amendment.contractId);
+                    if (!contract) return null;
+
+                    const parsedActs = (() => {
+                      const defaultActs = { touching: false, kissing: false, oral: false, anal: false, vaginal: false };
+                      if (!contract.intimateActs) return defaultActs;
+                      
+                      try {
+                        const parsed = JSON.parse(contract.intimateActs);
+                        if (Array.isArray(parsed)) {
+                          const result = { ...defaultActs };
+                          parsed.forEach((act: string) => {
+                            if (act in result) {
+                              result[act as keyof typeof result] = true;
+                            }
+                          });
+                          return result;
+                        }
+                        
+                        if (typeof parsed === 'object' && parsed !== null) {
+                          return {
+                            touching: parsed.touching === true,
+                            kissing: parsed.kissing === true,
+                            oral: parsed.oral === true,
+                            anal: parsed.anal === true,
+                            vaginal: parsed.vaginal === true,
+                          };
+                        }
+                        
+                        return defaultActs;
+                      } catch (error) {
+                        console.error("Error parsing intimate acts:", error);
+                        return defaultActs;
+                      }
+                    })();
+
+                    return (
+                      <AmendmentApprovalCard
+                        key={amendment.id}
+                        amendment={amendment}
+                        currentUserId={userData?.id || ""}
+                        currentActs={parsedActs}
+                        currentEndTime={contract.contractEndTime}
+                        onApprove={(amendmentId) => approveAmendmentMutation.mutateAsync(amendmentId)}
+                        onReject={(amendmentId, reason) => rejectAmendmentMutation.mutateAsync({ amendmentId, reason })}
+                        isLoading={approveAmendmentMutation.isPending || rejectAmendmentMutation.isPending}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
