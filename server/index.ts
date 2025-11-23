@@ -9,36 +9,60 @@ const app = express();
 // Trust proxy for production deployments
 app.set("trust proxy", 1);
 
-// Configure CORS with production domain whitelist
-const allowedOrigins = [
-  "http://localhost:5000",
-  "http://127.0.0.1:5000",
-  // Add production domains when deployed:
-  // "https://pmy.replit.app",
-  // "https://your-custom-domain.com",
-];
+// Configure CORS with environment-driven origin whitelist
+// In production, set ALLOWED_ORIGINS="https://pmy.replit.app,https://your-custom-domain.com"
+const getAllowedOrigins = (): string[] => {
+  const envOrigins = process.env.ALLOWED_ORIGINS;
+  const baseOrigins = ["http://localhost:5000", "http://127.0.0.1:5000"];
+  
+  if (envOrigins) {
+    const productionOrigins = envOrigins.split(",").map(o => o.trim());
+    return [...baseOrigins, ...productionOrigins];
+  }
+  
+  return baseOrigins;
+};
 
+const allowedOrigins = getAllowedOrigins();
+
+// Log allowed origins on startup
+log(`CORS allowed origins: ${allowedOrigins.join(", ")}`);
+
+// Pre-CORS middleware: Explicitly reject disallowed origins before they reach routes
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  
+  // Allow requests with no origin (mobile apps, Postman, curl)
+  if (!origin) {
+    return next();
+  }
+  
+  // Development: Allow all localhost origins
+  if (process.env.NODE_ENV === "development") {
+    if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+      log(`CORS: Allowed dev origin: ${origin}`);
+      return next();
+    }
+  }
+  
+  // Production: Only allow whitelisted origins
+  if (allowedOrigins.includes(origin)) {
+    log(`CORS: Allowed origin: ${origin}`);
+    return next();
+  }
+  
+  // Reject disallowed origin with 403
+  log(`CORS: Rejected origin: ${origin} attempting to access ${req.method} ${req.path}`);
+  return res.status(403).json({
+    error: "CORS policy violation",
+    message: "Origin not allowed",
+  });
+});
+
+// Standard CORS middleware (only for allowed origins)
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, Postman, curl)
-      if (!origin) return callback(null, true);
-      
-      // Development: Allow all localhost origins in dev mode
-      if (process.env.NODE_ENV === "development") {
-        if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
-          return callback(null, true);
-        }
-      }
-      
-      // Production: Only allow whitelisted origins
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
-      // Reject all other origins
-      callback(new Error("CORS policy: Origin not allowed"));
-    },
+    origin: true, // Trust the pre-CORS middleware above for origin validation
     credentials: true, // Allow cookies and authorization headers
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
