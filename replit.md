@@ -43,7 +43,7 @@ The backend implements modular Express Router architecture with domain-based sep
 - **iOS-Ready Secure Storage**: Implements AES-256 encrypted Keychain storage on iOS (and Keystore on Android) with fallback to `sessionStorage`.
 - **Navigation**: Bottom navigation bar with "Create", "Tools", "Contracts", and "Profile" tabs. The Contracts tab includes sections for Active, Paused, and Completed contracts, with additional Drafts and Inbox tabs for collaborative features.
 - **Contract Lifecycle & Modification**: Active contracts can be paused and resumed. Completed contracts are immutable to ensure legal accountability.
-- **Security**: Production-grade security (~94% coverage) includes `requireAuth` middleware, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, comprehensive rate limiting (5 tiers), and CORS protection with environment-driven whitelisting. Security operations documented in `SECURITY_OPERATIONS.md`.
+- **Security**: Production-grade security (~94% coverage, ~86% OWASP compliance) includes `requireAuth` middleware, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, comprehensive rate limiting (5 tiers), and CORS protection with environment-driven whitelisting. Security operations documented in `SECURITY_OPERATIONS.md`. OWASP Top 10 (2021) compliance documented in `OWASP_COMPLIANCE.md`.
 - **Testing**: Comprehensive testing strategy includes:
   - **Bart Simpson (@bart)** - PMY's official demo user and distinguished first user
     - **Real Account**: Email `bart.simpson@pmy.demo`, Password `BartPlaysNBA2024!`
