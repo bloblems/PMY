@@ -21,7 +21,7 @@ const toolPanels: ToolPanel[] = [
     title: "Partner Verify",
     description: "Verify identity and age using third-party verification services for enhanced security.",
     icon: <Shield className="h-6 w-6" />,
-    iconBgColor: "bg-success/10",
+    iconBgColor: "bg-gradient-to-br from-pink-500/20 via-rose-500/15 to-rose-600/20 dark:from-pink-500/30 dark:via-rose-500/25 dark:to-rose-600/30",
     action: {
       label: "Get Verified",
       path: "/settings/integrations"
@@ -32,7 +32,7 @@ const toolPanels: ToolPanel[] = [
     title: "Contract Verify",
     description: "Check the status and validity of your consent documentation and contracts.",
     icon: <CheckCircle className="h-6 w-6" />,
-    iconBgColor: "bg-purple-500/10 dark:bg-purple-400/10",
+    iconBgColor: "bg-gradient-to-br from-emerald-500/20 via-green-500/15 to-teal-500/20 dark:from-emerald-500/30 dark:via-green-500/25 dark:to-teal-500/30",
     action: {
       label: "Check Status",
       path: "/files"
@@ -43,7 +43,7 @@ const toolPanels: ToolPanel[] = [
     title: "Title IX",
     description: "Access university Title IX policies and educational resources about consent requirements.",
     icon: <School className="h-6 w-6" />,
-    iconBgColor: "bg-blue-500/10 dark:bg-blue-400/10",
+    iconBgColor: "bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-sky-500/20 dark:from-blue-500/30 dark:via-cyan-500/25 dark:to-sky-500/30",
     action: {
       label: "View Policies",
       path: "/titleix"
@@ -54,7 +54,7 @@ const toolPanels: ToolPanel[] = [
     title: "State Law",
     description: "Explore consent laws and requirements across all 50 U.S. states for comprehensive legal understanding.",
     icon: <Scale className="h-6 w-6" />,
-    iconBgColor: "bg-amber-500/10 dark:bg-amber-400/10",
+    iconBgColor: "bg-gradient-to-br from-amber-500/20 via-yellow-500/15 to-orange-500/20 dark:from-amber-500/30 dark:via-yellow-500/25 dark:to-orange-500/30",
     action: {
       label: "View State Laws",
       path: "/state-law"

@@ -2892,6 +2892,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Custom text is required" });
       }
 
+      // Cap input length to prevent abuse
+      if (customText.length > 1000) {
+        return res.status(400).json({ error: "Custom text too long. Maximum 1000 characters." });
+      }
+
       if (!context || !["encounterType", "intimateActs"].includes(context)) {
         return res.status(400).json({ error: "Invalid context. Must be 'encounterType' or 'intimateActs'" });
       }
