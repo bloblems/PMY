@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useConsentFlow, type ConsentFlowState } from "@/contexts/ConsentFlowContext";
 import { useAuth } from "@/hooks/useAuth";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn, UserPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn, UserPlus, BookOpen, Scale, ArrowRight } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
 import StateSelector from "@/components/StateSelector";
 import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
@@ -1038,6 +1038,65 @@ export default function ConsentFlowPage() {
               selectedState={selectedState}
               onSelect={setSelectedState}
             />
+          )}
+
+          {/* Informative tool tiles based on selection mode */}
+          {selectionMode === "select-university" && (
+            <Card className="mt-6 border-primary/20 bg-primary/5" data-testid="card-title-ix-tool">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-base">Need to research Title IX policies?</CardTitle>
+                    <CardDescription className="text-sm">
+                      Access our comprehensive Title IX information tool
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate("/title-ix-info")}
+                  data-testid="button-goto-title-ix"
+                >
+                  View Title IX Tool
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {selectionMode === "select-state" && (
+            <Card className="mt-6 border-primary/20 bg-primary/5" data-testid="card-state-law-tool">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Scale className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-base">Need to research state consent laws?</CardTitle>
+                    <CardDescription className="text-sm">
+                      Access detailed consent law information for all 50 states
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate("/state-laws")}
+                  data-testid="button-goto-state-laws"
+                >
+                  View State Laws Tool
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
