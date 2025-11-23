@@ -1315,6 +1315,30 @@ export default function ConsentFlowPage() {
 
       {/* Action buttons */}
       <div className="space-y-3 pt-4">
+        {/* Save & Exit button - available on all steps after Step 1 */}
+        {step > flowSteps.encounterType && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (canSaveOrShare()) {
+                saveAsDraftMutation.mutate();
+              } else {
+                toast({
+                  title: "Cannot save yet",
+                  description: "Please fill in the encounter type and at least one party name before saving",
+                  variant: "destructive",
+                });
+              }
+            }}
+            disabled={saveAsDraftMutation.isPending || !canSaveOrShare()}
+            className="w-full"
+            data-testid="button-save-exit"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveAsDraftMutation.isPending ? "Saving..." : "Save & Exit"}
+          </Button>
+        )}
+
         {step === flowSteps.recordingMethod && featureFlags.collaborativeContracts && (
           <div className="flex gap-3">
             <Button
