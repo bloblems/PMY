@@ -20,6 +20,8 @@ import {
   type InsertUserContact,
   type AccountVerification,
   type InsertAccountVerification,
+  type ContractAmendment,
+  type InsertContractAmendment,
 } from "@shared/schema";
 import { universityData } from "./university-data";
 import { db } from "./db";
@@ -35,6 +37,7 @@ import {
   contractInvitations,
   userContacts,
   accountVerifications,
+  contractAmendments,
 } from "@shared/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { supabaseAdmin } from "./supabase";
@@ -94,6 +97,14 @@ export interface IStorage {
   approveContract(contractId: string, userId: string): Promise<boolean>;
   rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean>;
   confirmConsent(contractId: string, userId: string): Promise<{ allPartiesConfirmed: boolean; contractStatus: string } | null>;
+
+  // Contract amendment methods
+  createContractAmendment(amendment: InsertContractAmendment): Promise<ContractAmendment>;
+  getContractAmendments(contractId: string): Promise<ContractAmendment[]>;
+  getAmendment(amendmentId: string): Promise<ContractAmendment | undefined>;
+  approveAmendment(amendmentId: string, userId: string): Promise<boolean>;
+  rejectAmendment(amendmentId: string, userId: string, reason?: string): Promise<boolean>;
+  getContractAmendmentCount(contractId: string): Promise<number>;
 
   // User profile methods (Supabase auth.users managed separately)
   getUserProfile(id: string): Promise<UserProfile | undefined>;
@@ -1118,6 +1129,30 @@ export class MemStorage implements IStorage {
   async checkRetryEligibility(userId: string): Promise<{ canRetry: boolean; canRetryAt?: Date }> {
     throw new Error("Account verification not supported in MemStorage");
   }
+
+  async createContractAmendment(amendment: InsertContractAmendment): Promise<ContractAmendment> {
+    throw new Error("Contract amendments not supported in MemStorage");
+  }
+
+  async getContractAmendments(contractId: string): Promise<ContractAmendment[]> {
+    throw new Error("Contract amendments not supported in MemStorage");
+  }
+
+  async getAmendment(amendmentId: string): Promise<ContractAmendment | undefined> {
+    throw new Error("Contract amendments not supported in MemStorage");
+  }
+
+  async approveAmendment(amendmentId: string, userId: string): Promise<boolean> {
+    throw new Error("Contract amendments not supported in MemStorage");
+  }
+
+  async rejectAmendment(amendmentId: string, userId: string, reason?: string): Promise<boolean> {
+    throw new Error("Contract amendments not supported in MemStorage");
+  }
+
+  async getContractAmendmentCount(contractId: string): Promise<number> {
+    throw new Error("Contract amendments not supported in MemStorage");
+  }
 }
 
 // Database storage implementation
@@ -2110,6 +2145,198 @@ export class DbStorage implements IStorage {
     }
 
     return { canRetry: latest.status !== 'processing' && latest.status !== 'pending' };
+  }
+
+  // Contract amendment methods
+  async createContractAmendment(amendment: InsertContractAmendment): Promise<ContractAmendment> {
+    const result = await db
+      .insert(contractAmendments)
+      .values({
+        ...amendment,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    return result[0];
+  }
+
+  async getContractAmendments(contractId: string): Promise<ContractAmendment[]> {
+    return await db
+      .select()
+      .from(contractAmendments)
+      .where(eq(contractAmendments.contractId, contractId))
+      .orderBy(desc(contractAmendments.createdAt));
+  }
+
+  async getAmendment(amendmentId: string): Promise<ContractAmendment | undefined> {
+    const result = await db
+      .select()
+      .from(contractAmendments)
+      .where(eq(contractAmendments.id, amendmentId));
+    
+    return result[0];
+  }
+
+  async approveAmendment(amendmentId: string, userId: string): Promise<boolean> {
+    try {
+      // Get the amendment
+      const amendment = await this.getAmendment(amendmentId);
+      if (!amendment || amendment.status !== 'pending') {
+        return false;
+      }
+
+      // Get the contract to verify parties
+      const contract = await db
+        .select()
+        .from(consentContracts)
+        .where(eq(consentContracts.id, amendment.contractId));
+      
+      if (!contract || contract.length === 0) {
+        return false;
+      }
+
+      // Get all collaborators
+      const collaborators = await db
+        .select()
+        .from(contractCollaborators)
+        .where(eq(contractCollaborators.contractId, amendment.contractId));
+
+      const allPartyIds = collaborators.map(c => c.userId);
+      
+      // Verify user is a party to the contract
+      if (!allPartyIds.includes(userId)) {
+        return false;
+      }
+
+      // Add user to approvers list
+      const currentApprovers = amendment.approvers || [];
+      if (currentApprovers.includes(userId)) {
+        return false; // Already approved
+      }
+
+      const newApprovers = [...currentApprovers, userId];
+      
+      // Check if all parties have approved
+      const allApproved = allPartyIds.every(id => newApprovers.includes(id));
+
+      // Update amendment
+      const updates: any = {
+        approvers: newApprovers,
+        updatedAt: new Date(),
+      };
+
+      if (allApproved) {
+        updates.status = 'approved';
+        updates.approvedAt = new Date();
+
+        // Apply the amendment to the contract
+        const changes = JSON.parse(amendment.changes);
+        const contractUpdates: any = {
+          updatedAt: new Date(),
+        };
+
+        // Parse current intimate acts
+        const currentActs = contract[0].intimateActs ? JSON.parse(contract[0].intimateActs) : {
+          touching: false,
+          kissing: false,
+          oral: false,
+          anal: false,
+          vaginal: false,
+        };
+
+        if (amendment.amendmentType === 'add_acts' && changes.addedActs) {
+          changes.addedActs.forEach((act: string) => {
+            currentActs[act] = true;
+          });
+          contractUpdates.intimateActs = JSON.stringify(currentActs);
+        } else if (amendment.amendmentType === 'remove_acts' && changes.removedActs) {
+          changes.removedActs.forEach((act: string) => {
+            currentActs[act] = false;
+          });
+          contractUpdates.intimateActs = JSON.stringify(currentActs);
+        } else if ((amendment.amendmentType === 'extend_duration' || amendment.amendmentType === 'shorten_duration') && changes.newEndTime) {
+          contractUpdates.contractEndTime = new Date(changes.newEndTime);
+          
+          // Recalculate duration
+          if (contract[0].contractStartTime) {
+            const startTime = new Date(contract[0].contractStartTime);
+            const endTime = new Date(changes.newEndTime);
+            const durationMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+            contractUpdates.contractDuration = durationMinutes;
+          }
+        }
+
+        // Update the contract
+        await db
+          .update(consentContracts)
+          .set(contractUpdates)
+          .where(eq(consentContracts.id, amendment.contractId));
+      }
+
+      await db
+        .update(contractAmendments)
+        .set(updates)
+        .where(eq(contractAmendments.id, amendmentId));
+
+      return true;
+    } catch (error) {
+      console.error('Error approving amendment:', error);
+      return false;
+    }
+  }
+
+  async rejectAmendment(amendmentId: string, userId: string, reason?: string): Promise<boolean> {
+    try {
+      // Get the amendment
+      const amendment = await this.getAmendment(amendmentId);
+      if (!amendment || amendment.status !== 'pending') {
+        return false;
+      }
+
+      // Verify user is a party to the contract
+      const collaborators = await db
+        .select()
+        .from(contractCollaborators)
+        .where(eq(contractCollaborators.contractId, amendment.contractId));
+
+      const allPartyIds = collaborators.map(c => c.userId);
+      
+      if (!allPartyIds.includes(userId)) {
+        return false;
+      }
+
+      // Update amendment to rejected
+      await db
+        .update(contractAmendments)
+        .set({
+          status: 'rejected',
+          rejectedAt: new Date(),
+          rejectedBy: userId,
+          rejectionReason: reason || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(contractAmendments.id, amendmentId));
+
+      return true;
+    } catch (error) {
+      console.error('Error rejecting amendment:', error);
+      return false;
+    }
+  }
+
+  async getContractAmendmentCount(contractId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`cast(count(*) as integer)` })
+      .from(contractAmendments)
+      .where(
+        and(
+          eq(contractAmendments.contractId, contractId),
+          eq(contractAmendments.status, 'approved')
+        )
+      );
+    
+    return result[0]?.count || 0;
   }
 }
 

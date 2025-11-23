@@ -186,6 +186,24 @@ export const accountVerifications = pgTable("account_verifications", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Contract amendments table - tracks modifications to active/paused contracts
+export const contractAmendments = pgTable("contract_amendments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull(), // References consent_contracts(id)
+  requestedBy: text("requested_by").notNull(), // References auth.users(id)
+  amendmentType: text("amendment_type").notNull(), // "add_acts", "remove_acts", "extend_duration", "shorten_duration"
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  changes: text("changes").notNull(), // JSON string of changes: { addedActs?: string[], removedActs?: string[], newEndTime?: string }
+  reason: text("reason").notNull(), // Why this amendment was requested
+  approvers: text("approvers").array(), // Array of userIds who approved
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  rejectedBy: text("rejected_by"), // References auth.users(id) - who rejected
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ================================================================
 // INSERT SCHEMAS AND TYPES
 // ================================================================
@@ -308,6 +326,22 @@ export const insertAccountVerificationSchema = createInsertSchema(accountVerific
   verifiedData: z.string().optional(),
 });
 
+export const insertContractAmendmentSchema = createInsertSchema(contractAmendments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  approvedAt: true,
+  rejectedAt: true,
+}).extend({
+  amendmentType: z.enum(["add_acts", "remove_acts", "extend_duration", "shorten_duration"]),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+  changes: z.string(), // JSON string validated separately
+  reason: z.string().min(1, "Reason is required"),
+  approvers: z.array(z.string()).optional(),
+  rejectedBy: z.string().optional(),
+  rejectionReason: z.string().optional(),
+});
+
 // API request validation schemas for collaborative contracts
 export const shareContractSchema = z.object({
   recipientEmail: z.string().email("Invalid email format").optional(),
@@ -357,3 +391,6 @@ export type UserContact = typeof userContacts.$inferSelect;
 
 export type InsertAccountVerification = z.infer<typeof insertAccountVerificationSchema>;
 export type AccountVerification = typeof accountVerifications.$inferSelect;
+
+export type InsertContractAmendment = z.infer<typeof insertContractAmendmentSchema>;
+export type ContractAmendment = typeof contractAmendments.$inferSelect;
