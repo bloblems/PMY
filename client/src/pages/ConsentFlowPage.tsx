@@ -747,6 +747,17 @@ export default function ConsentFlowPage() {
       return true; // Can proceed even with no acts selected
     } else if (step === flowSteps.duration) {
       // Duration step is optional - can proceed with or without setting duration
+      // BUT if duration is set, ensure end time is not in the past
+      if (state.contractStartTime && state.contractDuration) {
+        const startTime = new Date(state.contractStartTime);
+        const endTime = new Date(startTime.getTime() + state.contractDuration * 60 * 1000);
+        const now = Date.now();
+        
+        // Prevent proceeding if end time is in the past
+        if (endTime.getTime() < now) {
+          return false;
+        }
+      }
       return true;
     } else if (step === flowSteps.recordingMethod) {
       return state.method !== null;
@@ -777,7 +788,22 @@ export default function ConsentFlowPage() {
   };
 
   const handleNext = () => {
-    if (!canProceed()) return;
+    if (!canProceed()) {
+      // Show specific error message for duration step validation
+      if (step === flowSteps.duration && state.contractStartTime && state.contractDuration) {
+        const startTime = new Date(state.contractStartTime);
+        const endTime = new Date(startTime.getTime() + state.contractDuration * 60 * 1000);
+        if (endTime.getTime() < Date.now()) {
+          toast({
+            title: "Invalid Contract Duration",
+            description: "Contract end time is in the past. This would create an already-expired contract. Please adjust the start time or duration.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      return;
+    }
 
     // For internal step navigation, just use setStep()
     if (step === flowSteps.encounterType) {

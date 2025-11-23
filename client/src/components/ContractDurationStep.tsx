@@ -154,7 +154,15 @@ export default function ContractDurationStep({
   };
 
   // Check if start time is in the past
-  const isStartTimeInPast = startDateTime.getTime() < Date.now();
+  const now = Date.now();
+  const isStartTimeInPast = startDateTime.getTime() < now;
+  
+  // Calculate end time
+  const endDateTime = addMinutes(startDateTime, duration);
+  const isEndTimeInPast = endDateTime.getTime() < now;
+  
+  // Check if start time is more than 24 hours in the past
+  const isStartTimeTooOld = startDateTime.getTime() < (now - 24 * 60 * 60 * 1000);
 
   const handleDurationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const minutes = parseInt(e.target.value, 10);
@@ -348,12 +356,25 @@ export default function ContractDurationStep({
                       type="datetime-local"
                       value={formatDateTimeLocal(startDateTime)}
                       onChange={handleStartTimeInputChange}
+                      className={isEndTimeInPast ? "border-destructive" : ""}
                       data-testid="input-start-datetime"
                     />
-                    {isStartTimeInPast && (
+                    {isEndTimeInPast && (
+                      <p className="text-xs text-destructive flex items-start gap-1.5 mt-1">
+                        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                        <span><strong>Error:</strong> Contract end time ({format(endDateTime, "MMM d, h:mm a")}) is in the past. This would create an already-expired contract. Please choose a future end time.</span>
+                      </p>
+                    )}
+                    {!isEndTimeInPast && isStartTimeTooOld && (
                       <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 mt-1">
                         <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                        <span>This start time is in the past. You can use this to document consent that was previously given.</span>
+                        <span><strong>Warning:</strong> Start time is more than 24 hours in the past. For active consent documentation, consider using a more recent start time.</span>
+                      </p>
+                    )}
+                    {!isEndTimeInPast && !isStartTimeTooOld && isStartTimeInPast && (
+                      <p className="text-xs text-muted-foreground flex items-start gap-1.5 mt-1">
+                        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                        <span>Start time is in the recent past. You can use this to document consent that was recently given.</span>
                       </p>
                     )}
                   </div>
