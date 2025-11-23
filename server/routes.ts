@@ -6,15 +6,14 @@ import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
-import { MessagingService } from "./messaging";
+import { sendDocumentEmail, sendAmendmentRequestEmail, sendAmendmentApprovedEmail, sendAmendmentRejectedEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { validateFileUpload } from "./fileValidation";
 import { logConsentEvent, logRateLimitViolation } from "./securityLogger";
 import { requireAuth } from "./supabaseAuth";
 import { supabaseAdmin } from "./supabase";
-
-// Initialize messaging service for email and notification handling
-const messagingService = new MessagingService(storage);
+import notificationsRouter from "./routes/notifications";
+import recordingsRouter from "./routes/recordings";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -467,6 +466,11 @@ const stripe = stripeKey ? new Stripe(stripeKey, {
 }) : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // ===== Domain Routers =====
+  // Register modular domain-specific routers
+  app.use("/api/notifications", notificationsRouter);
+  app.use("/api/recordings", recordingsRouter);
+  
   // Supabase Auth handles signup/login/password-reset on the client side
   // We only need server endpoints for logout and fetching user data
   
@@ -1019,66 +1023,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching state law:", error);
       res.status(500).json({ error: "Failed to fetch state law" });
-    }
-  });
-
-  // Get user's recordings (requires authentication)
-  app.get("/api/recordings", requireAuth, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const recordings = await storage.getRecordingsByUserId(userId);
-      res.json(recordings);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch recordings" });
-    }
-  });
-
-  // Upload a new recording (requires authentication)
-  app.post("/api/recordings", requireAuth, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No audio file provided" });
-      }
-
-      const { filename, duration } = req.body;
-
-      if (!filename || !duration) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-
-      // For now, store as data URL (will be replaced with object storage later)
-      const fileUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-
-      // SECURITY: Set userId from authenticated user to prevent Tea App-style data leaks
-      const userId = req.user!.id;
-
-      // Save to storage
-      const recording = await storage.createRecording({
-        userId,
-        filename,
-        fileUrl,
-        duration,
-      });
-
-      res.json(recording);
-    } catch (error) {
-      console.error("Error uploading recording:", error);
-      res.status(500).json({ error: "Failed to upload recording" });
-    }
-  });
-
-  // Delete a recording (requires authentication)
-  app.delete("/api/recordings/:id", requireAuth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user!.id;
-      const deleted = await storage.deleteRecording(id, userId);
-      if (!deleted) {
-        return res.status(404).json({ error: "Recording not found or unauthorized" });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete recording" });
     }
   });
 
@@ -2824,62 +2768,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error rejecting amendment:", error);
       res.status(500).json({ error: "Failed to reject amendment" });
-    }
-  });
-
-  // Get user notifications
-  app.get("/api/notifications", requireAuth, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-      
-      const notifications = await storage.getUserNotifications(userId, limit);
-      res.json({ notifications });
-    } catch (error) {
-      console.error("Error getting notifications:", error);
-      res.status(500).json({ error: "Failed to get notifications" });
-    }
-  });
-
-  // Get unread notification count
-  app.get("/api/notifications/unread/count", requireAuth, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const count = await storage.getUnreadNotificationCount(userId);
-      res.json({ count });
-    } catch (error) {
-      console.error("Error getting unread count:", error);
-      res.status(500).json({ error: "Failed to get unread count" });
-    }
-  });
-
-  // Mark notification as read
-  app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user!.id;
-      
-      const success = await storage.markNotificationAsRead(id, userId);
-      if (!success) {
-        return res.status(404).json({ error: "Notification not found" });
-      }
-      
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-      res.status(500).json({ error: "Failed to mark notification as read" });
-    }
-  });
-
-  // Mark all notifications as read
-  app.patch("/api/notifications/read-all", requireAuth, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      await storage.markAllNotificationsAsRead(userId);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
-      res.status(500).json({ error: "Failed to mark all notifications as read" });
     }
   });
 
