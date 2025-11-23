@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FileList from "@/components/FileList";
 import ContractTile from "@/components/ContractTile";
+import AmendmentRequestDialog from "@/components/AmendmentRequestDialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -38,6 +39,9 @@ interface Contract {
   photoUrl?: string;
   status?: string;
   isCollaborative?: boolean;
+  intimateActs?: string;
+  contractEndTime?: string;
+  contractStartTime?: string;
 }
 
 interface DraftContract {
@@ -121,6 +125,7 @@ export default function FilesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const [amendmentContract, setAmendmentContract] = useState<Contract | null>(null);
 
   const { data: recordings = [] } = useQuery<Recording[]>({
     queryKey: ["/api/recordings"],
@@ -287,6 +292,43 @@ export default function FilesPage() {
     },
   });
 
+  // Create amendment mutation
+  const createAmendmentMutation = useMutation({
+    mutationFn: async ({ 
+      contractId, 
+      amendmentType, 
+      changes, 
+      reason 
+    }: { 
+      contractId: string; 
+      amendmentType: string; 
+      changes: string; 
+      reason: string;
+    }) => {
+      const response = await apiRequest("POST", `/api/contracts/${contractId}/amendments`, {
+        amendmentType,
+        changes,
+        reason,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      setAmendmentContract(null);
+      toast({
+        title: "Amendment requested",
+        description: "Waiting for approval from all parties",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create amendment request",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Combine and format files
   const files = [
     ...recordings.map((r) => ({
@@ -433,6 +475,13 @@ export default function FilesPage() {
     }
   };
 
+  const handleRequestAmendment = (contractId: string) => {
+    const contract = contracts.find((c) => c.id === contractId);
+    if (contract) {
+      setAmendmentContract(contract);
+    }
+  };
+
   const handleUseTemplate = (encounterType: string) => {
     setLocation(`/?encounter=${encodeURIComponent(encounterType)}`);
   };
@@ -495,6 +544,7 @@ export default function FilesPage() {
                         onDownload={() => handleDownload(contract.id)}
                         onDelete={() => handleDelete(contract.id)}
                         onPause={() => pauseContractMutation.mutate(contract.id)}
+                        onRequestAmendment={() => handleRequestAmendment(contract.id)}
                         isPending={pauseContractMutation.isPending}
                       />
                     ))}
@@ -527,6 +577,7 @@ export default function FilesPage() {
                         onDownload={() => handleDownload(contract.id)}
                         onDelete={() => handleDelete(contract.id)}
                         onResumeActive={() => resumeContractMutation.mutate(contract.id)}
+                        onRequestAmendment={() => handleRequestAmendment(contract.id)}
                         isPending={resumeContractMutation.isPending}
                       />
                     ))}
@@ -785,6 +836,26 @@ export default function FilesPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Amendment Request Dialog */}
+        {amendmentContract && (
+          <AmendmentRequestDialog
+            open={!!amendmentContract}
+            onClose={() => setAmendmentContract(null)}
+            onSubmit={(data) => {
+              createAmendmentMutation.mutate({
+                contractId: amendmentContract.id,
+                amendmentType: data.amendmentType,
+                changes: data.changes,
+                reason: data.reason,
+              });
+            }}
+            contractId={amendmentContract.id}
+            currentActs={amendmentContract.intimateActs ? JSON.parse(amendmentContract.intimateActs) : []}
+            currentEndTime={amendmentContract.contractEndTime || null}
+            isLoading={createAmendmentMutation.isPending}
+          />
+        )}
       </div>
     </div>
   );
