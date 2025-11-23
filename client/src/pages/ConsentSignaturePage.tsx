@@ -68,6 +68,40 @@ export default function ConsentSignaturePage() {
       day: "numeric" 
     });
 
+    // Format intimate acts
+    const intimateActsList = Object.keys(intimateActs).length > 0
+      ? Object.keys(intimateActs).map(act => {
+          const formatted = act.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          return `  - ${formatted}`;
+        }).join('\n')
+      : '  - Not specified';
+
+    // Format duration
+    let durationText = '';
+    if (contractStartTime && contractEndTime) {
+      const startDate = new Date(contractStartTime);
+      const endDate = new Date(contractEndTime);
+      const startFormatted = startDate.toLocaleString("en-US", { 
+        month: "long", 
+        day: "numeric", 
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      });
+      const endFormatted = endDate.toLocaleString("en-US", { 
+        month: "long", 
+        day: "numeric", 
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      });
+      durationText = `\nDURATION:\nStart: ${startFormatted}\nEnd: ${endFormatted}`;
+    } else if (contractDuration) {
+      durationText = `\nDURATION: ${contractDuration}`;
+    }
+
     // Generate university-specific contract if university is available
     if (university) {
       const policyExcerpt = university.titleIXInfo.length > 200 
@@ -83,6 +117,10 @@ Party 1: ${party1Name || "[Name Required]"}
 Party 2: ${party2Name || "[Name Required]"}
 
 ENCOUNTER TYPE: ${encounterLabel}
+${durationText}
+
+INTIMATE ACTS CONSENTED TO:
+${intimateActsList}
 
 INSTITUTION: ${university.name}
 
@@ -114,6 +152,10 @@ Party 1: ${party1Name || "[Name Required]"}
 Party 2: ${party2Name || "[Name Required]"}
 
 ENCOUNTER TYPE: ${encounterLabel}
+${durationText}
+
+INTIMATE ACTS CONSENTED TO:
+${intimateActsList}
 
 CONSENT STATEMENT:
 The undersigned parties acknowledge and affirm their understanding of Title IX principles regarding consent, which require that:
@@ -139,7 +181,7 @@ SIGNATURES:
 The digital signatures below indicate that both parties have read, understood, and agreed to the terms outlined in this consent agreement.`;
   };
 
-  const contractText = useMemo(() => generateContractText(), [university, party1Name, party2Name, encounterType]);
+  const contractText = useMemo(() => generateContractText(), [university, party1Name, party2Name, encounterType, intimateActs, contractStartTime, contractDuration, contractEndTime]);
 
   const clearSignature = () => {
     sigCanvas.current?.clear();
