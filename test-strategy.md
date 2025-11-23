@@ -4,10 +4,51 @@
 This document outlines the comprehensive testing strategy for PMY, a Title IX-compliant consent documentation application. Given the critical nature of legal compliance, data security, and payment processing, robust automated testing is essential.
 
 ## Test Framework
-- **E2E Testing**: Playwright-based tests via `run_test` tool
-- **API Testing**: Direct endpoint testing for security validation
+- **API Testing (Primary)**: Bart's 54-endpoint test battery validates all authentication, routing, and security controls (`npx tsx bart.ts`)
+- **E2E Testing (Feature Validation)**: Playwright-based tests via `run_test` tool for UI/UX workflows and integration testing
 - **Integration Testing**: External service mocking (Stripe, Resend, WebAuthn)
 - **Test Database**: Uses development database with test data isolation
+
+## Primary Testing System: Bart
+
+PMY uses **Bart** as its primary API testing system. Bart is a comprehensive testing agent that validates all 54 endpoints across 8 domain routers:
+
+- **Contracts Router** (23 endpoints): CRUD operations, consent creation, collaborative contracts, AI services
+- **Profile Router** (8 endpoints): User profiles, preferences, email settings
+- **Auth Router** (6 endpoints): Authentication, registration, WebAuthn
+- **Amendments Router** (4 endpoints): Contract amendment workflows
+- **Notifications Router** (4 endpoints): Notification management
+- **Recordings Router** (3 endpoints): Audio recording management
+- **Universities Router** (2 endpoints): University data access
+- **State Laws Router** (2 endpoints): State consent law data
+- **App Health** (2 tests): Server status and configuration
+
+**Running Bart:**
+```bash
+npx tsx bart.ts
+```
+
+**What Bart Validates:**
+- ✅ All 54 endpoints return expected status codes
+- ✅ Authentication middleware properly protects sensitive routes
+- ✅ Routing architecture works correctly across all 8 domain routers
+- ✅ API responses follow expected structure
+- ✅ Security controls prevent unauthorized access
+
+**Bart Test Results:** 100% pass rate (54/54 tests) as of last run.
+
+See `BART_README.md` for complete documentation on Bart's testing approach and persona.
+
+---
+
+## Supplementary E2E Testing
+
+While Bart validates API functionality and security, Playwright E2E tests validate:
+- Complete user workflows through the UI
+- Browser-specific behaviors
+- Visual regressions
+- Integration between frontend and backend
+- Features requiring actual browser interaction (forms, modals, navigation)
 
 ## Test Organization
 

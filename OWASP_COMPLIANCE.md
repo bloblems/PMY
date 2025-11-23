@@ -19,6 +19,16 @@ PMY demonstrates **strong OWASP compliance** with comprehensive protections agai
 
 ---
 
+## Related Documentation
+
+This OWASP compliance report references and complements:
+- **`SECURITY_GUIDELINES.md`** - Developer implementation guide for security controls
+- **`SECURITY_OPERATIONS.md`** - Production deployment and monitoring procedures
+- **`BART_README.md`** - 54-endpoint API test battery validating security controls
+- **`test-cors.ts`** - CORS security validation tests
+
+---
+
 ## Detailed Assessment
 
 ### A01:2021 – Broken Access Control ✅ STRONG (95%)

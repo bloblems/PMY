@@ -10,7 +10,7 @@ Bart is a high-net-worth professional whose career depends on PMY working flawle
 npx tsx bart.ts
 ```
 
-Bart will assess PMY's health across 53+ API endpoints and report his findings through the lens of a sophisticated user who demands excellence.
+Bart will assess PMY's health across 54 API endpoints and report his findings through the lens of a sophisticated user who demands excellence.
 
 ## What Bart Tests
 

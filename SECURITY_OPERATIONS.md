@@ -1,5 +1,14 @@
 # PMY Security Operations Guide
 
+## Related Documentation
+
+- **`OWASP_COMPLIANCE.md`** - Comprehensive OWASP Top 10 compliance assessment (~86% compliance)
+- **`SECURITY_GUIDELINES.md`** - Developer security implementation patterns
+- **`bart.ts`** - Run comprehensive 54-endpoint security test battery
+- **`test-cors.ts`** - Validate CORS configuration
+
+---
+
 ## Production Deployment Checklist
 
 ### CORS Configuration

@@ -345,7 +345,19 @@ If a security issue is discovered:
 
 ## OWASP Top 10 2021 Compliance
 
+**For comprehensive OWASP compliance assessment, see `OWASP_COMPLIANCE.md`.**
+
+PMY achieves **~86% overall OWASP Top 10 (2021) compliance** with strong protections across all critical categories. The complete compliance report includes:
+- Detailed scoring for all 10 OWASP categories
+- Evidence from 54-endpoint API test battery (Bart) and CORS security tests
+- Priority recommendations with effort estimates
+- Production readiness certification
+
+---
+
 ### Implemented Security Controls (Production-Ready)
+
+The following sections describe specific security controls implemented in PMY. For a full compliance assessment across all OWASP categories, refer to `OWASP_COMPLIANCE.md`.
 
 #### 1. CSRF Protection (A04-Insecure Design)
 **Implementation**: Double-submit cookie pattern with SameSite=strict (`server/csrf.ts`)

@@ -71,3 +71,32 @@ The backend implements modular Express Router architecture with domain-based sep
 - **Payment Processing**: Stripe (for paid verification features, not core consent flow)
 - **Email Services**: Resend API
 - **Authentication**: Supabase (Client, SSR), SimpleWebAuthn (Browser)
+
+---
+
+## Documentation Index
+
+### Developer Documentation
+- **`SECURITY_GUIDELINES.md`** - Security implementation patterns and required code practices for developers
+- **`design_guidelines.md`** - UI/UX design system, component patterns, and Apple HIG compliance
+- **`test-strategy.md`** - Comprehensive testing strategy including Bart API tests and Playwright E2E tests
+
+### Security & Compliance
+- **`SECURITY_OPERATIONS.md`** - Production deployment checklist, CORS configuration, rate limiting reference, incident response
+- **`OWASP_COMPLIANCE.md`** - Full OWASP Top 10 (2021) compliance assessment with scoring, evidence, and recommendations (~86% compliance)
+
+### Testing
+- **`BART_README.md`** - Complete documentation of Bart, PMY's 54-endpoint API testing agent and distinguished first user
+- **`BART_QUICK_START.md`** - Quick reference for running Bart tests
+- **`BART_SETUP.md`** - Bart's account setup, test data, and demo user configuration
+- **`STATE_SELECTION_TESTS.md`** - Test plan for state selection feature in consent flow
+
+### iOS Deployment
+- **`IOS_DEPLOYMENT_STRATEGY.md`** - Two-phase iOS deployment strategy (Capacitor WebView + React Native enhancement)
+- **`ios-permissions.md`** - Required Info.plist permissions for camera, microphone, Face ID, photo library
+- **`ios-app-icons.md`** - App icon and splash screen requirements for App Store submission
+
+### Scripts
+- **`scripts/setup-bart.ts`** - Creates Bart's demo account with test data
+- **`bart.ts`** - Runs comprehensive 54-endpoint API test battery
+- **`test-cors.ts`** - Validates CORS security configuration
