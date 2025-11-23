@@ -44,7 +44,12 @@ The backend implements modular Express Router architecture with domain-based sep
 - **Navigation**: Bottom navigation bar with "Create", "Tools", "Contracts", and "Profile" tabs. The Contracts tab includes sections for Active, Paused, and Completed contracts, with additional Drafts and Inbox tabs for collaborative features.
 - **Contract Lifecycle & Modification**: Active contracts can be paused and resumed. Completed contracts are immutable to ensure legal accountability.
 - **Security**: Comprehensive measures include `requireAuth` middleware, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, and rate limiting.
-- **Testing**: Automated test strategy using Playwright for E2E tests, covering security, core functionality, integration, and polish.
+- **Testing**: Comprehensive testing strategy includes:
+  - **Bart** - Custom AI-powered API testing agent (bypasses Replit's Stripe blocker)
+  - Tests 53+ endpoints across all 8 domain routers
+  - AI-powered failure analysis via OpenAI GPT-4o-mini
+  - Run with: `npx tsx bart.ts`
+  - See `BART_README.md` and `BART_QUICK_START.md` for details
 - **Feature Flags**: Environment variable-controlled feature flag system (`VITE_ENABLE_COLLABORATIVE_CONTRACTS`) for experimental and beta features.
 
 ## External Dependencies
