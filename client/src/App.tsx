@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import IconBottomNav from "@/components/IconBottomNav";
 import SettingsMenu from "@/components/SettingsMenu";
 import PMYLogo from "@/components/PMYLogo";
+import { NotificationBadge } from "@/components/NotificationBadge";
 import InfoPage from "@/pages/InfoPage";
 import FilesPage from "@/pages/FilesPage";
 import StateLawPage from "@/pages/StateLawPage";
@@ -88,9 +89,12 @@ function App() {
             <div className="flex flex-col min-h-screen bg-background">
               {!isAuthPage && (
                 <header className="sticky top-0 z-40 bg-card border-b border-card-border">
-                  <div className="w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+                  <div className="w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
                     <PMYLogo className="text-2xl text-foreground" />
-                    <SettingsMenu />
+                    <div className="flex items-center gap-1">
+                      <NotificationBadge />
+                      <SettingsMenu />
+                    </div>
                   </div>
                 </header>
               )}
