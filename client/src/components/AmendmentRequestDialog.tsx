@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ interface AmendmentRequestDialogProps {
   };
   currentStartTime?: string;
   currentEndTime?: string;
+  isLoading?: boolean;
   onSubmit: (amendment: {
     amendmentType: 'add_acts' | 'remove_acts' | 'extend_duration' | 'shorten_duration';
     changes: string;
@@ -37,6 +38,7 @@ export function AmendmentRequestDialog({
   currentActs,
   currentStartTime,
   currentEndTime,
+  isLoading,
   onSubmit,
 }: AmendmentRequestDialogProps) {
   const [amendmentType, setAmendmentType] = useState<'acts' | 'duration'>('acts');
@@ -54,6 +56,25 @@ export function AmendmentRequestDialog({
   );
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset state when dialog opens - selectedActs always starts empty (user picks what to add/remove)
+  useEffect(() => {
+    if (open) {
+      setSelectedActs({
+        touching: false,
+        kissing: false,
+        oral: false,
+        anal: false,
+        vaginal: false,
+      });
+      setNewEndDate(currentEndTime ? new Date(currentEndTime) : undefined);
+      setReason("");
+      setIsSubmitting(false);
+      setAmendmentType('acts');
+      setActsChangeType('add');
+      setDurationChangeType('extend');
+    }
+  }, [open, currentEndTime]);
 
   const handleActToggle = (act: keyof typeof selectedActs) => {
     setSelectedActs(prev => ({
@@ -283,17 +304,17 @@ export function AmendmentRequestDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoading}
             data-testid="button-cancel"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!canSubmit() || isSubmitting}
+            disabled={!canSubmit() || isSubmitting || isLoading}
             data-testid="button-submit-amendment"
           >
-            {isSubmitting ? "Submitting..." : "Request Amendment"}
+            {(isSubmitting || isLoading) ? "Submitting..." : "Request Amendment"}
           </Button>
         </DialogFooter>
       </DialogContent>

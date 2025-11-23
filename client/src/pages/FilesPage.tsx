@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FileList from "@/components/FileList";
 import ContractTile from "@/components/ContractTile";
-import AmendmentRequestDialog from "@/components/AmendmentRequestDialog";
+import { AmendmentRequestDialog } from "@/components/AmendmentRequestDialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Heart, Users, Coffee, Briefcase, FileText, ArrowRight, Inbox, FilePlus, Check, X, Clock, Edit } from "lucide-react";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { featureFlags } from "@/lib/featureFlags";
 
@@ -482,6 +482,58 @@ export default function FilesPage() {
     }
   };
 
+  // Memoize parsed acts to prevent resetting checkboxes during renders
+  const parsedActs = useMemo(() => {
+    if (!amendmentContract?.intimateActs) {
+      return {
+        touching: false,
+        kissing: false,
+        oral: false,
+        anal: false,
+        vaginal: false,
+      };
+    }
+
+    const defaultActs = {
+      touching: false,
+      kissing: false,
+      oral: false,
+      anal: false,
+      vaginal: false,
+    };
+
+    try {
+      const parsed = JSON.parse(amendmentContract.intimateActs);
+      
+      // Handle array format (e.g., ["touching", "kissing"])
+      if (Array.isArray(parsed)) {
+        const result = { ...defaultActs };
+        parsed.forEach((act: string) => {
+          if (act in result) {
+            result[act as keyof typeof result] = true;
+          }
+        });
+        return result;
+      }
+      
+      // Handle boolean object format (e.g., { touching: true, kissing: false, ... })
+      if (typeof parsed === 'object' && parsed !== null) {
+        return {
+          touching: parsed.touching === true,
+          kissing: parsed.kissing === true,
+          oral: parsed.oral === true,
+          anal: parsed.anal === true,
+          vaginal: parsed.vaginal === true,
+        };
+      }
+      
+      return defaultActs;
+    } catch (error) {
+      console.error("Error parsing intimate acts:", error);
+      return defaultActs;
+    }
+  }, [amendmentContract?.intimateActs]);
+
   const handleUseTemplate = (encounterType: string) => {
     setLocation(`/?encounter=${encodeURIComponent(encounterType)}`);
   };
@@ -841,9 +893,11 @@ export default function FilesPage() {
         {amendmentContract && (
           <AmendmentRequestDialog
             open={!!amendmentContract}
-            onClose={() => setAmendmentContract(null)}
-            onSubmit={(data) => {
-              createAmendmentMutation.mutate({
+            onOpenChange={(open) => {
+              if (!open) setAmendmentContract(null);
+            }}
+            onSubmit={async (data) => {
+              await createAmendmentMutation.mutateAsync({
                 contractId: amendmentContract.id,
                 amendmentType: data.amendmentType,
                 changes: data.changes,
@@ -851,8 +905,9 @@ export default function FilesPage() {
               });
             }}
             contractId={amendmentContract.id}
-            currentActs={amendmentContract.intimateActs ? JSON.parse(amendmentContract.intimateActs) : []}
-            currentEndTime={amendmentContract.contractEndTime || null}
+            currentActs={parsedActs}
+            currentStartTime={amendmentContract.contractStartTime}
+            currentEndTime={amendmentContract.contractEndTime}
             isLoading={createAmendmentMutation.isPending}
           />
         )}
