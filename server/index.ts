@@ -37,9 +37,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     return next();
   }
   
-  // Development: Allow all localhost origins
+  // Development: Allow all localhost and Replit preview origins
   if (process.env.NODE_ENV === "development") {
-    if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+    if (
+      origin.startsWith("http://localhost:") || 
+      origin.startsWith("http://127.0.0.1:") ||
+      origin.includes(".replit.dev")
+    ) {
       log(`CORS: Allowed dev origin: ${origin}`);
       return next();
     }
