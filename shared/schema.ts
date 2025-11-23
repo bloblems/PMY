@@ -204,6 +204,19 @@ export const contractAmendments = pgTable("contract_amendments", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Notifications table - in-app notifications for amendment requests and approvals
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(), // References auth.users(id) - recipient of notification
+  type: text("type").notNull(), // "amendment_requested", "amendment_approved", "amendment_rejected"
+  title: text("title").notNull(), // Brief notification title
+  message: text("message").notNull(), // Notification content
+  relatedContractId: varchar("related_contract_id"), // References consent_contracts(id)
+  relatedAmendmentId: varchar("related_amendment_id"), // References contract_amendments(id)
+  isRead: text("is_read").notNull().default("false"), // "true" or "false"
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ================================================================
 // INSERT SCHEMAS AND TYPES
 // ================================================================
@@ -342,6 +355,18 @@ export const insertContractAmendmentSchema = createInsertSchema(contractAmendmen
   rejectionReason: z.string().optional(),
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  type: z.enum(["amendment_requested", "amendment_approved", "amendment_rejected"]),
+  title: z.string().min(1, "Title is required"),
+  message: z.string().min(1, "Message is required"),
+  relatedContractId: z.string().optional(),
+  relatedAmendmentId: z.string().optional(),
+  isRead: z.enum(["true", "false"]).default("false"),
+});
+
 // API request validation schemas for collaborative contracts
 export const shareContractSchema = z.object({
   recipientEmail: z.string().email("Invalid email format").optional(),
@@ -394,3 +419,6 @@ export type AccountVerification = typeof accountVerifications.$inferSelect;
 
 export type InsertContractAmendment = z.infer<typeof insertContractAmendmentSchema>;
 export type ContractAmendment = typeof contractAmendments.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
