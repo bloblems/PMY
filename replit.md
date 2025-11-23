@@ -1,9 +1,7 @@
 # PMY - Title IX Consent Documentation App
 
 ## Overview
-PMY is a mobile-first web application designed to document consent in compliance with Title IX regulations. It offers multiple methods for consent capture, including digital signatures, audio recordings, photo/selfie capture, and biometric authentication. The application also provides educational resources on Title IX consent, tailored to specific universities. PMY aims to be a secure, legally compliant platform, adhering to Apple's Human Interface Guidelines and legal-tech best practices, with the goal of becoming a leading solution for Title IX compliance and education within academic institutions.
-
-**Website**: pressmeansyes.com
+PMY is a mobile-first web application for documenting consent in compliance with Title IX regulations. It offers multiple consent capture methods (digital signatures, audio, photo, biometrics) and provides educational resources on Title IX and state consent laws, tailored to specific universities. PMY aims to be a secure, legally compliant, and leading solution for Title IX compliance and education in academic institutions.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -11,38 +9,39 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-The application adheres to Apple Human Interface Guidelines, featuring a mobile-first, fully responsive layout with light and dark mode support. It uses a system font stack, a clear heading hierarchy, and Tailwind CSS with custom design tokens for styling. Core UI components include a bottom navigation bar, card-based layouts, inline confirmations, and iOS-standard toast notifications. The primary action, consent creation, is immediately accessible from the homepage, emphasizing a consent-first approach. Color usage follows a semantic color system (e.g., `--destructive`, `--success`, `--primary`) to ensure consistent visual language, automatic dark mode support, and centralized maintenance. Responsive design adapts across all Apple devices with specific breakpoints for iPhone, iPad Mini/Air, and iPad Pro.
+The application adheres to Apple Human Interface Guidelines, featuring a mobile-first, fully responsive design with light/dark mode. It utilizes a system font stack, clear heading hierarchy, and Tailwind CSS with custom design tokens. Core UI components include a bottom navigation bar, card-based layouts, inline confirmations, and iOS-standard toast notifications. The primary action, consent creation, is immediately accessible. Color usage follows a semantic system for consistent visual language and automatic dark mode support.
 
 ### Technical Implementations
-The frontend is built with React 18 and TypeScript, utilizing Vite, Wouter for routing, and TanStack Query for server state management. UI components are derived from shadcn/ui (Radix UI) and styled with Tailwind CSS. Form validation is handled by `react-hook-form` and `zod`. The backend uses Express.js with Node.js and TypeScript, providing RESTful API endpoints and handling file uploads via Multer. Drizzle ORM facilitates type-safe PostgreSQL interactions with Neon serverless. Authentication is handled by Supabase Auth with PKCE flow, managing user sessions and providing JWT tokens for secure API access. A `user_profiles` table stores additional user-specific data.
+The frontend uses React 18, TypeScript, Vite, Wouter for routing, TanStack Query for state management, and `shadcn/ui` (Radix UI) with Tailwind CSS. Form validation is handled by `react-hook-form` and `zod`. The backend is built with Express.js, Node.js, and TypeScript, offering RESTful APIs and Multer for file uploads. Drizzle ORM manages type-safe PostgreSQL interactions with Neon serverless. Supabase Auth handles authentication with PKCE flow, providing user sessions and JWTs for secure API access.
 
 ### Feature Specifications
-- **Consent Documentation**: Supports digital signature, audio recording, photo/selfie capture, and biometric authentication. The flow dynamically adjusts based on encounter type, featuring a three-state intimate acts selection and optional contract duration with quick presets, manual inputs, and an iOS-style circular graphical picker. Users can save their progress as a draft at any point after Step 1 using the "Save & Exit" button, which appears above the Back/Next navigation buttons in a subtle ghost variant style. This allows users to exit the flow without losing their work and resume editing later from the Contracts page (Drafts tab).
+- **Consent Documentation**: Supports digital signature, audio recording, photo/selfie capture, and biometric authentication. The flow adjusts dynamically based on encounter type, includes a three-state intimate acts selection, and optional contract duration. Users can save drafts at any point after Step 1.
 - **Title IX Information**: Provides university-specific educational content and policy summaries generated by OpenAI GPT-4o-mini.
-- **State Consent Laws**: Comprehensive database of consent laws across all 50 U.S. states, including age of consent, Romeo and Juliet laws (close-in-age exemptions), affirmative consent requirements, and reporting requirements. Users can select their state to view detailed legal information with links to official sources. State laws can be verified using paid AI services (similar to Title IX verification).
+- **State Consent Laws**: Comprehensive database of consent laws for all 50 U.S. states, including age of consent, Romeo and Juliet laws, affirmative consent requirements, and reporting requirements.
 - **Tools**: Quick access panel for Title IX policies, state consent laws, ID verification, and consent documentation status checks.
 - **Integrations Settings**: Manages third-party ID and age verification services.
-- **User Management**: Secure authentication, account management including email changes, data retention policies, and account deletion.
-- **Billing & Payment Methods**: Manages PCI-compliant payment methods via Stripe Payment Methods API, supporting multiple methods and secure collection.
-- **University Data**: A database pre-seeded with US universities and their Title IX information.
+- **User Management**: Secure authentication, account management (email changes, data retention, deletion).
+- **Billing & Payment Methods**: Manages PCI-compliant payment methods via Stripe.
+- **University Data**: Pre-seeded database of US universities and their Title IX information.
 - **Paid Verification**: Allows users to pay for advanced AI models (GPT-4, GPT-4o) to verify university Title IX policies.
-- **Sharing & Referrals**: Features a Dropbox-style referral program using Resend API and allows sharing of consent documents via email, including an Instagram-inspired QR code sharing screen.
+- **Sharing & Referrals**: Features a Dropbox-style referral program (Resend API) and allows sharing of consent documents via email, including an Instagram-inspired QR code sharing screen.
 - **Instagram-Style Profile**: Displays user avatar, name, stats (total/active contracts, recordings), bio, and website URL, with tab navigation for contracts and recordings.
-- **User Preferences**: Allows setting default values for consent flows (university, state, encounter type, duration) to improve efficiency.
-- **Account Verification**: Users can verify their identity for a one-time $5 fee to receive a verified badge on their profile. The verification process uses Stripe Identity for secure identity verification combined with Stripe Payment processing. Verified users display a distinctive badge next to their username throughout the app (profile pages, user search results, contact cards). The system enforces a 48-hour cooldown period after failed verification attempts to prevent abuse. Verification status is stored in the `account_verifications` table with fields for provider, session IDs, verification metadata, and timestamps. The backend provides three API endpoints: `/api/account-verification/initiate` (creates payment and verification session), `/api/account-verification/status` (retrieves current verification status), and `/api/account-verification/webhook` (processes Stripe Identity webhook events). The frontend includes a dedicated `/verification` route with integrated Stripe Elements for payment and automatic session redirection to Stripe Identity's hosted verification page.
-- **Async Collaborative Contracts**: Enables co-creation of consent documentation through invitation-based sharing and mutual approval workflows with robust storage and validation. The consent flow includes "Save as Draft" and "Share" buttons at the method selection step, allowing users to save form data (encounterType, parties, intimateActs, contractText, method selection) or invite partners for collaborative approval. Method-specific artifacts (signatures, photos, audio, biometric credentials) are captured AFTER approval when users proceed to method-specific pages. The Contracts page displays three tabs: Active (finalized contracts with artifacts), Drafts (non-collaborative drafts with "Resume Editing" button), and Inbox (collaborative invitations with accept/approve/reject actions). Draft lifecycle enforces isCollaborative gating: collaborative drafts cannot be edited via PATCH (preventing 404 errors), ensuring approval workflow integrity. Additionally, a "Save & Exit" button is available on all consent flow steps after Step 1, positioned above the Back/Next buttons, allowing users to save progress at any stage without requiring method selection or collaborative features.
+- **User Preferences**: Allows setting default values for consent flows (university, state, encounter type, duration).
+- **Account Verification**: Users can verify identity for a one-time $5 fee using Stripe Identity, receiving a verified badge. A 48-hour cooldown is enforced after failed attempts.
+- **Async Collaborative Contracts**: Enables co-creation of consent documentation through invitation-based sharing and mutual approval workflows with robust storage and validation. Includes "Save as Draft" and "Share" options.
+- **Contract Amendment System**: Allows participants to request, approve, or reject modifications to active contracts (e.g., adding/removing intimate acts, changing duration). Amendments require approval from all participants.
+- **Notification System**: In-app and email (via Resend API) notifications for contract-related events, such as amendment requests, approvals, and rejections. Notifications are polled and can be marked as read. Email notifications are opt-out.
 
 ### System Design Choices
-- **Database Schema**: Includes tables for `universities`, `state_laws`, `consentRecordings`, `consentContracts`, `user_profiles`, `payment_methods`, `contract_collaborators`, `contract_invitations`, and `account_verifications`. The `state_laws` table stores comprehensive consent law information for all 50 U.S. states, including `stateCode`, `stateName`, `consentLawInfo`, `ageOfConsent`, `romeoJulietLaw`, `affirmativeConsentRequired`, `reportingRequirements`, `sourceUrl`, and verification timestamps. The `consentContracts` table includes collaboration fields (`status`, `isCollaborative`, `lastEditedBy`, `intimateActs`, `updatedAt`) with status values: `draft`, `pending_approval`, `active`, `paused`, `completed`, `rejected`. Active contracts automatically transition to `completed` when contractEndTime passes. The `contract_collaborators` table tracks all participants with approval status. The `contract_invitations` table manages email-based sharing with invitation codes and expiration. The `account_verifications` table tracks identity verification attempts with fields for `userId`, `provider` (e.g., 'stripe_identity'), `stripeVerificationSessionId`, `stripePaymentIntentId`, `status` ('pending', 'verified', 'failed', 'canceled'), `verificationMetadata` (JSONB), `lastAttemptAt`, `canRetryAfter` (48-hour cooldown enforcement), and timestamps. The `user_profiles` table includes `isVerified` (default 'false') and `verificationProvider` fields synced from successful verifications.
+- **Database Schema**: Includes tables for `universities`, `state_laws`, `consentRecordings`, `consentContracts`, `user_profiles`, `payment_methods`, `contract_collaborators`, `contract_invitations`, `account_verifications`, `contract_amendments`, and `notifications`. The `consentContracts` table includes collaboration fields and a lifecycle (`draft`, `pending_approval`, `active`, `paused`, `completed`, `rejected`). The `user_profiles` table includes `emailNotificationsEnabled` (default 'true', opt-out design) for controlling email delivery. The `contract_amendments` table stores amendment requests with type, description, newValue (JSONB), and status fields. The `notifications` table tracks user notifications with userId, type, title, message, isRead status, and relatedContractId/relatedAmendmentId references.
 - **API Design**: RESTful APIs support CRUD operations and multipart form data.
-- **State Management**: Frontend uses TanStack Query for server state and React Context API with a cross-platform storage abstraction for consent flow state. ConsentFlowState includes form data (encounterType, parties, intimateActs, times, method) plus method-specific artifacts (signature1/2, photoUrl, credential fields) for complete draft fidelity during resume editing. Draft hydration restores all fields including isCollaborative flag to gate save/share mutations.
-- **iOS-Ready Secure Storage**: Implements AES-256 encrypted Keychain storage on iOS (and Keystore on Android) with fallback to `sessionStorage` for secure data handling.
-- **Navigation**: A bottom navigation bar with "Create", "Tools", "Contracts", and "Profile" tabs. The Contracts tab displays Active Contracts (contracts still within their agreed duration period), Paused Contracts (temporarily paused contracts that can be resumed), and Completed Contracts (contracts that have fully transpired their duration) in separate sections. When collaborative contracts feature is enabled, it also includes sub-navigation tabs: Drafts (pending approval) and Inbox (received invitations).
-- **Contract Lifecycle & Modification**: Active contracts can be paused by users for temporary suspension while retaining all legal protections. Paused contracts can be resumed to return to active status. Completed contracts (past their contractEndTime) are immutable and cannot be modified, ensuring legal accountability and preventing retroactive changes. This lifecycle management keeps everyone safe and legally protected.
-- **Security**: Comprehensive measures include `requireAuth` middleware for sensitive endpoints, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, and rate limiting.
-- **Testing**: A comprehensive automated test strategy covers critical security, core functionality, integration, and polish, utilizing Playwright for E2E tests and specific strategies for Supabase Auth in test environments.
-- **Feature Flags**: The application includes a feature flag system (`client/src/lib/featureFlags.ts`) to control experimental and beta features. Feature flags are configured via environment variables prefixed with `VITE_ENABLE_`. Currently supports:
-  - `VITE_ENABLE_COLLABORATIVE_CONTRACTS`: Controls the visibility of collaborative contracts features (Save/Share buttons in consent flow, Drafts/Inbox tabs in Files page). When disabled (default), users can only create finalized contracts directly. When enabled, users can save drafts, share for approval, and collaborate asynchronously. This feature is currently in beta and may not be published in production on day one.
+- **State Management**: Frontend uses TanStack Query for server state and React Context API with cross-platform storage abstraction for consent flow state.
+- **iOS-Ready Secure Storage**: Implements AES-256 encrypted Keychain storage on iOS (and Keystore on Android) with fallback to `sessionStorage`.
+- **Navigation**: Bottom navigation bar with "Create", "Tools", "Contracts", and "Profile" tabs. The Contracts tab includes sections for Active, Paused, and Completed contracts, with additional Drafts and Inbox tabs for collaborative features.
+- **Contract Lifecycle & Modification**: Active contracts can be paused and resumed. Completed contracts are immutable to ensure legal accountability.
+- **Security**: Comprehensive measures include `requireAuth` middleware, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, and rate limiting.
+- **Testing**: Automated test strategy using Playwright for E2E tests, covering security, core functionality, integration, and polish.
+- **Feature Flags**: Environment variable-controlled feature flag system (`VITE_ENABLE_COLLABORATIVE_CONTRACTS`) for experimental and beta features.
 
 ## External Dependencies
 
@@ -52,21 +51,6 @@ The frontend is built with React 18 and TypeScript, utilizing Vite, Wouter for r
 - **Backend Frameworks/Libraries**: Express, Multer, SimpleWebAuthn, WS, Express Rate Limit
 - **iOS/Native Integration**: Capacitor, Capacitor Secure Storage Plugin
 - **AI Services**: OpenAI API (GPT-4o-mini, GPT-4, GPT-4o)
-- **Payment Processing**: Stripe (optional - only required for paid verification features, not core consent flow)
+- **Payment Processing**: Stripe (for paid verification features, not core consent flow)
 - **Email Services**: Resend API
 - **Authentication**: Supabase (Client, SSR), SimpleWebAuthn (Browser)
-
-### Optional Dependencies
-
-**Stripe**: Payment processing is optional and only used for:
-- Account verification with Stripe Identity ($5 one-time payment)
-- Paid university Title IX policy verification using advanced AI models (GPT-4, GPT-4o)
-- Billing/payment method management features
-
-The core consent documentation flow works completely without Stripe. When Stripe secrets are not configured:
-- Backend returns 503 (Service Unavailable) for payment endpoints with clear error messages
-- Frontend displays "Payment processing is not available" message on billing and verification pages
-- All other features function normally
-- E2E testing can proceed without Stripe configuration
-
-For account verification specifically, Stripe Identity is used to verify user identity documents (passport, driver's license, etc.) in compliance with KYC regulations. The verification process creates both a PaymentIntent for the $5 fee and a VerificationSession for identity verification, with webhook handling to update verification status asynchronously.
