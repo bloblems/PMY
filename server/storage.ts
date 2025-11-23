@@ -991,6 +991,7 @@ export class MemStorage implements IStorage {
       verificationProvider: null,
       verifiedAt: null,
       verificationLevel: null,
+      emailNotificationsEnabled: profile.emailNotificationsEnabled ?? "true",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1920,7 +1921,34 @@ export class DbStorage implements IStorage {
   }
 
   async getUserProfile(id: string): Promise<UserProfile | undefined> {
-    const result = await db.select().from(userProfiles).where(eq(userProfiles.id, id));
+    const result = await db.select({
+      id: userProfiles.id,
+      username: userProfiles.username,
+      firstName: userProfiles.firstName,
+      lastName: userProfiles.lastName,
+      profilePictureUrl: userProfiles.profilePictureUrl,
+      bio: userProfiles.bio,
+      websiteUrl: userProfiles.websiteUrl,
+      savedSignature: userProfiles.savedSignature,
+      savedSignatureType: userProfiles.savedSignatureType,
+      savedSignatureText: userProfiles.savedSignatureText,
+      dataRetentionPolicy: userProfiles.dataRetentionPolicy,
+      stripeCustomerId: userProfiles.stripeCustomerId,
+      referralCode: userProfiles.referralCode,
+      referralCount: userProfiles.referralCount,
+      referredBy: userProfiles.referredBy,
+      defaultUniversityId: userProfiles.defaultUniversityId,
+      stateOfResidence: userProfiles.stateOfResidence,
+      defaultEncounterType: userProfiles.defaultEncounterType,
+      defaultContractDuration: userProfiles.defaultContractDuration,
+      isVerified: userProfiles.isVerified,
+      verificationProvider: userProfiles.verificationProvider,
+      verifiedAt: userProfiles.verifiedAt,
+      verificationLevel: userProfiles.verificationLevel,
+      emailNotificationsEnabled: userProfiles.emailNotificationsEnabled,
+      createdAt: userProfiles.createdAt,
+      updatedAt: userProfiles.updatedAt,
+    }).from(userProfiles).where(eq(userProfiles.id, id));
     return result[0];
   }
 
@@ -1931,13 +1959,44 @@ export class DbStorage implements IStorage {
       .order('created_at')
       .range(batch?.offset ?? 0, (batch?.offset ?? 0) + (batch?.limit ?? 1000) - 1);
     if (error) throw error;
-    return data || [];
+    // Map database column name to TypeScript property name and remove snake_case property
+    return (data || []).map(({ email_notifications_enabled, ...profile }: any) => ({
+      ...profile,
+      emailNotificationsEnabled: email_notifications_enabled || 'true'
+    }));
   }
 
   async searchUsersByUsername(query: string, limit: number = 10): Promise<UserProfile[]> {
     const normalizedQuery = query.toLowerCase().replace('@', '');
     const result = await db
-      .select()
+      .select({
+        id: userProfiles.id,
+        username: userProfiles.username,
+        firstName: userProfiles.firstName,
+        lastName: userProfiles.lastName,
+        profilePictureUrl: userProfiles.profilePictureUrl,
+        bio: userProfiles.bio,
+        websiteUrl: userProfiles.websiteUrl,
+        savedSignature: userProfiles.savedSignature,
+        savedSignatureType: userProfiles.savedSignatureType,
+        savedSignatureText: userProfiles.savedSignatureText,
+        dataRetentionPolicy: userProfiles.dataRetentionPolicy,
+        stripeCustomerId: userProfiles.stripeCustomerId,
+        referralCode: userProfiles.referralCode,
+        referralCount: userProfiles.referralCount,
+        referredBy: userProfiles.referredBy,
+        defaultUniversityId: userProfiles.defaultUniversityId,
+        stateOfResidence: userProfiles.stateOfResidence,
+        defaultEncounterType: userProfiles.defaultEncounterType,
+        defaultContractDuration: userProfiles.defaultContractDuration,
+        isVerified: userProfiles.isVerified,
+        verificationProvider: userProfiles.verificationProvider,
+        verifiedAt: userProfiles.verifiedAt,
+        verificationLevel: userProfiles.verificationLevel,
+        emailNotificationsEnabled: userProfiles.emailNotificationsEnabled,
+        createdAt: userProfiles.createdAt,
+        updatedAt: userProfiles.updatedAt,
+      })
       .from(userProfiles)
       .where(sql`LOWER(${userProfiles.username}) LIKE ${`%${normalizedQuery}%`}`)
       .limit(limit);
@@ -1947,7 +2006,34 @@ export class DbStorage implements IStorage {
   async getUserByUsername(username: string): Promise<UserProfile | undefined> {
     const normalizedUsername = username.toLowerCase().replace('@', '');
     const result = await db
-      .select()
+      .select({
+        id: userProfiles.id,
+        username: userProfiles.username,
+        firstName: userProfiles.firstName,
+        lastName: userProfiles.lastName,
+        profilePictureUrl: userProfiles.profilePictureUrl,
+        bio: userProfiles.bio,
+        websiteUrl: userProfiles.websiteUrl,
+        savedSignature: userProfiles.savedSignature,
+        savedSignatureType: userProfiles.savedSignatureType,
+        savedSignatureText: userProfiles.savedSignatureText,
+        dataRetentionPolicy: userProfiles.dataRetentionPolicy,
+        stripeCustomerId: userProfiles.stripeCustomerId,
+        referralCode: userProfiles.referralCode,
+        referralCount: userProfiles.referralCount,
+        referredBy: userProfiles.referredBy,
+        defaultUniversityId: userProfiles.defaultUniversityId,
+        stateOfResidence: userProfiles.stateOfResidence,
+        defaultEncounterType: userProfiles.defaultEncounterType,
+        defaultContractDuration: userProfiles.defaultContractDuration,
+        isVerified: userProfiles.isVerified,
+        verificationProvider: userProfiles.verificationProvider,
+        verifiedAt: userProfiles.verifiedAt,
+        verificationLevel: userProfiles.verificationLevel,
+        emailNotificationsEnabled: userProfiles.emailNotificationsEnabled,
+        createdAt: userProfiles.createdAt,
+        updatedAt: userProfiles.updatedAt,
+      })
       .from(userProfiles)
       .where(sql`LOWER(${userProfiles.username}) = ${normalizedUsername}`)
       .limit(1);

@@ -56,6 +56,8 @@ export const userProfiles = pgTable("users", {
   verificationProvider: text("verification_provider"), // "stripe_identity" or "persona"
   verifiedAt: timestamp("verified_at", { withTimezone: true }), // When verification was completed
   verificationLevel: text("verification_level"), // Provider-specific verification level/tier
+  // Notification preferences
+  emailNotificationsEnabled: text("email_notifications_enabled").notNull().default("true"), // "true" or "false" - receive email notifications
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

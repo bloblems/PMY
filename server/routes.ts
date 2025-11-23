@@ -6,7 +6,7 @@ import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
-import { sendDocumentEmail } from "./email";
+import { sendDocumentEmail, sendAmendmentRequestEmail, sendAmendmentApprovedEmail, sendAmendmentRejectedEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { validateFileUpload } from "./fileValidation";
 import { logConsentEvent, logRateLimitViolation } from "./securityLogger";
@@ -142,7 +142,12 @@ async function notifyAmendmentRequest(
         actionMessage = 'modify';
     }
     
+    // Get requester's profile for name
+    const requesterProfile = await storage.getUserProfile(requestedBy);
+    const requesterName = requesterProfile?.username || 'A partner';
+    
     for (const userId of recipientIds) {
+      // Create in-app notification
       await storage.createNotification({
         userId,
         type: 'amendment_requested',
@@ -152,6 +157,32 @@ async function notifyAmendmentRequest(
         relatedAmendmentId: amendmentId,
         isRead: 'false',
       });
+      
+      // Send email if user has email notifications enabled
+      try {
+        const recipientProfile = await storage.getUserProfile(userId);
+        if (recipientProfile?.emailNotificationsEnabled === 'true') {
+          // Get user email from Supabase Auth
+          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+          if (userData?.user?.email) {
+            const recipientName = recipientProfile.username || 'User';
+            // Fetch amendment to get reason
+            const amendment = await storage.getAmendment(amendmentId);
+            const reason = amendment?.reason || 'No reason provided';
+            
+            await sendAmendmentRequestEmail({
+              to: userData.user.email,
+              recipientName,
+              requesterName,
+              amendmentType: amendmentTypeLabel,
+              reason
+            });
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send amendment request email:', emailError);
+        // Don't block notification if email fails
+      }
     }
   } catch (error) {
     console.error('Error creating amendment request notifications:', error);
@@ -162,7 +193,8 @@ async function notifyAmendmentRequest(
 async function notifyAmendmentApproved(
   contract: ConsentContract | undefined,
   amendmentId: string,
-  requestedBy: string
+  requestedBy: string,
+  approvedBy?: string
 ) {
   try {
     if (!contract || !contract.id) {
@@ -175,7 +207,7 @@ async function notifyAmendmentApproved(
       return;
     }
 
-    // Notify the requester that all parties have approved
+    // Create in-app notification
     await storage.createNotification({
       userId: requestedBy,
       type: 'amendment_approved',
@@ -185,6 +217,55 @@ async function notifyAmendmentApproved(
       relatedAmendmentId: amendmentId,
       isRead: 'false',
     });
+    
+    // Send email if user has email notifications enabled
+    try {
+      const requesterProfile = await storage.getUserProfile(requestedBy);
+      if (requesterProfile?.emailNotificationsEnabled === 'true') {
+        // Get user email from Supabase Auth
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(requestedBy);
+        if (userData?.user?.email) {
+          const recipientName = requesterProfile.username || 'User';
+          
+          // Get approver name
+          let approverName = 'A partner';
+          if (approvedBy) {
+            const approverProfile = await storage.getUserProfile(approvedBy);
+            approverName = approverProfile?.username || 'A partner';
+          }
+          
+          // Fetch amendment to get type
+          const amendment = await storage.getAmendment(amendmentId);
+          let amendmentTypeLabel = 'Modify';
+          if (amendment) {
+            switch (amendment.amendmentType) {
+              case 'add_acts':
+                amendmentTypeLabel = 'Add Acts';
+                break;
+              case 'remove_acts':
+                amendmentTypeLabel = 'Remove Acts';
+                break;
+              case 'extend_duration':
+                amendmentTypeLabel = 'Extend Duration';
+                break;
+              case 'shorten_duration':
+                amendmentTypeLabel = 'Shorten Duration';
+                break;
+            }
+          }
+          
+          await sendAmendmentApprovedEmail({
+            to: userData.user.email,
+            recipientName,
+            approverName,
+            amendmentType: amendmentTypeLabel
+          });
+        }
+      }
+    } catch (emailError) {
+      console.error('Failed to send amendment approval email:', emailError);
+      // Don't block notification if email fails
+    }
   } catch (error) {
     console.error('Error creating amendment approval notification:', error);
     // Don't block the main request if notification fails
@@ -229,7 +310,7 @@ async function notifyAmendmentRejected(
       message += `. Reason: ${reason}`;
     }
 
-    // Notify the requester that their amendment was rejected
+    // Create in-app notification
     await storage.createNotification({
       userId: requestedBy,
       type: 'amendment_rejected',
@@ -239,6 +320,49 @@ async function notifyAmendmentRejected(
       relatedAmendmentId: amendmentId,
       isRead: 'false',
     });
+    
+    // Send email if user has email notifications enabled
+    try {
+      const requesterProfile = await storage.getUserProfile(requestedBy);
+      if (requesterProfile?.emailNotificationsEnabled === 'true') {
+        // Get user email from Supabase Auth
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(requestedBy);
+        if (userData?.user?.email) {
+          const recipientName = requesterProfile.username || 'User';
+          
+          // Fetch amendment to get type
+          const amendment = await storage.getAmendment(amendmentId);
+          let amendmentTypeLabel = 'Modify';
+          if (amendment) {
+            switch (amendment.amendmentType) {
+              case 'add_acts':
+                amendmentTypeLabel = 'Add Acts';
+                break;
+              case 'remove_acts':
+                amendmentTypeLabel = 'Remove Acts';
+                break;
+              case 'extend_duration':
+                amendmentTypeLabel = 'Extend Duration';
+                break;
+              case 'shorten_duration':
+                amendmentTypeLabel = 'Shorten Duration';
+                break;
+            }
+          }
+          
+          await sendAmendmentRejectedEmail({
+            to: userData.user.email,
+            recipientName,
+            rejectorName,
+            amendmentType: amendmentTypeLabel,
+            rejectionReason: reason
+          });
+        }
+      }
+    } catch (emailError) {
+      console.error('Failed to send amendment rejection email:', emailError);
+      // Don't block notification if email fails
+    }
   } catch (error) {
     console.error('Error creating amendment rejection notification:', error);
     // Don't block the main request if notification fails
