@@ -253,46 +253,46 @@ export default function SharePage() {
   const currentGradient = gradientColors[selectedGradient];
 
   return (
-    <div className="fixed inset-0 z-50 bg-background">
+    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
       {/* Main QR Code View */}
-      <div className={`relative min-h-screen bg-gradient-to-br ${currentGradient.from} ${currentGradient.to} overflow-y-auto`}>
+      <div className={`relative min-h-screen bg-gradient-to-br ${currentGradient.from} ${currentGradient.to} flex flex-col`}>
         {/* Top Bar */}
-        <div className="sticky top-0 left-0 right-0 z-10 bg-black/20 backdrop-blur-sm">
-          <div className="relative flex items-center justify-between p-4">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setLocation('/profile')}
-              className="text-white hover:bg-white/20"
-              data-testid="button-close-share"
-            >
-              <X className="h-6 w-6" />
-            </Button>
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setLocation('/profile')}
+            className="text-white hover:bg-white/20"
+            data-testid="button-close-share"
+          >
+            <X className="h-6 w-6" />
+          </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              className="text-white hover:bg-white/20 rounded-full px-4"
-              data-testid="button-color-picker"
-            >
-              <Palette className="h-4 w-4 mr-2" />
-              COLOR
-            </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className="text-white hover:bg-white/20 rounded-full px-4"
+            data-testid="button-color-picker"
+          >
+            <Palette className="h-4 w-4 mr-2" />
+            COLOR
+          </Button>
 
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setShowMoreOptions(!showMoreOptions)}
-              className="text-white hover:bg-white/20"
-              data-testid="button-more-options"
-            >
-              <MoreHorizontal className="h-6 w-6" />
-            </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setShowMoreOptions(!showMoreOptions)}
+            className="text-white hover:bg-white/20"
+            data-testid="button-more-options"
+          >
+            <MoreHorizontal className="h-6 w-6" />
+          </Button>
+        </div>
 
-            {/* Color Picker Dropdown - positioned relative to toolbar */}
-            {showColorPicker && (
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-20 bg-white/95 backdrop-blur-sm rounded-2xl p-3 shadow-lg">
+        {/* Color Picker Dropdown */}
+        {showColorPicker && (
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20 bg-white/95 backdrop-blur-sm rounded-2xl p-3 shadow-lg">
             <div className="flex gap-2">
               {gradientColors.map((gradient, index) => (
                 <button
@@ -308,14 +308,12 @@ export default function SharePage() {
                   data-testid={`color-${index}`}
                 />
               ))}
-              </div>
             </div>
-            )}
           </div>
-        </div>
+        )}
 
         {/* QR Code Card */}
-        <div className="flex items-center justify-center px-4 pt-20 pb-8">
+        <div className="flex items-center justify-center flex-1 px-4 py-20 pb-32">
           <div className="w-full max-w-sm">
             <div
               ref={qrCardRef}
