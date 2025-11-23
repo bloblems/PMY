@@ -282,6 +282,11 @@ export class MemStorage implements IStorage {
       id,
       lastUpdated: new Date(),
       verifiedAt: null,
+      // Ensure optional fields are null, not undefined
+      romeoJulietLaw: insertStateLaw.romeoJulietLaw ?? null,
+      affirmativeConsentRequired: insertStateLaw.affirmativeConsentRequired ?? null,
+      reportingRequirements: insertStateLaw.reportingRequirements ?? null,
+      sourceUrl: insertStateLaw.sourceUrl ?? null,
     };
     this.stateLaws.set(id, stateLaw);
     return stateLaw;
@@ -2410,7 +2415,10 @@ export class DbStorage implements IStorage {
         .from(contractCollaborators)
         .where(eq(contractCollaborators.contractId, amendment.contractId));
 
-      const allPartyIds = collaborators.map(c => c.userId);
+      // Filter out null userIds (external participants can't approve amendments)
+      const allPartyIds = collaborators
+        .map(c => c.userId)
+        .filter((id): id is string => id !== null);
       
       // Verify user is a party to the contract
       if (!allPartyIds.includes(userId)) {
