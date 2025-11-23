@@ -1409,7 +1409,7 @@ export default function ConsentFlowPage() {
         {/* Save & Exit button - available on all steps after Step 1 */}
         {step > flowSteps.encounterType && (
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => {
               if (canSaveDraft()) {
                 saveAsDraftMutation.mutate();
