@@ -158,12 +158,37 @@ export default function VerificationPage() {
   if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
     return (
       <div className="container max-w-2xl mx-auto p-6 space-y-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Verification service is not available. Stripe configuration is required.
-          </AlertDescription>
-        </Alert>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Account Verification
+            </CardTitle>
+            <CardDescription>
+              Get a verified badge on your profile for $5
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-medium mb-2">Account verification is temporarily unavailable</p>
+                <p className="text-sm text-muted-foreground">
+                  This optional feature requires payment processing to be set up. All other PMY features, including consent documentation, work normally.
+                </p>
+              </AlertDescription>
+            </Alert>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p><strong>What is account verification?</strong></p>
+              <p>
+                A one-time identity check that adds a verified badge to your profile, showing that you've confirmed your identity through secure document verification.
+              </p>
+              <p className="mt-3 text-xs">
+                This is an optional feature. You can continue using PMY for consent documentation without verification.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

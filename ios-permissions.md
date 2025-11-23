@@ -1,5 +1,18 @@
 # iOS Permissions Configuration for PMY
 
+## ⚠️ CRITICAL: Must Complete Before App Store Submission
+
+**The iOS project must be generated and Info.plist permissions must be added before submitting to Apple App Store.**
+
+Without these permissions in `ios/App/App/Info.plist`, the app will:
+- ❌ Crash when accessing camera, microphone, or Face ID
+- ❌ Be rejected during App Store review
+- ❌ Fail privacy compliance requirements
+
+**Status:** iOS project not yet generated. Run `npx cap add ios` and add permissions below.
+
+---
+
 ## Required Info.plist Permissions
 
 When building the iOS app using Capacitor, add these entries to `ios/App/App/Info.plist`:

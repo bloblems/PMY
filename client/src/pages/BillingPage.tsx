@@ -5,7 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CreditCard, Smartphone, DollarSign, Bitcoin, Trash2, Eye, EyeOff, Plus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, CreditCard, Smartphone, DollarSign, Bitcoin, Trash2, Eye, EyeOff, Plus, AlertCircle } from "lucide-react";
 import { SiPaypal, SiVenmo } from "react-icons/si";
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -390,24 +391,30 @@ export default function BillingPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Stripe Configuration Required</CardTitle>
+            <CardTitle>Payment features temporarily unavailable</CardTitle>
             <CardDescription>
-              To enable billing and payment features, you need to configure your Stripe publishable key.
+              This section is used for managing saved payment methods for optional paid features
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-lg bg-muted p-4 space-y-2">
-              <p className="text-sm font-medium">Setup Instructions:</p>
-              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Go to <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Stripe Dashboard → API Keys</a></li>
-                <li>Make sure you're in <strong>Test mode</strong></li>
-                <li>Copy your <strong>Publishable key</strong> (starts with pk_test_)</li>
-                <li>Add it as an environment variable: <code className="bg-background px-1 py-0.5 rounded">VITE_STRIPE_PUBLIC_KEY</code></li>
-              </ol>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-medium mb-2">Payment processing is not currently set up</p>
+                <p className="text-sm text-muted-foreground">
+                  This optional feature allows you to save payment methods for paid services like account verification. All other PMY features work normally.
+                </p>
+              </AlertDescription>
+            </Alert>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p><strong>What is this page for?</strong></p>
+              <p>
+                This section lets you securely save payment cards for optional paid features. You can use PMY's core consent documentation features without adding a payment method.
+              </p>
+              <p className="mt-3 text-xs">
+                Payment processing is an optional feature. You can continue using PMY for all consent documentation without it.
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              The publishable key is safe to use in your browser - it's designed to be public and allows secure payment collection.
-            </p>
           </CardContent>
         </Card>
       </div>
