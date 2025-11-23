@@ -385,6 +385,12 @@ export default function ConsentFlowPage() {
     state.selectionMode || "select-university"
   );
 
+  // Custom text dialog state
+  const [showCustomEncounterDialog, setShowCustomEncounterDialog] = useState(false);
+  const [showCustomActsDialog, setShowCustomActsDialog] = useState(false);
+  const [customText, setCustomText] = useState("");
+  const [isInterpreting, setIsInterpreting] = useState(false);
+
   // Validate if can save draft (less restrictive - only after step 1)
   const canSaveDraft = () => {
     // Must have encounter type (step 1 completed)
@@ -756,6 +762,72 @@ export default function ConsentFlowPage() {
     updateFlowState({ intimateActs: newActs });
   };
 
+  const handleInterpretCustomText = async (context: "encounterType" | "intimateActs") => {
+    if (!customText.trim()) {
+      toast({
+        title: "Please enter text",
+        description: "Describe what you're looking for",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsInterpreting(true);
+    try {
+      const response = await apiRequest("POST", "/api/consent/interpret-custom-text", {
+        customText: customText.trim(),
+        context,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to interpret custom text");
+      }
+
+      const { interpretation } = await response.json();
+
+      if (context === "encounterType") {
+        updateFlowState({ 
+          encounterType: interpretation.suggestedType,
+        });
+        toast({
+          title: "Encounter type set",
+          description: interpretation.label || "Custom encounter type applied",
+        });
+        setShowCustomEncounterDialog(false);
+      } else {
+        // intimateActs
+        if (interpretation.suggestedActs && interpretation.suggestedActs.length > 0) {
+          const newActs = { ...state.intimateActs };
+          interpretation.suggestedActs.forEach((act: string) => {
+            newActs[act] = "yes";
+          });
+          updateFlowState({ intimateActs: newActs });
+          toast({
+            title: "Intimate acts added",
+            description: `Added ${interpretation.suggestedActs.length} act(s)`,
+          });
+        }
+        if (interpretation.customDescription) {
+          toast({
+            title: "Custom description noted",
+            description: interpretation.customDescription,
+          });
+        }
+        setShowCustomActsDialog(false);
+      }
+
+      setCustomText("");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to interpret your input. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInterpreting(false);
+    }
+  };
+
   // Dynamic validation based on current step
   const canProceed = () => {
     if (step === flowSteps.encounterType) {
@@ -1016,17 +1088,13 @@ export default function ConsentFlowPage() {
             })}
           </div>
           <Card
-            className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
-              state.encounterType === otherEncounterType.id
-                ? "border-slate-500/30 bg-gradient-to-br from-slate-500/20 via-gray-500/15 to-zinc-500/20 dark:from-slate-500/30 dark:via-gray-500/25 dark:to-zinc-500/30"
-                : ""
-            }`}
-            onClick={() => updateFlowState({ encounterType: otherEncounterType.id })}
-            data-testid={`option-encounter-${otherEncounterType.id}`}
+            className="p-4 cursor-pointer hover-elevate active-elevate-2 transition-all"
+            onClick={() => setShowCustomEncounterDialog(true)}
+            data-testid="option-encounter-custom"
           >
             <div className="flex items-center justify-center gap-3">
-              <otherEncounterType.icon className={`h-6 w-6 ${state.encounterType === otherEncounterType.id ? "text-slate-500" : ""}`} />
-              <span className="text-sm font-medium">{otherEncounterType.label}</span>
+              <otherEncounterType.icon className="h-6 w-6" />
+              <span className="text-sm font-medium">Other (Custom)</span>
             </div>
           </Card>
         </div>
@@ -1370,6 +1438,7 @@ export default function ConsentFlowPage() {
           <Button
             variant="outline"
             className="w-full"
+            onClick={() => setShowCustomActsDialog(true)}
             data-testid="button-advanced"
           >
             Advanced Options
@@ -1609,6 +1678,98 @@ export default function ConsentFlowPage() {
               data-testid="button-confirm-share"
             >
               {shareContractMutation.isPending ? "Sharing..." : "Send Invitation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Encounter Type Dialog */}
+      <Dialog open={showCustomEncounterDialog} onOpenChange={setShowCustomEncounterDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Describe Your Encounter Type</DialogTitle>
+            <DialogDescription>
+              Tell us about your encounter in your own words, and our AI will help categorize it appropriately.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="custom-encounter-text">Description</Label>
+              <textarea
+                id="custom-encounter-text"
+                className="w-full min-h-[120px] p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Example: 'A romantic dinner date followed by watching a movie together'"
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                data-testid="textarea-custom-encounter"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCustomEncounterDialog(false);
+                setCustomText("");
+              }}
+              data-testid="button-cancel-custom-encounter"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleInterpretCustomText("encounterType")}
+              disabled={isInterpreting || !customText.trim()}
+              data-testid="button-submit-custom-encounter"
+            >
+              {isInterpreting ? "Interpreting..." : "Apply"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Intimate Acts Dialog */}
+      <Dialog open={showCustomActsDialog} onOpenChange={setShowCustomActsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Advanced Options</DialogTitle>
+            <DialogDescription>
+              Describe intimate acts in your own words, and our AI will help identify appropriate consent terms.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="custom-acts-text">Description</Label>
+              <textarea
+                id="custom-acts-text"
+                className="w-full min-h-[120px] p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Example: 'We plan to hold hands and kiss goodnight'"
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                data-testid="textarea-custom-acts"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCustomActsDialog(false);
+                setCustomText("");
+              }}
+              data-testid="button-cancel-custom-acts"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleInterpretCustomText("intimateActs")}
+              disabled={isInterpreting || !customText.trim()}
+              data-testid="button-submit-custom-acts"
+            >
+              {isInterpreting ? "Interpreting..." : "Apply"}
             </Button>
           </DialogFooter>
         </DialogContent>

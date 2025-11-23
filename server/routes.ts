@@ -2883,6 +2883,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Interpret custom consent terms using AI
+  app.post("/api/consent/interpret-custom-text", requireAuth, async (req, res) => {
+    try {
+      const { customText, context } = req.body;
+
+      if (!customText || typeof customText !== "string" || customText.trim().length === 0) {
+        return res.status(400).json({ error: "Custom text is required" });
+      }
+
+      if (!context || !["encounterType", "intimateActs"].includes(context)) {
+        return res.status(400).json({ error: "Invalid context. Must be 'encounterType' or 'intimateActs'" });
+      }
+
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      let systemPrompt = "";
+      if (context === "encounterType") {
+        systemPrompt = `You are analyzing a user's description of a consent encounter type. Based on their input, determine the most appropriate encounter type category and provide a clear, professional label.
+
+Available categories:
+- intimate: For romantic or sexual encounters
+- date: For dating or romantic social situations
+- conversation: For textual matters, discussions, or verbal interactions
+- medical: For medical consultations or healthcare situations
+- professional: For workplace or business interactions
+- other: For anything that doesn't fit the above
+
+Return a JSON object with:
+{
+  "suggestedType": "one of the categories above",
+  "label": "A clear, professional 2-4 word label for this encounter type",
+  "confidence": "high|medium|low"
+}`;
+      } else {
+        systemPrompt = `You are analyzing a user's description of intimate acts for a consent contract. Based on their input, identify which specific acts they are referring to and suggest appropriate consent terms.
+
+Common intimate acts include:
+- Touching/Caressing
+- Kissing
+- Manual Stimulation
+- Oral Stimulation
+- Oral Intercourse
+- Penetrative Intercourse
+- Photography/Video Recording
+
+Return a JSON object with:
+{
+  "suggestedActs": ["array of act names that match"],
+  "customDescription": "A clear, professional description if the user described something not in the list",
+  "confidence": "high|medium|low"
+}`;
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: customText
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 300,
+        response_format: { type: "json_object" }
+      });
+
+      const result = completion.choices[0]?.message?.content;
+      if (!result) {
+        return res.status(500).json({ error: "No response from AI" });
+      }
+
+      const interpretation = JSON.parse(result);
+      res.json({ interpretation });
+
+    } catch (error) {
+      console.error("Error interpreting custom text:", error);
+      res.status(500).json({ error: "Failed to interpret custom text" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
