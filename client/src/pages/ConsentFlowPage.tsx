@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -17,89 +16,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn, UserPlus, BookOpen, Scale, ArrowRight, UserCheck } from "lucide-react";
-import UniversitySelector from "@/components/UniversitySelector";
-import StateSelector from "@/components/StateSelector";
-import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
+import { ChevronLeft, Save, Share2, AtSign, Mail, LogIn } from "lucide-react";
 import ContractDurationStep from "@/components/ContractDurationStep";
 import { UserSearch } from "@/components/UserSearch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { featureFlags } from "@/lib/featureFlags";
-
-type University = {
-  id: string;
-  name: string;
-  state: string;
-  titleIXInfo: string;
-  titleIXUrl: string | null;
-  lastUpdated: string;
-  verifiedAt: string | null;
-};
-
-interface UserContact {
-  id: string;
-  userId: string;
-  contactUsername: string;
-  nickname: string | null;
-  createdAt: string;
-}
-
-const intimateEncounterType = { id: "intimate", label: "Intimate Encounter", icon: Heart };
-
-const encounterTypes = [
-  { id: "date", label: "Date", icon: Coffee },
-  { id: "conversation", label: "Textual Matter", icon: MessageCircle },
-  { id: "medical", label: "Medical", icon: Stethoscope },
-  { id: "professional", label: "Professional", icon: Briefcase },
-];
-
-const otherEncounterType = { id: "other", label: "Other", icon: Users };
-
-// Define which encounter types require university selection
-const encounterTypesRequiringUniversity = ["intimate", "date"];
-
-const doesEncounterTypeRequireUniversity = (encounterType: string): boolean => {
-  return encounterTypesRequiringUniversity.includes(encounterType);
-};
-
-const intimateActOptions = [
-  "Touching/Caressing",
-  "Kissing",
-  "Manual Stimulation",
-  "Oral Stimulation",
-  "Oral Intercourse",
-  "Penetrative Intercourse",
-  "Photography/Video Recording",
-  "Other Acts (Specify in Contract)",
-];
-
-const recordingMethods = [
-  { 
-    id: "signature" as const, 
-    label: "Contract Signature", 
-    icon: FileSignature,
-    description: "Digital signatures on consent contract"
-  },
-  { 
-    id: "voice" as const, 
-    label: "Voice Recording", 
-    icon: Mic,
-    description: "Record verbal consent from both parties"
-  },
-  { 
-    id: "photo" as const, 
-    label: "Dual Selfie", 
-    icon: Camera,
-    description: "Upload a photo showing mutual agreement"
-  },
-  { 
-    id: "biometric" as const, 
-    label: "Authenticate with TouchID/FaceID", 
-    icon: Fingerprint,
-    description: "Cryptographic proof using device biometrics"
-  },
-];
+import { 
+  type University, 
+  type UserContact,
+  doesEncounterTypeRequireUniversity 
+} from "@/lib/consentFlowConstants";
+import { useConsentFlowValidation } from "@/hooks/useConsentFlowValidation";
+import { EncounterTypeStep } from "@/components/consent-flow/EncounterTypeStep";
+import { UniversitySelectionStep } from "@/components/consent-flow/UniversitySelectionStep";
+import { PartiesStep } from "@/components/consent-flow/PartiesStep";
+import { IntimateActsStep } from "@/components/consent-flow/IntimateActsStep";
+import { RecordingMethodStep } from "@/components/consent-flow/RecordingMethodStep";
 
 export default function ConsentFlowPage() {
   const [location, navigate] = useLocation();
@@ -107,6 +40,17 @@ export default function ConsentFlowPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
+  
+  // Validation hook
+  const {
+    partyErrors,
+    normalizeUsername,
+    validateUsername,
+    validateParty,
+    reindexErrors,
+    canSaveDraft,
+    canSaveOrShare,
+  } = useConsentFlowValidation();
   
   // Share dialog state
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -391,37 +335,6 @@ export default function ConsentFlowPage() {
   const [customText, setCustomText] = useState("");
   const [isInterpreting, setIsInterpreting] = useState(false);
 
-  // Validate if can save draft (less restrictive - only after step 1)
-  const canSaveDraft = () => {
-    // Must have encounter type (step 1 completed)
-    if (!state.encounterType || state.encounterType.trim() === "") {
-      return false;
-    }
-    
-    return true;
-  };
-
-  // Validate if consent flow has minimum required data for sharing (more restrictive)
-  const canSaveOrShare = () => {
-    // Must have encounter type
-    if (!state.encounterType || state.encounterType.trim() === "") {
-      return false;
-    }
-    
-    // Must have at least one party name
-    const hasParties = state.parties.some(p => p.trim() !== "");
-    if (!hasParties) {
-      return false;
-    }
-    
-    // Must have selected a method (at final step)
-    if (!state.method) {
-      return false;
-    }
-    
-    return true;
-  };
-
   // Sync selectedUniversity when universities load or state.universityId changes
   // Only sync if encounter type requires university AND universityId exists in state
   useEffect(() => {
@@ -621,68 +534,13 @@ export default function ConsentFlowPage() {
     updateFlowState({ parties: [...state.parties, ""] });
   };
 
-  const [partyErrors, setPartyErrors] = useState<{ [key: number]: string }>({});
-
-  const normalizeUsername = (input: string): string => {
-    if (!input || input.trim() === '') return '';
-    const trimmed = input.trim();
-    
-    // If starts with @, treat as PMY username - normalize to canonical format
-    if (trimmed.startsWith('@')) {
-      // Remove anything that's not @, alphanumeric, or underscore
-      let normalized = trimmed.replace(/[^@a-zA-Z0-9_]/g, '');
-      // Lowercase for canonical format
-      normalized = normalized.toLowerCase();
-      return normalized;
-    }
-    
-    // Otherwise, treat as legal name - preserve as-is
-    return trimmed;
-  };
-
-  const validateUsername = (input: string): string | null => {
-    if (!input || input.trim() === '') return null;
-    const trimmed = input.trim();
-    
-    // Two valid formats:
-    // 1. PMY username: @alphanumeric_underscore only (lowercase)
-    // 2. Legal name: any text without @ prefix
-    
-    if (trimmed.startsWith('@')) {
-      // Validate PMY username format
-      const usernameRegex = /^@[a-z0-9_]+$/;
-      if (!usernameRegex.test(trimmed)) {
-        return "PMY username must be @lowercase_letters_numbers_underscores";
-      }
-    } else {
-      // Legal name - accept any non-empty text
-      // Could add additional validation here if needed (e.g., min length)
-      if (trimmed.length < 2) {
-        return "Name must be at least 2 characters";
-      }
-    }
-    
-    return null;
-  };
-
   const updateParty = (index: number, value: string) => {
     const newParties = [...state.parties];
-    // Normalize to canonical format: lowercase, strip invalid chars
     const normalizedValue = normalizeUsername(value);
-    
     newParties[index] = normalizedValue;
     
-    // Validate and set error if invalid
-    const error = validateUsername(normalizedValue);
-    setPartyErrors(prev => {
-      const newErrors = { ...prev };
-      if (error) {
-        newErrors[index] = error;
-      } else {
-        delete newErrors[index];
-      }
-      return newErrors;
-    });
+    // Validate using hook method
+    validateParty(index, normalizedValue);
     
     updateFlowState({ parties: newParties });
   };
@@ -691,20 +549,8 @@ export default function ConsentFlowPage() {
     const newParties = state.parties.filter((_, i) => i !== index);
     updateFlowState({ parties: newParties.length === 0 ? [""] : newParties });
     
-    // Clear error for removed party and re-index errors
-    setPartyErrors(prev => {
-      const newErrors: { [key: number]: string } = {};
-      Object.entries(prev).forEach(([key, value]) => {
-        const numKey = parseInt(key);
-        if (numKey < index) {
-          newErrors[numKey] = value;
-        } else if (numKey > index) {
-          newErrors[numKey - 1] = value;
-        }
-        // Skip the removed index
-      });
-      return newErrors;
-    });
+    // Re-index errors using hook method
+    reindexErrors(index);
   };
 
   const addContactAsParty = (contact: UserContact) => {
@@ -1502,7 +1348,7 @@ export default function ConsentFlowPage() {
           <Button
             variant="outline"
             onClick={() => {
-              if (canSaveDraft()) {
+              if (canSaveDraft(state, step)) {
                 saveAsDraftMutation.mutate();
               } else {
                 toast({
@@ -1512,7 +1358,7 @@ export default function ConsentFlowPage() {
                 });
               }
             }}
-            disabled={saveAsDraftMutation.isPending || !canSaveDraft()}
+            disabled={saveAsDraftMutation.isPending || !canSaveDraft(state, step)}
             className="w-full"
             data-testid="button-save-exit"
           >
@@ -1526,7 +1372,7 @@ export default function ConsentFlowPage() {
             <Button
               variant="outline"
               onClick={() => {
-                if (canSaveOrShare()) {
+                if (canSaveOrShare(state)) {
                   saveAsDraftMutation.mutate();
                 } else {
                   toast({
@@ -1536,7 +1382,7 @@ export default function ConsentFlowPage() {
                   });
                 }
               }}
-              disabled={saveAsDraftMutation.isPending || !canSaveOrShare()}
+              disabled={saveAsDraftMutation.isPending || !canSaveOrShare(state)}
               className="flex-1"
               data-testid="button-save-draft"
             >
@@ -1546,7 +1392,7 @@ export default function ConsentFlowPage() {
             <Button
               variant="outline"
               onClick={() => {
-                if (canSaveOrShare()) {
+                if (canSaveOrShare(state)) {
                   setShowShareDialog(true);
                 } else {
                   toast({
@@ -1556,7 +1402,7 @@ export default function ConsentFlowPage() {
                   });
                 }
               }}
-              disabled={shareContractMutation.isPending || !canSaveOrShare()}
+              disabled={shareContractMutation.isPending || !canSaveOrShare(state)}
               className="flex-1"
               data-testid="button-share"
             >
