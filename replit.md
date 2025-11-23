@@ -45,14 +45,19 @@ The backend implements modular Express Router architecture with domain-based sep
 - **Contract Lifecycle & Modification**: Active contracts can be paused and resumed. Completed contracts are immutable to ensure legal accountability.
 - **Security**: Comprehensive measures include `requireAuth` middleware, user data isolation, ownership verification, Supabase Auth password hashing, server-side validation, WebAuthn, encrypted native storage, and rate limiting.
 - **Testing**: Comprehensive testing strategy includes:
-  - **Bart** - PMY's distinguished first user, a high-net-worth professional whose career depends on PMY working flawlessly
-  - Bart serves as both a comprehensive API testing agent and a trusted advisor for product decisions
-  - Tests 54 endpoints across all 8 domain routers with AI-powered failure analysis (OpenAI GPT-4o-mini)
-  - Achieves 100% pass rate (54/54 tests) validating all authentication middleware and routing
-  - Bart's perspective: demands absolute reliability, legal compliance, and professional polish
-  - We regularly consult with Bart for feedback on features and UX decisions
-  - Run with: `npx tsx bart.ts`
-  - See `BART_README.md` and `BART_QUICK_START.md` for Bart's full persona and technical details
+  - **Bart Simpson (@bart)** - PMY's official demo user and distinguished first user
+    - **Real Account**: Email `bart.simpson@pmy.demo`, Password `BartPlaysNBA2024!`
+    - **Profile**: NBA player based in California with comprehensive test data
+    - **Test Data**: Active/paused/completed contracts, voice recordings, saved contacts
+    - **Setup Script**: `npx tsx scripts/setup-bart.ts` recreates Bart's account
+  - **Bart Testing Agent** - Comprehensive API testing powered by @bart's perspective
+    - High-net-worth professional whose career depends on PMY working flawlessly
+    - Tests 54 endpoints across all 8 domain routers with AI-powered failure analysis (OpenAI GPT-4o-mini)
+    - Achieves 100% pass rate (54/54 tests) validating all authentication middleware and routing
+    - Demands absolute reliability, legal compliance, and professional polish
+    - We regularly consult with Bart for feedback on features and UX decisions
+    - Run with: `npx tsx bart.ts`
+    - See `BART_README.md` and `BART_QUICK_START.md` for technical details
 - **Feature Flags**: Environment variable-controlled feature flag system (`VITE_ENABLE_COLLABORATIVE_CONTRACTS`) for experimental and beta features.
 
 ## External Dependencies
