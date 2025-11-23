@@ -716,8 +716,7 @@ export default function ConsentFlowPage() {
     } else if (step === flowSteps.university) {
       // Can proceed if university is selected OR state is selected OR "Not Applicable" is chosen
       // Use context state (not local component state) as source of truth
-      // Prevent "not-applicable" for encounter types that require university
-      const allowNotApplicable = state.selectionMode === "not-applicable" && !doesEncounterTypeRequireUniversity(state.encounterType);
+      const allowNotApplicable = state.selectionMode === "not-applicable";
       return state.universityId !== "" || state.stateCode !== "" || allowNotApplicable;
     } else if (step === flowSteps.parties) {
       // Check at least one non-empty party AND no validation errors
@@ -948,16 +947,6 @@ export default function ConsentFlowPage() {
           <RadioGroup
             value={selectionMode}
             onValueChange={(value: "select-university" | "select-state" | "not-applicable") => {
-              // Prevent "not-applicable" for encounter types that require university
-              if (value === "not-applicable" && doesEncounterTypeRequireUniversity(state.encounterType)) {
-                toast({
-                  title: "University required",
-                  description: `The "${state.encounterType}" encounter type requires selecting a university.`,
-                  variant: "destructive",
-                });
-                return;
-              }
-              
               setSelectionMode(value);
               
               // Update persisted selectionMode in context immediately
@@ -1014,16 +1003,12 @@ export default function ConsentFlowPage() {
                 value="not-applicable" 
                 id="not-applicable" 
                 data-testid="radio-not-applicable"
-                disabled={doesEncounterTypeRequireUniversity(state.encounterType)}
               />
               <Label 
                 htmlFor="not-applicable" 
-                className={`font-normal ${doesEncounterTypeRequireUniversity(state.encounterType) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                className="font-normal cursor-pointer"
               >
                 Not Applicable
-                {doesEncounterTypeRequireUniversity(state.encounterType) && (
-                  <span className="text-xs text-muted-foreground ml-2">(University required for {state.encounterType})</span>
-                )}
               </Label>
             </div>
           </RadioGroup>
