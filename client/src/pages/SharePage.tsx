@@ -313,32 +313,32 @@ export default function SharePage() {
         )}
 
         {/* QR Code Card */}
-        <div className="flex items-center justify-center flex-1 px-4 py-20 pb-32">
+        <div className="flex items-center justify-center flex-1 px-4 py-16">
           <div className="w-full max-w-sm">
             <div
               ref={qrCardRef}
-              className="bg-white rounded-3xl p-8 shadow-2xl mb-6"
+              className="bg-white rounded-3xl p-6 shadow-2xl mb-4"
               data-testid="qr-card"
             >
               {/* QR Code with PMY Logo */}
-              <div className="relative bg-white p-4 rounded-2xl mb-6">
+              <div className="relative bg-white p-3 rounded-2xl mb-4">
                 <QRCodeSVG
                   value={referralLink}
-                  size={280}
+                  size={220}
                   level="H"
                   className="w-full h-auto"
                   fgColor="#22c55e"
                   data-testid="qr-code"
                 />
                 {/* PMY Logo Overlay - centered in QR code */}
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl p-3 shadow-lg">
-                  <PMYLogo className="text-3xl text-primary" />
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl p-2.5 shadow-lg">
+                  <PMYLogo className="text-2xl text-primary" />
                 </div>
               </div>
 
               {/* Username */}
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary mb-1">
+                <div className="text-xl font-bold text-primary mb-1">
                   @{userName.toLowerCase().replace(/\s+/g, '')}
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -348,38 +348,38 @@ export default function SharePage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2.5">
               <button
                 onClick={handleShare}
-                className="flex flex-col items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl p-4 hover-elevate active-elevate-2 transition-all"
+                className="flex flex-col items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-2xl p-3 hover-elevate active-elevate-2 transition-all"
                 data-testid="button-share"
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
-                  <Share2 className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
+                  <Share2 className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-sm font-medium">Share</span>
+                <span className="text-xs font-medium">Share</span>
               </button>
 
               <button
                 onClick={handleCopyLink}
-                className="flex flex-col items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl p-4 hover-elevate active-elevate-2 transition-all"
+                className="flex flex-col items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-2xl p-3 hover-elevate active-elevate-2 transition-all"
                 data-testid="button-copy-link"
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center">
-                  <LinkIcon className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center">
+                  <LinkIcon className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-sm font-medium">Copy link</span>
+                <span className="text-xs font-medium">Copy link</span>
               </button>
 
               <button
                 onClick={handleDownload}
-                className="flex flex-col items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl p-4 hover-elevate active-elevate-2 transition-all"
+                className="flex flex-col items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-2xl p-3 hover-elevate active-elevate-2 transition-all"
                 data-testid="button-download"
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
-                  <Download className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center">
+                  <Download className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-sm font-medium">Download</span>
+                <span className="text-xs font-medium">Download</span>
               </button>
             </div>
           </div>
