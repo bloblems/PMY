@@ -17,7 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn, UserPlus, BookOpen, Scale, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileSignature, Mic, Camera, Heart, Coffee, MessageCircle, Film, Music, Utensils, Fingerprint, Stethoscope, Briefcase, Save, Share2, AtSign, Mail, LogIn, UserPlus, BookOpen, Scale, ArrowRight, UserCheck } from "lucide-react";
 import UniversitySelector from "@/components/UniversitySelector";
 import StateSelector from "@/components/StateSelector";
 import UniversityPolicyPreview from "@/components/UniversityPolicyPreview";
@@ -1259,6 +1259,27 @@ export default function ConsentFlowPage() {
               + Add Another Participant
             </Button>
           </div>
+
+          {/* Incentive message when external participants are added */}
+          {state.parties.some(party => party.trim() && !party.startsWith('@')) && (
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" data-testid="card-external-participant-incentive">
+              <CardContent className="p-4">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <UserCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Enhanced Digital Verification Available
+                    </p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      Invite your partner to create a PMY account for digital signatures, biometric verification, and collaborative contract features.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Coffee, Briefcase, FileText, Download, Trash2, Check, X, Edit, Clock, Image as ImageIcon, Pause, Play, FileEdit } from "lucide-react";
+import { Heart, Coffee, Briefcase, FileText, Download, Trash2, Check, X, Edit, Clock, Image as ImageIcon, Pause, Play, FileEdit, User, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 
 interface ContractTileProps {
@@ -156,11 +156,28 @@ export default function ContractTile({
           {/* Parties involved */}
           {parties && parties.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
-              {parties.map((party, idx) => (
-                <Badge key={idx} variant="outline" className="text-xs bg-background/50 backdrop-blur-sm">
-                  {party}
-                </Badge>
-              ))}
+              {parties.map((party, idx) => {
+                const isPMYUser = party.startsWith('@');
+                return (
+                  <Badge 
+                    key={idx} 
+                    variant={isPMYUser ? "secondary" : "outline"} 
+                    className="text-xs bg-background/50 backdrop-blur-sm flex items-center gap-1"
+                  >
+                    {isPMYUser ? (
+                      <>
+                        <UserCheck className="h-3 w-3" />
+                        {party}
+                      </>
+                    ) : (
+                      <>
+                        <User className="h-3 w-3" />
+                        {party}
+                      </>
+                    )}
+                  </Badge>
+                );
+              })}
             </div>
           )}
         </div>

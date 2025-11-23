@@ -100,6 +100,7 @@ export interface IStorage {
   approveContract(contractId: string, userId: string): Promise<boolean>;
   rejectContract(contractId: string, userId: string, reason?: string): Promise<boolean>;
   confirmConsent(contractId: string, userId: string): Promise<{ allPartiesConfirmed: boolean; contractStatus: string } | null>;
+  getContractCollaborators(contractId: string): Promise<ContractCollaborator[]>;
 
   // Contract amendment methods
   createContractAmendment(amendment: InsertContractAmendment): Promise<ContractAmendment>;
@@ -606,6 +607,9 @@ export class MemStorage implements IStorage {
           id: collaboratorId,
           contractId,
           userId: senderId,
+          legalName: null, // PMY user - name stored in user_profiles
+          contactInfo: null,
+          participantType: "pmy_user",
           role: "initiator",
           status: "approved",
           approvedAt: new Date(),
@@ -648,6 +652,9 @@ export class MemStorage implements IStorage {
         id: collaboratorId,
         contractId,
         userId: recipientUserId,
+        legalName: null, // PMY user - name stored in user_profiles
+        contactInfo: null,
+        participantType: "pmy_user",
         role: "recipient",
         status: "pending",
         lastViewedAt: new Date(),
@@ -740,6 +747,9 @@ export class MemStorage implements IStorage {
       id: collaboratorId,
       contractId: invitation.contractId,
       userId,
+      legalName: null, // PMY user - name stored in user_profiles
+      contactInfo: null,
+      participantType: "pmy_user",
       role: "recipient",
       status: "pending",
       lastViewedAt: new Date(),
@@ -900,6 +910,11 @@ export class MemStorage implements IStorage {
       allPartiesConfirmed: false,
       contractStatus: contract?.status || "draft"
     };
+  }
+
+  async getContractCollaborators(contractId: string): Promise<ContractCollaborator[]> {
+    return Array.from(this.collaborators.values())
+      .filter(c => c.contractId === contractId);
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {
@@ -1525,6 +1540,9 @@ export class DbStorage implements IStorage {
       try {
         await tx.insert(contractCollaborators).values({
           userId: senderId,
+          legalName: null, // PMY user - name stored in user_profiles
+          contactInfo: null,
+          participantType: "pmy_user",
           contractId,
           role: "initiator",
           status: "approved",
@@ -1574,6 +1592,9 @@ export class DbStorage implements IStorage {
         // Create new collaborator entry with pending approval status
         const collaborator = await tx.insert(contractCollaborators).values({
           userId: recipientUserId,
+          legalName: null, // PMY user - name stored in user_profiles
+          contactInfo: null,
+          participantType: "pmy_user",
           contractId,
           role: "recipient",
           status: "pending",
@@ -1676,6 +1697,9 @@ export class DbStorage implements IStorage {
       // Create collaborator record
       await tx.insert(contractCollaborators).values({
         userId,
+        legalName: null, // PMY user - name stored in user_profiles
+        contactInfo: null,
+        participantType: "pmy_user",
         contractId: invitation.contractId,
         role: "recipient",
         status: "pending",
@@ -1876,6 +1900,14 @@ export class DbStorage implements IStorage {
         contractStatus: contracts[0]?.status || "draft"
       };
     });
+  }
+
+  async getContractCollaborators(contractId: string): Promise<ContractCollaborator[]> {
+    const result = await db
+      .select()
+      .from(contractCollaborators)
+      .where(eq(contractCollaborators.contractId, contractId));
+    return result;
   }
 
   async createVerificationPayment(insertPayment: InsertVerificationPayment): Promise<VerificationPayment> {

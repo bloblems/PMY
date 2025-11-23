@@ -88,24 +88,92 @@ async function notifyAmendmentRequest(
       return;
     }
 
-    // Get all contract participants: parties array + contract creator + userId fallback
+    // Get all contract participants: prefer collaborator records, fallback to parties array
     const allPartyIds = new Set<string>();
     
-    // Add all parties from the contract
-    if (contract.parties && Array.isArray(contract.parties)) {
-      contract.parties.forEach(partyId => {
-        if (partyId) allPartyIds.add(partyId);
-      });
+    // Try to get collaborators for this contract (collaborative contracts only)
+    let collaborators: any[] = [];
+    try {
+      collaborators = await storage.getContractCollaborators(contract.id);
+      if (collaborators.length === 0) {
+        console.log('[Notifications] No collaborator records found, falling back to parties array');
+      }
+    } catch (error) {
+      console.error('[Notifications] CRITICAL: Error fetching collaborators - falling back to parties array:', error);
+      // Will fall back to parties array below
     }
     
-    // Add contract creator (createdBy) to ensure they're notified
+    if (collaborators.length > 0) {
+      // Collaborative contract: use collaborator records (canonical participant identity)
+      for (const collaborator of collaborators) {
+        if (collaborator.userId) {
+          // PMY user - add to notification recipients
+          allPartyIds.add(collaborator.userId);
+        } else if (collaborator.legalName) {
+          // External participant - cannot receive notifications
+          console.log(`[Notifications] Skipping external participant "${collaborator.legalName}" - no PMY account`);
+        }
+      }
+    } else {
+      // Regular (non-collaborative) contract: use parties array as fallback
+      // Note: This is backward compatible with older contracts without collaborator records
+      if (contract.parties && Array.isArray(contract.parties)) {
+        for (const partyIdentifier of contract.parties) {
+          if (partyIdentifier && partyIdentifier.trim()) {
+            // Normalize identifier: trim, remove annotations like "(Partner)", extract username
+            let normalized = partyIdentifier.trim();
+            
+            // Strip annotations in parentheses (e.g., "@user_john (Partner)" -> "@user_john")
+            normalized = normalized.replace(/\s*\(.*?\)\s*$/, '').trim();
+            
+            // Remove @ prefix if present
+            let username = normalized.startsWith('@') ? normalized.substring(1) : normalized;
+            
+            // Normalize username: lowercase, trim again
+            username = username.toLowerCase().trim();
+            
+            // Attempt to look up as PMY username (handles all formats: @username, user_xxx, bare legacy usernames)
+            try {
+              const profile = await storage.getUserByUsername(username);
+              if (profile) {
+                // PMY user found - add to notification recipients
+                allPartyIds.add(profile.id);
+              } else {
+                // Username not found - likely an external participant (legal name)
+                console.log(`[Notifications] Skipping "${partyIdentifier}" - no PMY account found`);
+              }
+            } catch (error) {
+              console.error(`[Notifications] Error looking up ${partyIdentifier}:`, error);
+            }
+          }
+        }
+      }
+    }
+    
+    // Ensure contract creator is always notified (multiple fallback fields for backward compatibility)
     if (contract.createdBy) {
       allPartyIds.add(contract.createdBy);
     }
-    
-    // Add contract userId (original creator field) as fallback
     if (contract.userId) {
       allPartyIds.add(contract.userId);
+    }
+    // Legacy fallback: if no creator fields set, try to extract first PMY username from parties as initiator
+    if (!contract.createdBy && !contract.userId && contract.parties && contract.parties.length > 0) {
+      const firstParty = contract.parties[0];
+      if (firstParty && firstParty.trim()) {
+        let normalized = firstParty.trim().replace(/\s*\(.*?\)\s*$/, '').trim();
+        let username = normalized.startsWith('@') ? normalized.substring(1) : normalized;
+        username = username.toLowerCase().trim();
+        try {
+          const profile = await storage.getUserByUsername(username);
+          if (profile) {
+            allPartyIds.add(profile.id);
+            console.log(`[Notifications] Added legacy contract initiator from parties[0]: ${firstParty}`);
+          }
+        } catch (error) {
+          console.error(`[Notifications] Error looking up legacy initiator ${firstParty}:`, error);
+        }
+      }
     }
     
     // Filter out the requester to get recipients
