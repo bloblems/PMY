@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Save, Share2, AtSign, Mail, LogIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Share2, AtSign, Mail, LogIn } from "lucide-react";
 import ContractDurationStep from "@/components/ContractDurationStep";
 import { UserSearch } from "@/components/UserSearch";
 import { useToast } from "@/hooks/use-toast";
@@ -109,15 +109,10 @@ export default function ConsentFlowPage() {
             return normalizeUsername(party);
           });
 
-          // Validate all parties and set errors for invalid ones
-          const errors: { [key: number]: string } = {};
+          // Validate all parties using hook method
           normalizedParties.forEach((party: string, index: number) => {
-            const error = validateUsername(party);
-            if (error) {
-              errors[index] = error;
-            }
+            validateParty(index, party);
           });
-          setPartyErrors(errors);
 
           // Load draft data into consent flow state with full fidelity
           updateFlowState({
@@ -870,426 +865,75 @@ export default function ConsentFlowPage() {
       </div>
 
       {step === flowSteps.encounterType && (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.encounterType}: Encounter Type</h2>
-            <p className="text-sm text-muted-foreground">What kind of encounter is this consent for?</p>
-          </div>
-          <Card
-            className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
-              state.encounterType === intimateEncounterType.id
-                ? "border-pink-500/30 bg-gradient-to-br from-pink-500/20 via-rose-500/15 to-purple-500/20 dark:from-pink-500/30 dark:via-rose-500/25 dark:to-purple-500/30"
-                : ""
-            }`}
-            onClick={() => updateFlowState({ encounterType: intimateEncounterType.id })}
-            data-testid={`option-encounter-${intimateEncounterType.id}`}
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <intimateEncounterType.icon className={`h-6 w-6 ${state.encounterType === intimateEncounterType.id ? "text-pink-500" : ""}`} />
-              <span className="text-sm font-medium">{intimateEncounterType.label}</span>
-            </div>
-          </Card>
-          <div className="grid grid-cols-2 gap-3">
-            {encounterTypes.map((type) => {
-              const Icon = type.icon;
-              const isSelected = state.encounterType === type.id;
-              const getGradient = () => {
-                switch(type.id) {
-                  case "date":
-                    return "border-purple-500/30 bg-gradient-to-br from-purple-500/20 via-violet-500/15 to-indigo-500/20 dark:from-purple-500/30 dark:via-violet-500/25 dark:to-indigo-500/30";
-                  case "conversation":
-                    return "border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-green-500/20 dark:from-emerald-500/30 dark:via-teal-500/25 dark:to-green-500/30";
-                  case "medical":
-                    return "border-blue-500/30 bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-teal-500/20 dark:from-blue-500/30 dark:via-cyan-500/25 dark:to-teal-500/30";
-                  case "professional":
-                    return "border-amber-500/30 bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-yellow-500/20 dark:from-amber-500/30 dark:via-orange-500/25 dark:to-yellow-500/30";
-                  default:
-                    return "";
-                }
-              };
-              const getIconColor = () => {
-                switch(type.id) {
-                  case "date": return "text-purple-500";
-                  case "conversation": return "text-emerald-500";
-                  case "medical": return "text-blue-500";
-                  case "professional": return "text-amber-500";
-                  default: return "";
-                }
-              };
-              return (
-                <Card
-                  key={type.id}
-                  className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
-                    isSelected ? getGradient() : ""
-                  }`}
-                  onClick={() => updateFlowState({ encounterType: type.id })}
-                  data-testid={`option-encounter-${type.id}`}
-                >
-                  <div className="flex flex-col items-center text-center gap-2">
-                    <Icon className={`h-6 w-6 ${isSelected ? getIconColor() : ""}`} />
-                    <span className="text-sm font-medium">{type.label}</span>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-          <Card
-            className="p-4 cursor-pointer hover-elevate active-elevate-2 transition-all"
-            onClick={() => setShowCustomEncounterDialog(true)}
-            data-testid="option-encounter-custom"
-          >
-            <div className="flex items-center justify-center gap-3">
-              <otherEncounterType.icon className="h-6 w-6" />
-              <span className="text-sm font-medium">Other (Custom)</span>
-            </div>
-          </Card>
-        </div>
+        <EncounterTypeStep
+          currentEncounterType={state.encounterType}
+          flowSteps={flowSteps}
+          onSelectEncounterType={(encounterType) => updateFlowState({ encounterType })}
+          onShowCustomDialog={() => setShowCustomEncounterDialog(true)}
+        />
       )}
 
       {step === flowSteps.university && flowSteps.university !== null && (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.university}: Select Your State or Institution</h2>
-            <p className="text-sm text-muted-foreground">Choose your state or university for compliance information</p>
-          </div>
-          
-          <RadioGroup
-            value={selectionMode}
-            onValueChange={(value: "select-university" | "select-state" | "not-applicable") => {
-              setSelectionMode(value);
-              
-              // Update persisted selectionMode in context immediately
-              if (value === "not-applicable") {
-                // Persist "not-applicable" choice
-                updateFlowState({ 
-                  selectionMode: value,
-                  universityId: "", 
-                  universityName: "",
-                  stateCode: "",
-                  stateName: "",
-                });
-                // Clear UI selections
-                setSelectedUniversity(null);
-                setSelectedState(null);
-              } else if (value === "select-university") {
-                // Persist "select-university" and clear state selection
-                setSelectedState(null);
-                updateFlowState({ 
-                  selectionMode: value,
-                  stateCode: "",
-                  stateName: "",
-                });
-              } else if (value === "select-state") {
-                // Persist "select-state" and clear university selection
-                setSelectedUniversity(null);
-                updateFlowState({ 
-                  selectionMode: value,
-                  universityId: "", 
-                  universityName: "",
-                });
-              }
-            }}
-            className="space-y-3"
-          >
-            <div className="flex items-center space-x-3">
-              <RadioGroupItem value="select-university" id="select-university" data-testid="radio-select-university" />
-              <Label htmlFor="select-university" className="font-normal cursor-pointer">
-                Select My University
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3">
-              <RadioGroupItem value="select-state" id="select-state" data-testid="radio-select-state" />
-              <Label htmlFor="select-state" className="font-normal cursor-pointer">
-                Select My State
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3">
-              <RadioGroupItem 
-                value="not-applicable" 
-                id="not-applicable" 
-                data-testid="radio-not-applicable"
-              />
-              <Label 
-                htmlFor="not-applicable" 
-                className="font-normal cursor-pointer"
-              >
-                Not Applicable
-              </Label>
-            </div>
-          </RadioGroup>
-
-          {selectionMode === "select-university" && (
-            <>
-              <UniversitySelector
-                universities={universities}
-                selectedUniversity={selectedUniversity}
-                onSelect={setSelectedUniversity}
-              />
-              {selectedUniversity && (
-                <UniversityPolicyPreview
-                  universityId={selectedUniversity.id}
-                  universityName={selectedUniversity.name}
-                  titleIXInfo={selectedUniversity.titleIXInfo}
-                  titleIXUrl={selectedUniversity.titleIXUrl}
-                  lastUpdated={selectedUniversity.lastUpdated}
-                  verifiedAt={selectedUniversity.verifiedAt}
-                />
-              )}
-            </>
-          )}
-
-          {selectionMode === "select-state" && (
-            <StateSelector
-              selectedState={selectedState}
-              onSelect={setSelectedState}
-            />
-          )}
-
-          {/* Informative tool tiles based on selection mode */}
-          {selectionMode === "select-university" && (
-            <Card className="mt-6 border-primary/20 bg-primary/5" data-testid="card-title-ix-tool">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <BookOpen className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-base">Need to research Title IX policies?</CardTitle>
-                    <CardDescription className="text-sm">
-                      Access our comprehensive Title IX information tool
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => navigate("/title-ix-info")}
-                  data-testid="button-goto-title-ix"
-                >
-                  View Title IX Tool
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectionMode === "select-state" && (
-            <Card className="mt-6 border-primary/20 bg-primary/5" data-testid="card-state-law-tool">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Scale className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-base">Need to research state consent laws?</CardTitle>
-                    <CardDescription className="text-sm">
-                      Access detailed consent law information for all 50 states
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => navigate("/state-laws")}
-                  data-testid="button-goto-state-laws"
-                >
-                  View State Laws Tool
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        <UniversitySelectionStep
+          flowSteps={flowSteps}
+          selectionMode={selectionMode}
+          selectedUniversity={selectedUniversity}
+          selectedState={selectedState}
+          universities={universities}
+          onModeChange={(value) => {
+            setSelectionMode(value);
+            if (value === "not-applicable") {
+              updateFlowState({ 
+                selectionMode: value,
+                universityId: "", 
+                universityName: "",
+                stateCode: "",
+                stateName: "",
+              });
+              setSelectedUniversity(null);
+              setSelectedState(null);
+            } else if (value === "select-university") {
+              setSelectedState(null);
+              updateFlowState({ 
+                selectionMode: value,
+                stateCode: "",
+                stateName: "",
+              });
+            } else if (value === "select-state") {
+              setSelectedUniversity(null);
+              updateFlowState({ 
+                selectionMode: value,
+                universityId: "", 
+                universityName: "",
+              });
+            }
+          }}
+          onUniversitySelect={setSelectedUniversity}
+          onStateSelect={setSelectedState}
+          onNavigateTo={navigate}
+        />
       )}
 
       {step === flowSteps.parties && (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.parties}: Parties Involved</h2>
-            <p className="text-sm text-muted-foreground">
-              Add participants by legal name or search PMY users with @username
-            </p>
-          </div>
-
-          <Card className="bg-muted/30 border-muted" data-testid="card-party-help">
-            <CardContent className="p-3 text-sm text-muted-foreground">
-              <div className="flex gap-2">
-                <div className="flex-shrink-0 mt-0.5">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <strong>Legal name</strong>: For partners without PMY accounts (e.g., "Jane Smith")<br />
-                  <strong>@username</strong>: Search our network of PMY users (e.g., "@jane_smith")
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {contacts.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium">Quick Add from Contacts</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {contacts.map((contact) => {
-                  const canonicalUsername = `@${contact.contactUsername}`;
-                  const isAlreadyAdded = state.parties.some(party => 
-                    party.toLowerCase() === canonicalUsername.toLowerCase()
-                  );
-                  
-                  return (
-                    <Button
-                      key={contact.id}
-                      variant={isAlreadyAdded ? "outline" : "secondary"}
-                      size="sm"
-                      className={isAlreadyAdded ? "opacity-50" : ""}
-                      onClick={() => addContactAsParty(contact)}
-                      disabled={isAlreadyAdded}
-                      data-testid={`badge-contact-${contact.id}`}
-                    >
-                      <UserPlus className="h-3 w-3 mr-1.5" />
-                      {contact.nickname || contact.contactUsername}
-                      {isAlreadyAdded && " ✓"}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {state.parties.map((party, index) => (
-              <div key={index} className="space-y-1">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      placeholder={index === 0 ? "@username (You)" : `Legal name or @username`}
-                      value={party}
-                      onChange={(e) => updateParty(index, e.target.value)}
-                      data-testid={`input-party-${index}`}
-                      className={partyErrors[index] ? "border-destructive" : ""}
-                      disabled={index === 0}
-                    />
-                  </div>
-                  {state.parties.length > 1 && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeParty(index)}
-                      data-testid={`button-remove-party-${index}`}
-                    >
-                      ×
-                    </Button>
-                  )}
-                </div>
-                {partyErrors[index] && (
-                  <p className="text-sm text-destructive" data-testid={`error-party-${index}`}>
-                    {partyErrors[index]}
-                  </p>
-                )}
-              </div>
-            ))}
-            <Button
-              variant="outline"
-              onClick={addParty}
-              className="w-full"
-              data-testid="button-add-party"
-            >
-              + Add Another Participant
-            </Button>
-          </div>
-
-          {/* Incentive message when external participants are added */}
-          {state.parties.some(party => party.trim() && !party.startsWith('@')) && (
-            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" data-testid="card-external-participant-incentive">
-              <CardContent className="p-4">
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <UserCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                      Enhanced Digital Verification Available
-                    </p>
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      Invite your partner to create a PMY account for digital signatures, biometric verification, and collaborative contract features.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        <PartiesStep
+          flowSteps={flowSteps}
+          parties={state.parties}
+          partyErrors={partyErrors}
+          contacts={contacts}
+          onUpdateParty={updateParty}
+          onRemoveParty={removeParty}
+          onAddParty={addParty}
+          onAddContactAsParty={addContactAsParty}
+        />
       )}
 
       {step === flowSteps.intimateActs && (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.intimateActs}: Intimate Acts</h2>
-            <p className="text-sm text-muted-foreground">
-              Tap once for YES (green ✓), twice for NO (red ✗), three times to unselect
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {intimateActOptions.map((act) => {
-              const actState = state.intimateActs[act];
-              const isYes = actState === "yes";
-              const isNo = actState === "no";
-              
-              return (
-                <Card
-                  key={act}
-                  className={`p-3 cursor-pointer hover-elevate active-elevate-2 transition-all ${
-                    isYes
-                      ? "border-success bg-success/5"
-                      : isNo
-                      ? "border-destructive bg-destructive/5"
-                      : ""
-                  }`}
-                  onClick={() => toggleIntimateAct(act)}
-                  data-testid={`option-act-${act}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                      isYes
-                        ? "border-success bg-success"
-                        : isNo
-                        ? "border-destructive bg-destructive"
-                        : "border-muted-foreground"
-                    }`}>
-                      {isYes && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                      {isNo && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="text-xs font-medium leading-tight">{act}</span>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => setShowCustomActsDialog(true)}
-            data-testid="button-advanced"
-          >
-            Advanced Options
-          </Button>
-        </div>
+        <IntimateActsStep
+          flowSteps={flowSteps}
+          intimateActs={state.intimateActs}
+          onToggleIntimateAct={toggleIntimateAct}
+          onShowCustomDialog={() => setShowCustomActsDialog(true)}
+        />
       )}
 
       {step === flowSteps.duration && (
@@ -1308,37 +952,11 @@ export default function ConsentFlowPage() {
       )}
 
       {step === flowSteps.recordingMethod && (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Step {flowSteps.recordingMethod}: Recording Method</h2>
-            <p className="text-sm text-muted-foreground">How would you like to document consent?</p>
-          </div>
-          <div className="space-y-3">
-            {recordingMethods.map((method) => {
-              const Icon = method.icon;
-              return (
-                <Card
-                  key={method.id}
-                  className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
-                    state.method === method.id
-                      ? "border-success bg-success/5"
-                      : ""
-                  }`}
-                  onClick={() => updateFlowState({ method: method.id })}
-                  data-testid={`option-method-${method.id}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <Icon className={`h-6 w-6 ${state.method === method.id ? "text-success" : ""}`} />
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm">{method.label}</div>
-                      <div className="text-xs text-muted-foreground">{method.description}</div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
+        <RecordingMethodStep
+          selectedMethod={state.method}
+          stepNumber={flowSteps.recordingMethod}
+          onSelect={(method) => updateFlowState({ method })}
+        />
       )}
 
       {/* Action buttons */}
