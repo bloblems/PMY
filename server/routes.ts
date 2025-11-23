@@ -70,6 +70,181 @@ function validateSignatureSize(dataURL: string, maxBytes: number = 2 * 1024 * 10
   }
 }
 
+// Notification helper functions
+async function notifyAmendmentRequest(
+  contract: ConsentContract | undefined,
+  amendmentId: string,
+  requestedBy: string,
+  amendmentType: string
+) {
+  try {
+    if (!contract || !contract.id) {
+      console.error('Cannot send amendment request notification: contract is null/undefined or missing ID');
+      return;
+    }
+    
+    if (!requestedBy) {
+      console.error('Cannot send amendment request notification: requestedBy is null/undefined');
+      return;
+    }
+
+    // Get all contract participants: parties array + contract creator + userId fallback
+    const allPartyIds = new Set<string>();
+    
+    // Add all parties from the contract
+    if (contract.parties && Array.isArray(contract.parties)) {
+      contract.parties.forEach(partyId => {
+        if (partyId) allPartyIds.add(partyId);
+      });
+    }
+    
+    // Add contract creator (createdBy) to ensure they're notified
+    if (contract.createdBy) {
+      allPartyIds.add(contract.createdBy);
+    }
+    
+    // Add contract userId (original creator field) as fallback
+    if (contract.userId) {
+      allPartyIds.add(contract.userId);
+    }
+    
+    // Filter out the requester to get recipients
+    const recipientIds = Array.from(allPartyIds).filter(partyId => partyId !== requestedBy);
+
+    if (recipientIds.length === 0) {
+      console.log('No recipients for amendment notification (requester is sole party)');
+      return;
+    }
+
+    // Create appropriate label and message based on amendment type
+    let amendmentTypeLabel: string;
+    let actionMessage: string;
+    
+    switch (amendmentType) {
+      case 'add_acts':
+        amendmentTypeLabel = 'Add Acts';
+        actionMessage = 'add intimate acts to';
+        break;
+      case 'remove_acts':
+        amendmentTypeLabel = 'Remove Acts';
+        actionMessage = 'remove intimate acts from';
+        break;
+      case 'extend_duration':
+        amendmentTypeLabel = 'Extend Duration';
+        actionMessage = 'extend the duration of';
+        break;
+      case 'shorten_duration':
+        amendmentTypeLabel = 'Shorten Duration';
+        actionMessage = 'shorten the duration of';
+        break;
+      default:
+        amendmentTypeLabel = 'Modify';
+        actionMessage = 'modify';
+    }
+    
+    for (const userId of recipientIds) {
+      await storage.createNotification({
+        userId,
+        type: 'amendment_requested',
+        title: `Amendment Request: ${amendmentTypeLabel}`,
+        message: `A partner has requested to ${actionMessage} your consent contract`,
+        relatedContractId: contract.id,
+        relatedAmendmentId: amendmentId,
+        isRead: 'false',
+      });
+    }
+  } catch (error) {
+    console.error('Error creating amendment request notifications:', error);
+    // Don't block the main request if notification fails
+  }
+}
+
+async function notifyAmendmentApproved(
+  contract: ConsentContract | undefined,
+  amendmentId: string,
+  requestedBy: string
+) {
+  try {
+    if (!contract || !contract.id) {
+      console.error('Cannot send amendment approval notification: contract is null/undefined or missing ID');
+      return;
+    }
+    
+    if (!requestedBy) {
+      console.error('Cannot send amendment approval notification: requestedBy is null/undefined');
+      return;
+    }
+
+    // Notify the requester that all parties have approved
+    await storage.createNotification({
+      userId: requestedBy,
+      type: 'amendment_approved',
+      title: 'Amendment Approved',
+      message: 'All parties have approved your amendment request',
+      relatedContractId: contract.id,
+      relatedAmendmentId: amendmentId,
+      isRead: 'false',
+    });
+  } catch (error) {
+    console.error('Error creating amendment approval notification:', error);
+    // Don't block the main request if notification fails
+  }
+}
+
+async function notifyAmendmentRejected(
+  contract: ConsentContract | undefined,
+  amendmentId: string,
+  requestedBy: string,
+  rejectedBy: string,
+  reason?: string
+) {
+  try {
+    if (!contract || !contract.id) {
+      console.error('Cannot send amendment rejection notification: contract is null/undefined or missing ID');
+      return;
+    }
+    
+    if (!requestedBy) {
+      console.error('Cannot send amendment rejection notification: requestedBy is null/undefined');
+      return;
+    }
+
+    // Get the rejector's profile to include their name if available
+    let rejectorName = 'A partner';
+    if (rejectedBy) {
+      try {
+        const rejectorProfile = await storage.getUserProfile(rejectedBy);
+        if (rejectorProfile && rejectorProfile.username) {
+          rejectorName = rejectorProfile.username;
+        }
+      } catch (e) {
+        // Fall back to generic message if we can't get the rejector's profile
+        console.log('Could not fetch rejector profile:', e);
+      }
+    }
+
+    // Build message with rejector info and optional rejection reason
+    let message = `${rejectorName} has rejected your amendment request`;
+    if (reason && reason.trim()) {
+      message += `. Reason: ${reason}`;
+    }
+
+    // Notify the requester that their amendment was rejected
+    await storage.createNotification({
+      userId: requestedBy,
+      type: 'amendment_rejected',
+      title: 'Amendment Rejected',
+      message,
+      relatedContractId: contract.id,
+      relatedAmendmentId: amendmentId,
+      isRead: 'false',
+    });
+  } catch (error) {
+    console.error('Error creating amendment rejection notification:', error);
+    // Don't block the main request if notification fails
+  }
+}
+
 const getStripeKey = (): string | null => {
   const testingKey = process.env.TESTING_STRIPE_SECRET_KEY;
   const prodKey = process.env.STRIPE_SECRET_KEY;
@@ -2311,6 +2486,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the amendment
       const amendment = await storage.createContractAmendment(validation.data);
 
+      // Send notifications to all contract participants except the requester
+      if (req.user?.id && amendment?.id) {
+        await notifyAmendmentRequest(contract, amendment.id, req.user.id, amendmentType);
+      } else {
+        console.error('Cannot send amendment request notification: missing user or amendment ID');
+      }
+
       res.json({
         success: true,
         amendment,
@@ -2375,6 +2557,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedAmendment = await storage.getAmendment(id);
       const allApproved = updatedAmendment?.status === 'approved';
 
+      // If all parties approved, notify the requester
+      if (allApproved && amendment.requestedBy) {
+        const contract = await storage.getContract(amendment.contractId, amendment.requestedBy);
+        if (contract) {
+          await notifyAmendmentApproved(contract, id, amendment.requestedBy);
+        } else {
+          console.error('Cannot send amendment approval notification: contract not found');
+        }
+      }
+
       res.json({
         success: true,
         message: allApproved 
@@ -2412,6 +2604,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const success = await storage.rejectAmendment(id, userId, reason);
       if (!success) {
         return res.status(400).json({ error: "Unable to reject amendment. It may have already been approved or rejected." });
+      }
+
+      // Notify the requester that their amendment was rejected
+      if (amendment.requestedBy && req.user?.id) {
+        const contract = await storage.getContract(amendment.contractId, amendment.requestedBy);
+        if (contract) {
+          await notifyAmendmentRejected(contract, id, amendment.requestedBy, req.user.id, reason);
+        } else {
+          console.error('Cannot send amendment rejection notification: contract not found');
+        }
       }
 
       res.json({
