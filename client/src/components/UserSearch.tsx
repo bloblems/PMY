@@ -37,7 +37,9 @@ export function UserSearch({ onSelectUser, selectedUserId, placeholder = "Search
   }, [searchQuery]);
 
   const { data: searchResults, isLoading } = useQuery<{ users: SearchUser[] }>({
-    queryKey: debouncedQuery.length >= 2 ? ["/api/users/search", { q: debouncedQuery }] : ["users-search-disabled"],
+    queryKey: debouncedQuery.length >= 2 
+      ? [`/api/users/search?q=${encodeURIComponent(debouncedQuery)}`, debouncedQuery] 
+      : ["users-search-disabled"],
     enabled: debouncedQuery.length >= 2,
     staleTime: 30000,
   });

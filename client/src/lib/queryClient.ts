@@ -50,7 +50,17 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const authHeaders = await getAuthHeaders();
     
-    const res = await fetch(queryKey.join("/") as string, {
+    // Only use the first element of queryKey as the URL
+    // Additional elements are for cache key differentiation only
+    const url = queryKey[0];
+    
+    if (typeof url !== "string") {
+      throw new Error(
+        `Query key must have a URL string as first element. Got: ${JSON.stringify(queryKey)}`
+      );
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
       headers: authHeaders,
     });

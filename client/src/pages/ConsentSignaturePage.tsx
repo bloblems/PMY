@@ -40,7 +40,7 @@ export default function ConsentSignaturePage() {
   const { universityId, universityName, encounterType, parties, intimateActs, contractStartTime, contractDuration, contractEndTime } = state;
 
   const { data: university } = useQuery<University>({
-    queryKey: ["/api/universities", universityId],
+    queryKey: [`/api/universities/${universityId}`, universityId],
     enabled: !!universityId,
   });
 

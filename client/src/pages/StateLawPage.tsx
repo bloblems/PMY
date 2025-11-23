@@ -64,7 +64,7 @@ export default function StateLawPage() {
   const [selectedState, setSelectedState] = useState<string>("");
 
   const { data: stateLaw, isLoading } = useQuery<StateLaw>({
-    queryKey: ['/api/state-laws', selectedState],
+    queryKey: [`/api/state-laws/${selectedState}`, selectedState],
     enabled: !!selectedState,
   });
 
