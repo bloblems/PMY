@@ -6,12 +6,15 @@ import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import { generateChallenge, verifyAttestation, generateSessionId } from "./webauthn";
-import { sendDocumentEmail, sendAmendmentRequestEmail, sendAmendmentApprovedEmail, sendAmendmentRejectedEmail } from "./email";
+import { MessagingService } from "./messaging";
 import rateLimit from "express-rate-limit";
 import { validateFileUpload } from "./fileValidation";
 import { logConsentEvent, logRateLimitViolation } from "./securityLogger";
 import { requireAuth } from "./supabaseAuth";
 import { supabaseAdmin } from "./supabase";
+
+// Initialize messaging service for email and notification handling
+const messagingService = new MessagingService(storage);
 
 const upload = multer({ storage: multer.memoryStorage() });
 
