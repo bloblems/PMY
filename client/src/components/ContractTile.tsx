@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Coffee, Briefcase, FileText, Download, Trash2, Check, X, Edit, Clock, Image as ImageIcon, Pause, Play } from "lucide-react";
+import { Heart, Coffee, Briefcase, FileText, Download, Trash2, Check, X, Edit, Clock, Image as ImageIcon, Pause, Play, FileEdit } from "lucide-react";
 import { format } from "date-fns";
 
 interface ContractTileProps {
@@ -22,6 +22,7 @@ interface ContractTileProps {
   onResume?: () => void;
   onPause?: () => void;
   onResumeActive?: () => void;
+  onRequestAmendment?: () => void;
   isPending?: boolean;
 }
 
@@ -107,6 +108,7 @@ export default function ContractTile({
   onResume,
   onPause,
   onResumeActive,
+  onRequestAmendment,
   isPending
 }: ContractTileProps) {
   const style = getEncounterStyle(encounterType);
@@ -178,6 +180,18 @@ export default function ContractTile({
           {/* Active contract actions */}
           {variant === "active" && status === "active" && (
             <>
+              {onRequestAmendment && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={onRequestAmendment}
+                  disabled={isPending}
+                  data-testid={`button-request-amendment-${id}`}
+                >
+                  <FileEdit className="h-4 w-4 mr-1.5" />
+                  Request Amendment
+                </Button>
+              )}
               {onPause && (
                 <Button
                   size="sm"
@@ -219,6 +233,18 @@ export default function ContractTile({
           {/* Paused contract actions */}
           {variant === "active" && status === "paused" && (
             <>
+              {onRequestAmendment && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={onRequestAmendment}
+                  disabled={isPending}
+                  data-testid={`button-request-amendment-${id}`}
+                >
+                  <FileEdit className="h-4 w-4 mr-1.5" />
+                  Request Amendment
+                </Button>
+              )}
               {onResumeActive && (
                 <Button
                   size="sm"

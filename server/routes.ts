@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import storage from "./storage";
-import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema, type ConsentContract, shareContractSchema, rejectContractSchema } from "@shared/schema";
+import { insertConsentRecordingSchema, insertConsentContractSchema, insertUniversityReportSchema, insertVerificationPaymentSchema, insertContractAmendmentSchema, type ConsentContract, shareContractSchema, rejectContractSchema } from "@shared/schema";
 import multer from "multer";
 import OpenAI from "openai";
 import Stripe from "stripe";
@@ -2225,6 +2225,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error confirming consent:", error);
       res.status(500).json({ error: "Failed to confirm consent" });
+    }
+  });
+
+  // Contract amendment endpoints
+  
+  // Create amendment request
+  app.post("/api/contracts/:id/amendments", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Verify user has access to the contract
+      const hasAccess = await storage.hasContractAccess(id, userId);
+      if (!hasAccess) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      // Get the contract to verify status and amendment limit
+      const contract = await storage.getContract(id, userId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      // Only active and paused contracts can be amended
+      if (contract.status !== 'active' && contract.status !== 'paused') {
+        return res.status(400).json({ error: "Only active or paused contracts can be amended" });
+      }
+
+      // Check amendment limit (max 2 approved amendments)
+      const amendmentCount = await storage.getContractAmendmentCount(id);
+      if (amendmentCount >= 2) {
+        return res.status(400).json({ error: "Maximum of 2 amendments per contract reached" });
+      }
+
+      // Validate request body using zod schema
+      const validation = insertContractAmendmentSchema.safeParse({
+        contractId: id,
+        requestedBy: userId,
+        amendmentType: req.body.amendmentType,
+        changes: req.body.changes,
+        reason: req.body.reason,
+        status: 'pending',
+      });
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid amendment data", 
+          details: validation.error.errors 
+        });
+      }
+
+      // Validate changes structure based on amendment type
+      let parsedChanges;
+      try {
+        parsedChanges = JSON.parse(validation.data.changes);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid changes format" });
+      }
+
+      // Validate changes content based on type
+      const amendmentType = validation.data.amendmentType;
+      if (amendmentType === 'add_acts' || amendmentType === 'remove_acts') {
+        const actsList = amendmentType === 'add_acts' ? parsedChanges.addedActs : parsedChanges.removedActs;
+        if (!Array.isArray(actsList) || actsList.length === 0) {
+          return res.status(400).json({ error: "At least one act must be specified" });
+        }
+        const validActs = ['touching', 'kissing', 'oral', 'anal', 'vaginal'];
+        if (!actsList.every((act: string) => validActs.includes(act))) {
+          return res.status(400).json({ error: "Invalid act specified" });
+        }
+      } else if (amendmentType === 'extend_duration' || amendmentType === 'shorten_duration') {
+        if (!parsedChanges.newEndTime) {
+          return res.status(400).json({ error: "New end time must be specified" });
+        }
+        const newEndTime = new Date(parsedChanges.newEndTime);
+        if (isNaN(newEndTime.getTime())) {
+          return res.status(400).json({ error: "Invalid end time format" });
+        }
+        if (newEndTime.getTime() < Date.now()) {
+          return res.status(400).json({ error: "New end time cannot be in the past" });
+        }
+      }
+
+      // Create the amendment
+      const amendment = await storage.createContractAmendment(validation.data);
+
+      res.json({
+        success: true,
+        amendment,
+        message: "Amendment request created. Waiting for approval from all parties."
+      });
+    } catch (error) {
+      console.error("Error creating amendment:", error);
+      res.status(500).json({ error: "Failed to create amendment request" });
+    }
+  });
+
+  // Get all amendments for a contract
+  app.get("/api/contracts/:id/amendments", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Verify user has access to the contract
+      const hasAccess = await storage.hasContractAccess(id, userId);
+      if (!hasAccess) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      const amendments = await storage.getContractAmendments(id);
+      res.json({ amendments });
+    } catch (error) {
+      console.error("Error fetching amendments:", error);
+      res.status(500).json({ error: "Failed to fetch amendments" });
+    }
+  });
+
+  // Approve an amendment
+  app.post("/api/amendments/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Get the amendment to check the contract
+      const amendment = await storage.getAmendment(id);
+      if (!amendment) {
+        return res.status(404).json({ error: "Amendment not found" });
+      }
+
+      // CRITICAL: Prevent self-approval - requester cannot approve their own amendment
+      if (amendment.requestedBy === userId) {
+        return res.status(403).json({ error: "You cannot approve your own amendment request" });
+      }
+
+      // Verify user has access to the contract
+      const hasAccess = await storage.hasContractAccess(amendment.contractId, userId);
+      if (!hasAccess) {
+        return res.status(404).json({ error: "Amendment not found" });
+      }
+
+      // Approve the amendment
+      const success = await storage.approveAmendment(id, userId);
+      if (!success) {
+        return res.status(400).json({ error: "Unable to approve amendment. It may have already been approved, rejected, or you may have already approved it." });
+      }
+
+      // Get updated amendment to check if all parties approved
+      const updatedAmendment = await storage.getAmendment(id);
+      const allApproved = updatedAmendment?.status === 'approved';
+
+      res.json({
+        success: true,
+        message: allApproved 
+          ? "All parties approved! Amendment has been applied to the contract." 
+          : "Your approval recorded. Waiting for other parties.",
+        allPartiesApproved: allApproved,
+        amendment: updatedAmendment
+      });
+    } catch (error) {
+      console.error("Error approving amendment:", error);
+      res.status(500).json({ error: "Failed to approve amendment" });
+    }
+  });
+
+  // Reject an amendment
+  app.post("/api/amendments/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const { reason } = req.body;
+
+      // Get the amendment to check the contract
+      const amendment = await storage.getAmendment(id);
+      if (!amendment) {
+        return res.status(404).json({ error: "Amendment not found" });
+      }
+
+      // Verify user has access to the contract
+      const hasAccess = await storage.hasContractAccess(amendment.contractId, userId);
+      if (!hasAccess) {
+        return res.status(404).json({ error: "Amendment not found" });
+      }
+
+      // Reject the amendment
+      const success = await storage.rejectAmendment(id, userId, reason);
+      if (!success) {
+        return res.status(400).json({ error: "Unable to reject amendment. It may have already been approved or rejected." });
+      }
+
+      res.json({
+        success: true,
+        message: "Amendment rejected successfully"
+      });
+    } catch (error) {
+      console.error("Error rejecting amendment:", error);
+      res.status(500).json({ error: "Failed to reject amendment" });
     }
   });
 
