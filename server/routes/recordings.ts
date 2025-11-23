@@ -9,6 +9,7 @@ import multer from "multer";
 import { requireAuth } from "../supabaseAuth";
 import { validateFileUpload } from "../fileValidation";
 import storage from "../storage";
+import { uploadRateLimiter, stateChangeRateLimiter } from "../middleware/rateLimiting";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -25,7 +26,7 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // Upload a new recording
-router.post("/", requireAuth, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
+router.post("/", uploadRateLimiter, requireAuth, upload.single("audio"), validateFileUpload("audio"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No audio file provided" });
@@ -59,7 +60,7 @@ router.post("/", requireAuth, upload.single("audio"), validateFileUpload("audio"
 });
 
 // Delete a recording
-router.delete("/:id", requireAuth, async (req, res) => {
+router.delete("/:id", stateChangeRateLimiter, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;

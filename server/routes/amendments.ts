@@ -16,11 +16,12 @@ import {
   notifyAmendmentApproved, 
   notifyAmendmentRejected 
 } from "./helpers/amendmentNotifications";
+import { stateChangeRateLimiter } from "../middleware/rateLimiting";
 
 const router = Router();
 
 // Create amendment request for a contract
-router.post("/contract/:contractId", requireAuth, async (req, res) => {
+router.post("/contract/:contractId", stateChangeRateLimiter, requireAuth, async (req, res) => {
   try {
     const { contractId: id } = req.params;
     const userId = req.user!.id;
@@ -139,7 +140,7 @@ router.get("/contract/:contractId", requireAuth, async (req, res) => {
 });
 
 // Approve an amendment
-router.post("/:id/approve", requireAuth, async (req, res) => {
+router.post("/:id/approve", stateChangeRateLimiter, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
@@ -196,7 +197,7 @@ router.post("/:id/approve", requireAuth, async (req, res) => {
 });
 
 // Reject an amendment
-router.post("/:id/reject", requireAuth, async (req, res) => {
+router.post("/:id/reject", stateChangeRateLimiter, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;

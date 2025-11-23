@@ -8,6 +8,7 @@ import { Router } from "express";
 import { requireAuth } from "../supabaseAuth";
 import storage from "../storage";
 import { supabaseAdmin } from "../supabase";
+import { authRateLimiter, stateChangeRateLimiter } from "../middleware/rateLimiting";
 
 const router = Router();
 
@@ -102,7 +103,7 @@ router.get("/me", requireAuth, async (req, res) => {
 });
 
 // Update user data retention policy
-router.patch("/retention-policy", requireAuth, async (req, res) => {
+router.patch("/retention-policy", stateChangeRateLimiter, requireAuth, async (req, res) => {
   try {
     const { dataRetentionPolicy } = req.body;
     const userId = req.user!.id;
@@ -122,7 +123,7 @@ router.patch("/retention-policy", requireAuth, async (req, res) => {
 });
 
 // Change user email - updates both Supabase Auth and user profile
-router.patch("/change-email", requireAuth, async (req, res) => {
+router.patch("/change-email", authRateLimiter, requireAuth, async (req, res) => {
   try {
     const { newEmail } = req.body;
     const userId = req.user!.id;
@@ -157,7 +158,7 @@ router.patch("/change-email", requireAuth, async (req, res) => {
 });
 
 // Delete all user data (contracts, recordings)
-router.delete("/delete-all-data", requireAuth, async (req, res) => {
+router.delete("/delete-all-data", authRateLimiter, requireAuth, async (req, res) => {
   try {
     const userId = req.user!.id;
     
@@ -175,7 +176,7 @@ router.delete("/delete-all-data", requireAuth, async (req, res) => {
 });
 
 // Delete entire user account - removes from Supabase Auth and database
-router.delete("/delete-account", requireAuth, async (req, res) => {
+router.delete("/delete-account", authRateLimiter, requireAuth, async (req, res) => {
   try {
     const userId = req.user!.id;
     
