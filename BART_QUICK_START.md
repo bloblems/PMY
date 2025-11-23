@@ -4,19 +4,35 @@
 
 Bart is a high-net-worth professional whose career depends on PMY working flawlessly. He's PMY's most demanding early adopter and trusted advisor - we regularly consult with Bart for feedback on features and reliability.
 
-## Consult with Bart
+## Testing with Bart
 
+### API Testing
 ```bash
 npx tsx bart.ts
 ```
+Comprehensive backend testing across 54 API endpoints. Validates routing, authentication, and middleware.
 
-Bart will assess PMY's health across 54 API endpoints and report his findings through the lens of a sophisticated user who demands excellence.
+### E2E Browser Testing
+```bash
+# Headless mode (CI/automated testing)
+npx tsx bart-e2e.ts --headless
+
+# Headed mode (visual debugging)
+npx tsx bart-e2e.ts --headed
+```
+End-to-end browser automation testing the complete user experience: login, contract creation, and verification.
 
 ## What Bart Tests
 
+### API Tests (bart.ts)
 - **App Health** (2 tests): Server & configuration status
 - **Contracts Router** (23 tests): All consent & collaboration endpoints
 - **Other Routers** (28 tests): Universities, auth, profile, notifications, etc.
+
+### E2E Browser Tests (bart-e2e.ts) 
+- **Login Flow** (1 test): Supabase authentication
+- **Contract Creation** (1 test): Complete 6-step consent flow
+- **Contract Verification** (1 test): List view validation
 
 ## Understanding Bart's Feedback
 

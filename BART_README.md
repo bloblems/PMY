@@ -107,12 +107,35 @@ While Bart has high standards, he's also technically sophisticated. His testing 
 
 ## Quick Start
 
+### API Testing (bart.ts)
 ```bash
-# Consult with Bart
+# Consult with Bart for comprehensive API testing
 npx tsx bart.ts
 
 # Bart will assess PMY's health and report his findings
 ```
+
+### E2E Browser Testing (bart-e2e.ts)
+```bash
+# Run end-to-end browser tests (headless)
+npx tsx bart-e2e.ts --headless
+
+# Run with visible browser (for debugging)
+npx tsx bart-e2e.ts --headed
+```
+
+**What it tests:**
+- 🔐 **Login Flow**: Authenticate as Bart with Supabase
+- 📝 **Contract Creation**: Complete 6-step consent flow
+  - Encounter type selection (Intimate)
+  - State/University selection (California)
+  - Participant management (add Jane Smith)
+  - Intimate acts selection (Kissing)
+  - Duration (optional - skipped)
+  - Signature/recording method
+- 📋 **Contract Verification**: Confirm contract appears in list
+
+**Pass Rate**: 100% (3/3 tests) ✅
 
 ## How Bart Works
 
@@ -160,9 +183,22 @@ Risk Level: HIGH - Could compromise user privacy and legal validity
 
 ## Technical Details
 
-### Why No Browser Automation?
+### Dual Testing Approach
 
-Replit's built-in testing has a hard requirement for Stripe credentials even when testing non-payment features. Bart bypasses this limitation by testing APIs directly, allowing comprehensive validation without unnecessary external dependencies.
+**bart.ts (API Testing):**
+- Tests 54 backend endpoints across 8 domain routers
+- Direct HTTP requests bypass browser overhead
+- AI-powered failure analysis with GPT-4o-mini
+- No external dependencies required
+
+**bart-e2e.ts (Browser Testing):**
+- End-to-end Playwright browser automation
+- Tests complete user flows with real Supabase auth
+- Validates UI interactions and multi-step processes
+- Independent of Replit's agent testing infrastructure
+- Installed system dependencies: Chromium, X11 libraries (xorg.libxcb, xorg.libX11, mesa)
+
+Both tools complement each other: bart.ts ensures backend reliability, while bart-e2e.ts validates the complete user experience.
 
 ### Environment Requirements
 

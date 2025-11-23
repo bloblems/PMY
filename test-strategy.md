@@ -5,7 +5,8 @@ This document outlines the comprehensive testing strategy for PMY, a Title IX-co
 
 ## Test Framework
 - **API Testing (Primary)**: Bart's 54-endpoint test battery validates all authentication, routing, and security controls (`npx tsx bart.ts`)
-- **E2E Testing (Feature Validation)**: Playwright-based tests via `run_test` tool for UI/UX workflows and integration testing
+- **E2E Browser Testing (Independent)**: Standalone Playwright tests validate complete user flows (`npx tsx bart-e2e.ts`)
+- **E2E Testing (Replit Agent)**: Playwright-based tests via `run_test` tool for UI/UX workflows and integration testing
 - **Integration Testing**: External service mocking (Stripe, Resend, WebAuthn)
 - **Test Database**: Uses development database with test data isolation
 
@@ -41,7 +42,48 @@ See `BART_README.md` for complete documentation on Bart's testing approach and p
 
 ---
 
-## Supplementary E2E Testing
+## Independent E2E Testing: bart-e2e.ts
+
+PMY uses **bart-e2e.ts** for independent end-to-end browser testing using Playwright. This bypasses Replit's agent testing infrastructure and external dependency requirements.
+
+**Running E2E Tests:**
+```bash
+# Headless mode (CI/automated)
+npx tsx bart-e2e.ts --headless
+
+# Headed mode (visual debugging)
+npx tsx bart-e2e.ts --headed
+```
+
+**What It Tests:**
+- 🔐 **Login Flow**: Supabase authentication with real credentials
+- 📝 **Contract Creation**: Complete 6-step consent flow
+  - Step 1: Encounter type (Intimate)
+  - Step 2: State/University (California)
+  - Step 3: Participants (add Jane Smith)
+  - Step 4: Intimate acts (Kissing)
+  - Step 5: Duration (optional - skipped)
+  - Step 6: Signature/recording method
+- 📋 **Contract Verification**: Confirm contract appears in list
+
+**Test Results:** 100% pass rate (3/3 tests) as of last run.
+
+**Technical Implementation:**
+- Uses Playwright for browser automation
+- Tests against real Supabase authentication
+- Uses Bart's demo account (@bart, bart.simpson@pmy.demo)
+- Screenshots saved to `./test-failures/` on failure
+- System dependencies: Chromium, X11 libraries (xorg.libxcb, xorg.libX11, mesa)
+
+**Advantages over Replit Agent Testing:**
+- No Stripe credential requirements for non-payment features
+- Independent test execution (no agent overhead)
+- Direct browser control for debugging
+- Flexible selector strategies (data-testid, CSS, text)
+
+---
+
+## Supplementary E2E Testing (Replit Agent)
 
 While Bart validates API functionality and security, Playwright E2E tests validate:
 - Complete user workflows through the UI

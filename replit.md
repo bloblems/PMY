@@ -50,7 +50,7 @@ The backend implements modular Express Router architecture with domain-based sep
     - **Profile**: NBA player based in California with comprehensive test data
     - **Test Data**: Active/paused/completed contracts, voice recordings, saved contacts
     - **Setup Script**: `npx tsx scripts/setup-bart.ts` recreates Bart's account
-  - **Bart Testing Agent** - Comprehensive API testing powered by @bart's perspective
+  - **Bart API Testing (bart.ts)** - Comprehensive backend testing powered by @bart's perspective
     - High-net-worth professional whose career depends on PMY working flawlessly
     - Tests 54 endpoints across all 8 domain routers with AI-powered failure analysis (OpenAI GPT-4o-mini)
     - Achieves 100% pass rate (54/54 tests) validating all authentication middleware and routing
@@ -58,6 +58,14 @@ The backend implements modular Express Router architecture with domain-based sep
     - We regularly consult with Bart for feedback on features and UX decisions
     - Run with: `npx tsx bart.ts`
     - See `BART_README.md` and `BART_QUICK_START.md` for technical details
+  - **Bart E2E Browser Testing (bart-e2e.ts)** - Independent end-to-end Playwright testing
+    - Complete user flow validation: login, contract creation (6 steps), verification
+    - Real Supabase authentication using @bart's credentials
+    - 100% pass rate (3/3 tests) validating complete UX flows
+    - Bypasses Replit agent testing limitations and Stripe requirements
+    - Run headless: `npx tsx bart-e2e.ts --headless`
+    - Run headed (debug): `npx tsx bart-e2e.ts --headed`
+    - System dependencies: Chromium, X11 libraries (xorg.libxcb, xorg.libX11, mesa)
 - **Feature Flags**: Environment variable-controlled feature flag system (`VITE_ENABLE_COLLABORATIVE_CONTRACTS`) for experimental and beta features.
 
 ## External Dependencies
@@ -99,4 +107,5 @@ The backend implements modular Express Router architecture with domain-based sep
 ### Scripts
 - **`scripts/setup-bart.ts`** - Creates Bart's demo account with test data
 - **`bart.ts`** - Runs comprehensive 54-endpoint API test battery
+- **`bart-e2e.ts`** - Runs independent E2E browser tests (login, contract flow, verification)
 - **`test-cors.ts`** - Validates CORS security configuration
