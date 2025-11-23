@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import IconBottomNav from "@/components/IconBottomNav";
 import SettingsMenu from "@/components/SettingsMenu";
 import PMYLogo from "@/components/PMYLogo";
-import { NotificationBadge } from "@/components/NotificationBadge";
+import { NotificationPanel } from "@/components/NotificationPanel";
 import InfoPage from "@/pages/InfoPage";
 import FilesPage from "@/pages/FilesPage";
 import StateLawPage from "@/pages/StateLawPage";
@@ -92,7 +92,7 @@ function App() {
                   <div className="w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
                     <PMYLogo className="text-2xl text-foreground" />
                     <div className="flex items-center gap-1">
-                      <NotificationBadge />
+                      <NotificationPanel />
                       <SettingsMenu />
                     </div>
                   </div>
