@@ -960,33 +960,55 @@ export default function ConsentFlowPage() {
           <Card
             className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
               state.encounterType === intimateEncounterType.id
-                ? "border-success bg-success/5"
+                ? "border-pink-500/30 bg-gradient-to-br from-pink-500/20 via-rose-500/15 to-purple-500/20 dark:from-pink-500/30 dark:via-rose-500/25 dark:to-purple-500/30"
                 : ""
             }`}
             onClick={() => updateFlowState({ encounterType: intimateEncounterType.id })}
             data-testid={`option-encounter-${intimateEncounterType.id}`}
           >
             <div className="flex flex-col items-center text-center gap-2">
-              <intimateEncounterType.icon className={`h-6 w-6 ${state.encounterType === intimateEncounterType.id ? "text-success" : ""}`} />
+              <intimateEncounterType.icon className={`h-6 w-6 ${state.encounterType === intimateEncounterType.id ? "text-pink-500" : ""}`} />
               <span className="text-sm font-medium">{intimateEncounterType.label}</span>
             </div>
           </Card>
           <div className="grid grid-cols-2 gap-3">
             {encounterTypes.map((type) => {
               const Icon = type.icon;
+              const isSelected = state.encounterType === type.id;
+              const getGradient = () => {
+                switch(type.id) {
+                  case "date":
+                    return "border-blue-500/30 bg-gradient-to-br from-blue-500/20 via-cyan-500/15 to-teal-500/20 dark:from-blue-500/30 dark:via-cyan-500/25 dark:to-teal-500/30";
+                  case "conversation":
+                    return "border-purple-500/30 bg-gradient-to-br from-purple-500/20 via-violet-500/15 to-indigo-500/20 dark:from-purple-500/30 dark:via-violet-500/25 dark:to-indigo-500/30";
+                  case "medical":
+                    return "border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-cyan-500/20 dark:from-emerald-500/30 dark:via-teal-500/25 dark:to-cyan-500/30";
+                  case "professional":
+                    return "border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-violet-500/20 dark:from-indigo-500/30 dark:via-blue-500/25 dark:to-violet-500/30";
+                  default:
+                    return "";
+                }
+              };
+              const getIconColor = () => {
+                switch(type.id) {
+                  case "date": return "text-blue-500";
+                  case "conversation": return "text-purple-500";
+                  case "medical": return "text-emerald-500";
+                  case "professional": return "text-indigo-500";
+                  default: return "";
+                }
+              };
               return (
                 <Card
                   key={type.id}
                   className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
-                    state.encounterType === type.id
-                      ? "border-success bg-success/5"
-                      : ""
+                    isSelected ? getGradient() : ""
                   }`}
                   onClick={() => updateFlowState({ encounterType: type.id })}
                   data-testid={`option-encounter-${type.id}`}
                 >
                   <div className="flex flex-col items-center text-center gap-2">
-                    <Icon className={`h-6 w-6 ${state.encounterType === type.id ? "text-success" : ""}`} />
+                    <Icon className={`h-6 w-6 ${isSelected ? getIconColor() : ""}`} />
                     <span className="text-sm font-medium">{type.label}</span>
                   </div>
                 </Card>
@@ -996,14 +1018,14 @@ export default function ConsentFlowPage() {
           <Card
             className={`p-4 cursor-pointer hover-elevate active-elevate-2 transition-all ${
               state.encounterType === otherEncounterType.id
-                ? "border-success bg-success/5"
+                ? "border-slate-500/30 bg-gradient-to-br from-slate-500/20 via-gray-500/15 to-zinc-500/20 dark:from-slate-500/30 dark:via-gray-500/25 dark:to-zinc-500/30"
                 : ""
             }`}
             onClick={() => updateFlowState({ encounterType: otherEncounterType.id })}
             data-testid={`option-encounter-${otherEncounterType.id}`}
           >
             <div className="flex items-center justify-center gap-3">
-              <otherEncounterType.icon className={`h-6 w-6 ${state.encounterType === otherEncounterType.id ? "text-success" : ""}`} />
+              <otherEncounterType.icon className={`h-6 w-6 ${state.encounterType === otherEncounterType.id ? "text-slate-500" : ""}`} />
               <span className="text-sm font-medium">{otherEncounterType.label}</span>
             </div>
           </Card>
