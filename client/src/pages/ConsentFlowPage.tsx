@@ -962,23 +962,19 @@ export default function ConsentFlowPage() {
                 // Clear UI selections
                 setSelectedUniversity(null);
                 setSelectedState(null);
-              } else {
-                // Clear persisted mode for auto-derived modes (university/state)
-                // Set to null (not undefined) to ensure it persists to storage
-                updateFlowState({ selectionMode: null as any });
-              }
-              
-              if (value === "select-university") {
-                // Clear state selection when switching to university
+              } else if (value === "select-university") {
+                // Persist "select-university" and clear state selection
                 setSelectedState(null);
                 updateFlowState({ 
+                  selectionMode: value,
                   stateCode: "",
                   stateName: "",
                 });
               } else if (value === "select-state") {
-                // Clear university selection when switching to state
+                // Persist "select-state" and clear university selection
                 setSelectedUniversity(null);
                 updateFlowState({ 
+                  selectionMode: value,
                   universityId: "", 
                   universityName: "",
                 });
