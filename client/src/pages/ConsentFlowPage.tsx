@@ -866,9 +866,9 @@ export default function ConsentFlowPage() {
 
       {step === flowSteps.encounterType && (
         <EncounterTypeStep
-          currentEncounterType={state.encounterType}
-          flowSteps={flowSteps}
-          onSelectEncounterType={(encounterType) => updateFlowState({ encounterType })}
+          selectedEncounterType={state.encounterType}
+          stepNumber={step}
+          onSelect={(encounterType) => updateFlowState({ encounterType })}
           onShowCustomDialog={() => setShowCustomEncounterDialog(true)}
         />
       )}
@@ -929,10 +929,10 @@ export default function ConsentFlowPage() {
 
       {step === flowSteps.intimateActs && (
         <IntimateActsStep
-          flowSteps={flowSteps}
+          stepNumber={flowSteps.intimateActs}
           intimateActs={state.intimateActs}
-          onToggleIntimateAct={toggleIntimateAct}
-          onShowCustomDialog={() => setShowCustomActsDialog(true)}
+          onToggle={toggleIntimateAct}
+          onShowAdvancedOptions={() => setShowCustomActsDialog(true)}
         />
       )}
 

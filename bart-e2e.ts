@@ -93,25 +93,37 @@ class BartE2EAgent {
       if (!this.page) throw new Error('Page not initialized');
       
       // Navigate to login page
-      await this.page.goto(`${APP_URL}/auth`);
-      await this.page.waitForLoadState('networkidle');
+      await this.page.goto(`${APP_URL}/auth`, { waitUntil: 'domcontentloaded' });
+      
+      // Wait for login form to be visible
+      await this.page.waitForSelector('input[type="email"]', { timeout: 10000 });
       
       // Fill in credentials
       const emailInput = this.page.locator('input[type="email"]');
       const passwordInput = this.page.locator('input[type="password"]');
-      const loginButton = this.page.locator('button:has-text("Log in"), button:has-text("Sign in")');
       
       await emailInput.fill(BART_EMAIL);
       await passwordInput.fill(BART_PASSWORD);
+      
+      // Click login button - try multiple possible button texts
+      const loginButton = this.page.locator('button').filter({ hasText: /log in|sign in/i }).first();
       await loginButton.click();
       
-      // Wait for redirect to home/dashboard
-      await this.page.waitForURL(/\/(home|dashboard|profile|contracts|create)?$/, { timeout: 10000 });
+      // Wait for navigation after login (Supabase redirects)
+      // Give it more time as Supabase auth can be slow
+      await this.page.waitForURL(/^(?!.*\/auth).*$/, { timeout: 15000 }).catch(() => {
+        console.log('    ℹ️  URL did not change, checking for auth state...');
+      });
       
-      // Verify we're logged in (check for user-specific elements)
-      const isLoggedIn = await this.page.locator('text=/Bart|@bart|Profile|Create/i').isVisible();
+      await this.page.waitForTimeout(2000); // Give app time to initialize
+      
+      // Verify we're logged in by checking for common authenticated UI elements
+      const isLoggedIn = await this.page.locator('text=/create|contracts|profile|@bart/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+      
       if (!isLoggedIn) {
-        throw new Error('Login failed - no user elements found');
+        // Take screenshot for debugging
+        await this.page.screenshot({ path: './test-failures/login-failed-debug.png', fullPage: true });
+        throw new Error('Login failed - no authenticated UI elements found');
       }
     });
   }
@@ -121,13 +133,15 @@ class BartE2EAgent {
       if (!this.page) throw new Error('Page not initialized');
       
       // Navigate to create consent flow
-      // Try multiple selectors for the "Create" button
-      const createButton = this.page.locator(
-        'a[href="/create"], button:has-text("Create"), [data-testid*="create"]'
-      ).first();
+      console.log('    → Navigating to create flow...');
       
+      // Click the Create button in bottom navigation (data-testid="nav-create")
+      const createButton = this.page.locator('[data-testid="nav-create"]');
       await createButton.click();
-      await this.page.waitForLoadState('networkidle');
+      
+      // Wait for consent flow to load
+      await this.page.waitForURL(/\/$/, { timeout: 10000 });
+      await this.page.waitForTimeout(1000);
       
       // Step 1: Select encounter type (Intimate)
       console.log('    → Step 1: Selecting Intimate encounter...');
@@ -152,7 +166,7 @@ class BartE2EAgent {
       await this.page.waitForTimeout(300);
       
       // Select California from dropdown
-      const californiaOption = this.page.locator('text=/^California$/i, [role="option"]:has-text("California")').first();
+      const californiaOption = this.page.locator('[role="option"]').filter({ hasText: 'California' }).first();
       await californiaOption.click();
       await this.page.waitForTimeout(300);
       
@@ -162,28 +176,34 @@ class BartE2EAgent {
       
       // Step 3: Add participant
       console.log('    → Step 3: Adding participant...');
-      const participantInput = this.page.locator('input[placeholder*="name" i], input[type="text"]').first();
-      await participantInput.fill('Test Participant E2E');
       
-      const nextButton3 = this.page.locator('button:has-text("Next"), button:has-text("Continue")').first();
+      // The first participant is auto-filled with @bart (disabled)
+      // The second participant field is already visible, so fill it directly
+      const participantInput = this.page.locator('[data-testid="input-party-1"]');
+      await participantInput.fill('Jane Smith');
+      await this.page.waitForTimeout(300);
+      
+      const nextButton3 = this.page.locator('[data-testid="button-next"]');
       await nextButton3.click();
       await this.page.waitForTimeout(500);
       
       // Step 4: Select intimate acts
       console.log('    → Step 4: Selecting intimate acts...');
-      const firstAct = this.page.locator('[role="checkbox"], input[type="checkbox"]').first();
-      await firstAct.click();
       
-      const nextButton4 = this.page.locator('button:has-text("Next"), button:has-text("Continue")').first();
+      // Click on "Kissing" intimate act (tap once for YES)
+      const kissingAct = this.page.locator('[data-testid="option-act-Kissing"]');
+      await kissingAct.click();
+      await this.page.waitForTimeout(300);
+      
+      const nextButton4 = this.page.locator('[data-testid="button-next"]');
       await nextButton4.click();
       await this.page.waitForTimeout(500);
       
-      // Step 5: Select duration
-      console.log('    → Step 5: Selecting duration...');
-      const durationOption = this.page.locator('text=/60 minutes|1 hour/i').first();
-      await durationOption.click();
+      // Step 5: Select duration (optional - skip it)
+      console.log('    → Step 5: Skipping duration (optional)...');
       
-      const nextButton5 = this.page.locator('button:has-text("Next"), button:has-text("Continue")').first();
+      // Duration is optional, so just click Next
+      const nextButton5 = this.page.locator('[data-testid="button-next"]');
       await nextButton5.click();
       await this.page.waitForTimeout(500);
       
@@ -230,10 +250,11 @@ class BartE2EAgent {
     await this.runTest('Verify Contract in List', async () => {
       if (!this.page) throw new Error('Page not initialized');
       
-      // Navigate to contracts page
-      const contractsLink = this.page.locator('a[href="/contracts"], text=/contracts/i, [data-testid*="contracts"]').first();
-      await contractsLink.click();
-      await this.page.waitForLoadState('networkidle');
+      // Navigate to contracts/files page using bottom nav
+      const contractsButton = this.page.locator('[data-testid="nav-files"]');
+      await contractsButton.click();
+      await this.page.waitForURL('**/files', { timeout: 10000 });
+      await this.page.waitForTimeout(1000);
       
       // Look for the contract we just created
       const hasContract = await this.page.locator('text=/Test Participant E2E/i').isVisible({ timeout: 3000 }).catch(() => false);
