@@ -99,3 +99,4 @@ VITE_ENABLE_COLLABORATIVE_CONTRACTS = "true"
 
 [userenv.development]
 DISABLE_STRIPE_FOR_TESTS = "true"
+VITE_STRIPE_PUBLIC_KEY = "pk_test_dummy_for_testing_only"
