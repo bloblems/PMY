@@ -385,7 +385,17 @@ export default function ConsentFlowPage() {
     state.selectionMode || "select-university"
   );
 
-  // Validate if consent flow has minimum required data for saving/sharing
+  // Validate if can save draft (less restrictive - only after step 1)
+  const canSaveDraft = () => {
+    // Must have encounter type (step 1 completed)
+    if (!state.encounterType || state.encounterType.trim() === "") {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Validate if consent flow has minimum required data for sharing (more restrictive)
   const canSaveOrShare = () => {
     // Must have encounter type
     if (!state.encounterType || state.encounterType.trim() === "") {
@@ -1401,17 +1411,17 @@ export default function ConsentFlowPage() {
           <Button
             variant="ghost"
             onClick={() => {
-              if (canSaveOrShare()) {
+              if (canSaveDraft()) {
                 saveAsDraftMutation.mutate();
               } else {
                 toast({
                   title: "Cannot save yet",
-                  description: "Please fill in the encounter type and at least one party name before saving",
+                  description: "Please select an encounter type before saving",
                   variant: "destructive",
                 });
               }
             }}
-            disabled={saveAsDraftMutation.isPending || !canSaveOrShare()}
+            disabled={saveAsDraftMutation.isPending || !canSaveDraft()}
             className="w-full"
             data-testid="button-save-exit"
           >
