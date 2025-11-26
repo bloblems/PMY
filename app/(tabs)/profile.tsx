@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useAuth } from '@/hooks/useAuth';
 import { Redirect, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { getUserProfile, getContracts, getRecordings } from '@/services/api';
+import { getUserProfile, getContracts, getRecordings, getUnreadNotificationCount } from '@/services/api';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +42,16 @@ export default function ProfileScreen() {
     enabled: !!user,
   });
 
+  const { data: unreadNotificationCount = 0 } = useQuery({
+    queryKey: ['unread-notification-count', user?.id],
+    queryFn: () => {
+      if (!user) return 0;
+      return getUnreadNotificationCount(user.id);
+    },
+    enabled: !!user,
+    staleTime: 30000,
+  });
+
   const styles = createStyles(colors);
 
   if (authLoading) {
@@ -70,7 +80,6 @@ export default function ProfileScreen() {
 
   const totalContracts = contracts?.length || 0;
   const activeContracts = contracts?.filter((c: any) => c.status === 'active').length || 0;
-  const referralCount = profile?.referral_count || 0;
 
   const formatDataRetention = (policy: string | null | undefined) => {
     if (!policy) return 'Forever';
@@ -108,10 +117,6 @@ export default function ProfileScreen() {
             <Text style={[styles.statValue, styles.statValueActive]}>{activeContracts}</Text>
             <Text style={styles.statLabel}>active</Text>
               </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{referralCount}</Text>
-            <Text style={styles.statLabel}>referrals</Text>
-          </View>
         </View>
       </View>
 
@@ -179,26 +184,14 @@ export default function ProfileScreen() {
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <Button
-          title="Edit"
+          title="Edit Profile"
           onPress={() => router.push('/(tabs)/profile/edit')}
           variant="outline"
           style={styles.actionButton}
         />
         <Button
-          title="Share"
-          onPress={() => {
-            // TODO: Implement share page
-            Alert.alert('Coming Soon', 'Share feature coming soon!');
-          }}
-          variant="outline"
-          style={styles.actionButton}
-        />
-        <Button
-          title="Rewards"
-          onPress={() => {
-            // TODO: Implement rewards page
-            Alert.alert('Coming Soon', 'Rewards feature coming soon!');
-          }}
+          title="Share Profile"
+          onPress={() => router.push('/(tabs)/profile/share')}
           variant="outline"
           style={styles.actionButton}
         />
@@ -239,15 +232,6 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            <View style={styles.detailRow}>
-              <View style={[styles.detailIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
-                <Ionicons name="trophy-outline" size={20} color="#F59E0B" />
-              </View>
-              <View style={styles.detailTextContainer}>
-                <Text style={styles.detailLabel}>Referrals</Text>
-                <Text style={styles.detailValue}>{referralCount} friends invited</Text>
-              </View>
-            </View>
           </View>
         </Card>
 
@@ -328,10 +312,40 @@ export default function ProfileScreen() {
         <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>QUICK ACTIONS</Text>
 
         <TouchableOpacity
-          onPress={() => {
-            // TODO: Implement contacts page
-            Alert.alert('Coming Soon', 'Contacts feature coming soon!');
-          }}
+          onPress={() => router.push('/(tabs)/profile/notifications')}
+          style={styles.actionCard}
+        >
+          <Card style={styles.gradientCard}>
+            <LinearGradient
+              colors={['#F59E0B', '#EF4444']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.gradientTopBar}
+            />
+            <View style={styles.gradientCardContent}>
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+                  <Ionicons name="notifications-outline" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.detailTextContainer}>
+                  <View style={styles.notificationTitleRow}>
+                    <Text style={styles.actionCardTitle}>Notifications</Text>
+                    {unreadNotificationCount > 0 && (
+                      <View style={styles.notificationBadge}>
+                        <Text style={styles.notificationBadgeText}>{unreadNotificationCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.actionCardSubtitle}>View alerts and updates</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+              </View>
+          </View>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/profile/contacts')}
           style={styles.actionCard}
         >
           <Card style={styles.gradientCard}>
@@ -344,12 +358,39 @@ export default function ProfileScreen() {
             <View style={styles.gradientCardContent}>
               <View style={styles.detailRow}>
                 <View style={[styles.detailIconContainer, { backgroundColor: 'rgba(6, 182, 212, 0.2)' }]}>
-                  <Ionicons name="person-circle-outline" size={20} color="#06B6D4" />
+                  <Ionicons name="people-outline" size={20} color="#06B6D4" />
                 </View>
                 <View style={styles.detailTextContainer}>
                   <Text style={styles.actionCardTitle}>My Contacts</Text>
                   <Text style={styles.actionCardSubtitle}>Save frequently used contacts</Text>
                 </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+              </View>
+          </View>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/profile/signatures')}
+          style={styles.actionCard}
+        >
+          <Card style={styles.gradientCard}>
+            <LinearGradient
+              colors={['#8B5CF6', '#7C3AED']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.gradientTopBar}
+            />
+            <View style={styles.gradientCardContent}>
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
+                  <Ionicons name="pencil-outline" size={20} color="#8B5CF6" />
+                </View>
+                <View style={styles.detailTextContainer}>
+                  <Text style={styles.actionCardTitle}>Saved Signature</Text>
+                  <Text style={styles.actionCardSubtitle}>Manage your signature for contracts</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
               </View>
           </View>
           </Card>
@@ -369,12 +410,13 @@ export default function ProfileScreen() {
             <View style={styles.gradientCardContent}>
               <View style={styles.detailRow}>
                 <View style={[styles.detailIconContainer, { backgroundColor: 'rgba(236, 72, 153, 0.2)' }]}>
-                  <Ionicons name="people-outline" size={20} color="#EC4899" />
+                  <Ionicons name="settings-outline" size={20} color="#EC4899" />
                 </View>
                 <View style={styles.detailTextContainer}>
                   <Text style={styles.actionCardTitle}>Edit Preferences</Text>
                   <Text style={styles.actionCardSubtitle}>Update default settings</Text>
                 </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
               </View>
           </View>
           </Card>
@@ -616,6 +658,25 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
   actionCardSubtitle: {
     fontSize: 12,
     color: colors.text.secondary,
+  },
+  notificationTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  notificationBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  notificationBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
   retentionCard: {
     marginTop: spacing.md,

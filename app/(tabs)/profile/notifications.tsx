@@ -159,7 +159,14 @@ export default function NotificationsScreen() {
               <TouchableOpacity
                 key={notification.id}
                 style={[styles.notificationItem, !isRead && styles.notificationItemUnread]}
-                onPress={() => !isRead && handleMarkRead(notification.id)}
+                onPress={() => {
+                  if (!isRead) handleMarkRead(notification.id);
+                  // Navigate to related contract if available
+                  const relatedContractId = notification.related_contract_id || notification.relatedContractId;
+                  if (relatedContractId) {
+                    router.push(`/(tabs)/contracts/${relatedContractId}`);
+                  }
+                }}
               >
                 <View style={styles.notificationContent}>
                   <Text style={[styles.notificationTitle, !isRead && styles.notificationTitleUnread]}>
@@ -174,9 +181,14 @@ export default function NotificationsScreen() {
                     </Text>
                   )}
                 </View>
-                {!isRead && (
-                  <View style={styles.unreadDot} />
-                )}
+                <View style={styles.notificationRight}>
+                  {!isRead && (
+                    <View style={styles.unreadDot} />
+                  )}
+                  {(notification.related_contract_id || notification.relatedContractId) && (
+                    <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+                  )}
+                </View>
               </TouchableOpacity>
             );
           })
@@ -311,13 +323,17 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     fontSize: 12,
     color: '#666',
   },
+  notificationRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 12,
+  },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.brand.primary,
-    marginLeft: 12,
-    marginTop: 4,
   },
   empty: {
     alignItems: 'center',

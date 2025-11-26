@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { Redirect, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getContracts, getDrafts, deleteContract, pauseContract, resumeContract, getRecordings } from '@/services/api';
+import { getContracts, getDrafts, deleteContract, pauseContract, resumeContract, getRecordings, getPendingCollaborations, approveCollaboration, rejectCollaboration, getContractAmendments } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
-import { Alert } from 'react-native';
 import { spacing, layout, typography, borderRadius, shadows } from '@/lib/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { format } from 'date-fns';
+import Button from '@/components/Button';
 
 type TabType = 'active' | 'amendments' | 'drafts' | 'inbox';
 
@@ -45,6 +45,69 @@ export default function ContractsScreen() {
     },
     enabled: !!user,
   });
+
+  const { data: pendingCollaborations = [], isLoading: loadingCollabs } = useQuery({
+    queryKey: ['pending-collaborations', user?.id],
+    queryFn: () => {
+      if (!user) return [];
+      return getPendingCollaborations(user.id);
+    },
+    enabled: !!user,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ collaboratorId }: { collaboratorId: string }) =>
+      approveCollaboration(collaboratorId, user!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-collaborations', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['contracts', user?.id] });
+      Alert.alert('Success', 'Contract approved successfully!');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to approve contract');
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ collaboratorId, reason }: { collaboratorId: string; reason?: string }) =>
+      rejectCollaboration(collaboratorId, user!.id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-collaborations', user?.id] });
+      Alert.alert('Contract Rejected', 'The contract has been rejected.');
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.message || 'Failed to reject contract');
+    },
+  });
+
+  const handleApprove = (collaboratorId: string) => {
+    Alert.alert(
+      'Approve Contract',
+      'Are you sure you want to approve this consent contract?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: () => approveMutation.mutate({ collaboratorId }),
+        },
+      ]
+    );
+  };
+
+  const handleReject = (collaboratorId: string) => {
+    Alert.alert(
+      'Reject Contract',
+      'Are you sure you want to reject this consent contract?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: () => rejectMutation.mutate({ collaboratorId }),
+        },
+      ]
+    );
+  };
 
   const deleteMutation = useMutation({
     mutationFn: ({ id }: { id: string }) => deleteContract(id, user!.id),
@@ -221,7 +284,7 @@ export default function ContractsScreen() {
     { id: 'active' as TabType, label: 'Active', icon: 'checkmark-circle', count: activeContracts.length },
     { id: 'amendments' as TabType, label: 'Amendments', icon: 'create', count: 0 },
     { id: 'drafts' as TabType, label: 'Drafts', icon: 'document', count: drafts?.length || 0 },
-    { id: 'inbox' as TabType, label: 'Inbox', icon: 'mail', count: 0 },
+    { id: 'inbox' as TabType, label: 'Inbox', icon: 'mail', count: pendingCollaborations.length },
   ];
 
   return (
@@ -361,11 +424,72 @@ export default function ContractsScreen() {
         )}
 
         {activeTab === 'inbox' && (
-          renderEmptyState(
-            'mail-outline', 
-            'No invitations',
-            'Invitations to collaborate will appear here'
-          )
+          <>
+            {loadingCollabs ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.brand.primary} />
+              </View>
+            ) : pendingCollaborations.length === 0 ? (
+              renderEmptyState(
+                'mail-outline',
+                'No invitations',
+                'Invitations to collaborate will appear here'
+              )
+            ) : (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Pending Review</Text>
+                {pendingCollaborations.map((collab: any) => {
+                  const contractData = collab.consent_contracts;
+                  const encounterType = contractData?.encounter_type || contractData?.encounterType || 'Consent Contract';
+                  const createdAt = collab.created_at || collab.createdAt;
+
+                  return (
+                    <View key={collab.id} style={styles.inboxCard}>
+                      <View style={styles.inboxCardHeader}>
+                        <View style={styles.inboxCardInfo}>
+                          <Text style={styles.inboxCardTitle} numberOfLines={1}>
+                            {encounterType}
+                          </Text>
+                          <Text style={styles.inboxCardDate}>
+                            Invited {format(new Date(createdAt), 'MMM d, yyyy')}
+                          </Text>
+                        </View>
+                        <View style={styles.inboxBadge}>
+                          <Text style={styles.inboxBadgeText}>Review</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.inboxCardDescription}>
+                        You've been invited to review and approve this consent contract.
+                      </Text>
+                      <View style={styles.inboxActions}>
+                        <TouchableOpacity
+                          style={styles.viewContractButton}
+                          onPress={() => router.push(`/(tabs)/contracts/${contractData?.id}`)}
+                        >
+                          <Text style={styles.viewContractText}>View Details</Text>
+                        </TouchableOpacity>
+                        <View style={styles.inboxButtonGroup}>
+                          <Button
+                            title="Reject"
+                            onPress={() => handleReject(collab.id)}
+                            variant="outline"
+                            size="small"
+                            style={styles.rejectButton}
+                          />
+                          <Button
+                            title="Approve"
+                            onPress={() => handleApprove(collab.id)}
+                            size="small"
+                            style={styles.approveButton}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
     </View>
@@ -553,5 +677,77 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     color: colors.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  inboxCard: {
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inboxCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  inboxCardInfo: {
+    flex: 1,
+  },
+  inboxCardTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.inverse,
+    marginBottom: spacing.xs,
+  },
+  inboxCardDate: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  inboxBadge: {
+    backgroundColor: '#FF950020',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  inboxBadgeText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: '#FF9500',
+  },
+  inboxCardDescription: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  inboxActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  viewContractButton: {
+    paddingVertical: spacing.sm,
+  },
+  viewContractText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    color: colors.brand.primary,
+  },
+  inboxButtonGroup: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  rejectButton: {
+    minWidth: 80,
+  },
+  approveButton: {
+    minWidth: 80,
+    backgroundColor: '#34C759',
   },
 });
