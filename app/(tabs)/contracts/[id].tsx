@@ -3,9 +3,11 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useAuth } from '@/hooks/useAuth';
 import { Redirect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getContract, deleteContract, pauseContract, resumeContract } from '@/services/api';
+import { getContract, deleteContract, pauseContract, resumeContract, shareContractWithUser, shareContractViaEmail, getContractCollaborators, createAmendment, getContractAmendments } from '@/services/api';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
+import { ShareDialog } from '@/components/ShareDialog';
+import { AmendmentDialog } from '@/components/AmendmentDialog';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { spacing, layout, typography, borderRadius } from '@/lib/theme';
@@ -17,6 +19,10 @@ export default function ContractDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showAmendmentDialog, setShowAmendmentDialog] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isSubmittingAmendment, setIsSubmittingAmendment] = useState(false);
 
   const { data: contract, isLoading } = useQuery({
     queryKey: ['contract', id, user?.id],
@@ -51,6 +57,24 @@ export default function ContractDetailScreen() {
     },
   });
 
+  const { data: collaborators = [] } = useQuery({
+    queryKey: ['contract-collaborators', id],
+    queryFn: () => {
+      if (!id) return [];
+      return getContractCollaborators(id);
+    },
+    enabled: !!id,
+  });
+
+  const { data: amendments = [] } = useQuery({
+    queryKey: ['contract-amendments', id],
+    queryFn: () => {
+      if (!id) return [];
+      return getContractAmendments(id);
+    },
+    enabled: !!id,
+  });
+
   const handleDelete = () => {
     Alert.alert(
       'Delete Contract',
@@ -64,6 +88,52 @@ export default function ContractDetailScreen() {
         },
       ]
     );
+  };
+
+  const handleShare = async (recipient: string, mode: 'pmy-user' | 'email') => {
+    if (!user || !id) return;
+
+    setIsSharing(true);
+    try {
+      if (mode === 'pmy-user') {
+        await shareContractWithUser(id, user.id, recipient);
+        Alert.alert('Success', 'Contract shared successfully! The recipient will receive a notification.');
+      } else {
+        await shareContractViaEmail(id, user.id, recipient);
+        Alert.alert('Success', 'Invitation sent! The recipient will receive an email to review the contract.');
+      }
+      setShowShareDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['contract-collaborators', id] });
+    } catch (error: any) {
+      console.error('Share error:', error);
+      Alert.alert('Error', error.message || 'Failed to share contract');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleAmendmentSubmit = async (amendment: { type: string; description: string; newValue?: any }) => {
+    if (!user || !id) return;
+
+    setIsSubmittingAmendment(true);
+    try {
+      await createAmendment({
+        contract_id: id,
+        requested_by: user.id,
+        type: amendment.type,
+        description: amendment.description,
+        new_value: amendment.newValue ? JSON.stringify(amendment.newValue) : null,
+        status: 'pending',
+      });
+      Alert.alert('Success', 'Amendment request submitted. All parties will be notified.');
+      setShowAmendmentDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['contract-amendments', id] });
+    } catch (error: any) {
+      console.error('Amendment error:', error);
+      Alert.alert('Error', error.message || 'Failed to submit amendment request');
+    } finally {
+      setIsSubmittingAmendment(false);
+    }
   };
 
   const styles = createStyles(colors);
@@ -286,16 +356,97 @@ export default function ContractDetailScreen() {
         </Card>
       )}
 
+      {/* Collaborators */}
+      {collaborators.length > 0 && (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Collaborators</Text>
+          {collaborators.map((collab: any) => (
+            <View key={collab.id} style={styles.collaboratorItem}>
+              <View style={styles.collaboratorInfo}>
+                <View style={styles.collaboratorAvatar}>
+                  <Ionicons name="person" size={16} color={colors.text.tertiary} />
+                </View>
+                <Text style={styles.collaboratorName}>
+                  {collab.legal_name || collab.contact_info || 'PMY User'}
+                </Text>
+              </View>
+              <View style={[styles.collaboratorBadge, {
+                backgroundColor: collab.status === 'approved' ? '#34C75920' :
+                                 collab.status === 'rejected' ? '#FF3B3020' :
+                                 '#FF950020'
+              }]}>
+                <Text style={[styles.collaboratorStatus, {
+                  color: collab.status === 'approved' ? '#34C759' :
+                         collab.status === 'rejected' ? '#FF3B30' :
+                         '#FF9500'
+                }]}>
+                  {collab.status.charAt(0).toUpperCase() + collab.status.slice(1)}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </Card>
+      )}
+
+      {/* Amendments */}
+      {amendments.length > 0 && (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>Amendments</Text>
+          {amendments.map((amendment: any) => (
+            <View key={amendment.id} style={styles.amendmentItem}>
+              <View style={styles.amendmentHeader}>
+                <Text style={styles.amendmentType}>
+                  {amendment.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                </Text>
+                <View style={[styles.amendmentBadge, {
+                  backgroundColor: amendment.status === 'approved' ? '#34C75920' :
+                                   amendment.status === 'rejected' ? '#FF3B3020' :
+                                   '#FF950020'
+                }]}>
+                  <Text style={[styles.amendmentStatus, {
+                    color: amendment.status === 'approved' ? '#34C759' :
+                           amendment.status === 'rejected' ? '#FF3B30' :
+                           '#FF9500'
+                  }]}>
+                    {amendment.status.charAt(0).toUpperCase() + amendment.status.slice(1)}
+                  </Text>
+                </View>
+              </View>
+              {amendment.description && (
+                <Text style={styles.amendmentDescription}>{amendment.description}</Text>
+              )}
+              <Text style={styles.amendmentDate}>
+                Requested {format(new Date(amendment.created_at || amendment.createdAt), 'MMM d, yyyy')}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      )}
+
       {/* Actions */}
       <Card style={styles.card}>
         <Text style={styles.sectionTitle}>Actions</Text>
         <View style={styles.actions}>
+          <Button
+            title="Share Contract"
+            onPress={() => setShowShareDialog(true)}
+            variant="outline"
+            style={styles.actionButton}
+          />
+          {(status === 'active' || status === 'paused') && (
+            <Button
+              title="Request Amendment"
+              onPress={() => setShowAmendmentDialog(true)}
+              variant="outline"
+              style={[styles.actionButton, styles.actionButtonSpacing]}
+            />
+          )}
           {status === 'active' && (
             <Button
               title="Pause Contract"
               onPress={() => pauseMutation.mutate()}
               variant="outline"
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.actionButtonSpacing]}
             />
           )}
           {status === 'paused' && (
@@ -303,17 +454,37 @@ export default function ContractDetailScreen() {
               title="Resume Contract"
               onPress={() => resumeMutation.mutate()}
               variant="outline"
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.actionButtonSpacing]}
             />
           )}
           <Button
             title="Delete Contract"
             onPress={handleDelete}
-            style={[styles.actionButton, (status === 'active' || status === 'paused') && styles.actionButtonSpacing] as ViewStyle}
+            style={[styles.actionButton, styles.actionButtonSpacing] as ViewStyle}
             variant="destructive"
           />
         </View>
       </Card>
+
+      {/* Share Dialog */}
+      <ShareDialog
+        visible={showShareDialog}
+        onClose={() => setShowShareDialog(false)}
+        onShare={handleShare}
+        loading={isSharing}
+      />
+
+      {/* Amendment Dialog */}
+      <AmendmentDialog
+        visible={showAmendmentDialog}
+        onClose={() => setShowAmendmentDialog(false)}
+        onSubmit={handleAmendmentSubmit}
+        loading={isSubmittingAmendment}
+        currentContract={{
+          intimateActs: intimateActs,
+          contractDuration: contractDuration,
+        }}
+      />
     </ScrollView>
   );
 }
@@ -455,6 +626,75 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
   },
   recordingTextSpacing: {
     marginLeft: 12,
+  },
+  collaboratorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ui.borderDark,
+  },
+  collaboratorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  collaboratorAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.background.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  collaboratorName: {
+    fontSize: typography.size.md,
+    color: colors.text.inverse,
+  },
+  collaboratorBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  collaboratorStatus: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+  },
+  amendmentItem: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ui.borderDark,
+  },
+  amendmentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  amendmentType: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.inverse,
+  },
+  amendmentBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  amendmentStatus: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+  },
+  amendmentDescription: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+  },
+  amendmentDate: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
   },
   actions: {
   },

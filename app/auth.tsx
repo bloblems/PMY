@@ -183,6 +183,16 @@ export default function AuthPage() {
             style={styles.signInButton}
           />
 
+          {!isSignUp && (
+            <Button
+              title="Forgot Password?"
+              onPress={() => router.push('/auth/reset-request')}
+              variant="ghost"
+              size="small"
+              style={styles.forgotButton}
+            />
+          )}
+
           <Button
             title={isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
             onPress={() => {
@@ -251,6 +261,9 @@ const createStyles = (colors: ReturnType<typeof import('./lib/theme').getColors>
     fontSize: typography.size.sm,
   },
   signInButton: {
+    marginTop: spacing.sm,
+  },
+  forgotButton: {
     marginTop: spacing.sm,
   },
   toggleButton: {
