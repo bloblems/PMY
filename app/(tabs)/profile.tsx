@@ -1,7 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Linking, Alert, RefreshControl, Image } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { Redirect, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getUserProfile, getContracts, getRecordings, getUnreadNotificationCount } from '@/services/api';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
@@ -9,13 +9,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, layout, typography } from '@/lib/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 
 export default function ProfileScreen() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { colors } = useTheme();
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, refetch: refetchProfile } = useQuery({
     queryKey: ['user-profile', user?.id],
     queryFn: () => {
       if (!user) return null;
@@ -23,6 +27,22 @@ export default function ProfileScreen() {
     },
     enabled: !!user,
   });
+
+  // Refetch profile when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        refetchProfile();
+      }
+    }, [user, refetchProfile])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['user-profile', user?.id] });
+    await refetchProfile();
+    setRefreshing(false);
+  }, [queryClient, user?.id, refetchProfile]);
 
   const { data: contracts } = useQuery({
     queryKey: ['contracts', user?.id],
@@ -95,15 +115,24 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.primary} />
+      }
+    >
       {/* Profile Header */}
         <View style={styles.profileHeader}>
         {/* Avatar */}
           <View style={styles.avatar}>
             {profile?.profile_picture_url ? (
-              <Text style={styles.avatarText}>IMG</Text>
+              <Image
+                source={{ uri: profile.profile_picture_url }}
+                style={styles.avatarImage}
+              />
             ) : (
-            <Text style={styles.avatarText}>{initials}</Text>
+              <Text style={styles.avatarText}>{initials}</Text>
             )}
         </View>
 
@@ -124,8 +153,20 @@ export default function ProfileScreen() {
       <View style={styles.nameSection}>
         <View style={styles.usernameRow}>
           <Text style={styles.username}>@{profile?.username || 'username'}</Text>
-          {profile?.is_verified === 'true' && (
-            <Ionicons name="checkmark-circle" size={16} color={colors.brand.primary} />
+          {profile?.is_verified === 'true' ? (
+            <TouchableOpacity
+              style={styles.verifiedBadge}
+              onPress={() => router.push('/(tabs)/profile/verification')}
+            >
+              <Ionicons name="checkmark" size={12} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.unverifiedBadge}
+              onPress={() => router.push('/(tabs)/profile/verification')}
+            >
+              <Ionicons name="checkmark" size={12} color={colors.text.tertiary} />
+            </TouchableOpacity>
           )}
         </View>
         {userName && (
@@ -143,8 +184,8 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.websiteLink}
           onPress={() => {
-            const url = profile.website_url!.startsWith('http') 
-              ? profile.website_url! 
+            const url = profile.website_url!.startsWith('http')
+              ? profile.website_url!
               : `https://${profile.website_url}`;
             Linking.openURL(url);
           }}
@@ -154,31 +195,6 @@ export default function ProfileScreen() {
             {profile.website_url.replace(/^https?:\/\//, '')}
           </Text>
         </TouchableOpacity>
-      )}
-
-      {/* Get Verified CTA */}
-      {profile?.is_verified !== 'true' && (
-        <Card style={styles.verifiedCard}>
-          <View style={styles.verifiedCardContent}>
-            <View style={styles.verifiedCardHeader}>
-              <View style={styles.verifiedIconContainer}>
-                <Ionicons name="shield" size={16} color={colors.brand.primary} />
-              </View>
-              <View style={styles.verifiedTextContainer}>
-                <Text style={styles.verifiedTitle}>Get Verified</Text>
-                <Text style={styles.verifiedSubtitle}>Unlock premium features and gain trust</Text>
-              </View>
-            </View>
-            <Button
-              title="Verify Account - $5"
-              onPress={() => {
-                // TODO: Implement verification page
-                Alert.alert('Coming Soon', 'Verification feature coming soon!');
-              }}
-              style={styles.verifiedButton}
-            />
-          </View>
-      </Card>
       )}
 
       {/* Action Buttons */}
@@ -311,6 +327,35 @@ export default function ProfileScreen() {
         {/* Quick Actions */}
         <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>QUICK ACTIONS</Text>
 
+        {/* Verification Card - Show prominently if not verified */}
+        {profile?.is_verified !== 'true' && (
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/profile/verification')}
+            style={styles.actionCard}
+          >
+            <Card style={styles.gradientCard}>
+              <LinearGradient
+                colors={['#1DA1F2', '#0A84FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientTopBar}
+              />
+              <View style={styles.gradientCardContent}>
+                <View style={styles.detailRow}>
+                  <View style={[styles.detailIconContainer, { backgroundColor: 'rgba(29, 161, 242, 0.2)' }]}>
+                    <Ionicons name="shield-checkmark" size={20} color="#1DA1F2" />
+                  </View>
+                  <View style={styles.detailTextContainer}>
+                    <Text style={styles.actionCardTitle}>Get Verified</Text>
+                    <Text style={styles.actionCardSubtitle}>Verify your identity for $4.99</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/profile/notifications')}
           style={styles.actionCard}
@@ -397,32 +442,6 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push('/(tabs)/profile/preferences')}
-          style={styles.actionCard}
-        >
-          <Card style={styles.gradientCard}>
-            <LinearGradient
-              colors={['#EC4899', '#F43F5E']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientTopBar}
-            />
-            <View style={styles.gradientCardContent}>
-              <View style={styles.detailRow}>
-                <View style={[styles.detailIconContainer, { backgroundColor: 'rgba(236, 72, 153, 0.2)' }]}>
-                  <Ionicons name="settings-outline" size={20} color="#EC4899" />
-                </View>
-                <View style={styles.detailTextContainer}>
-                  <Text style={styles.actionCardTitle}>Edit Preferences</Text>
-                  <Text style={styles.actionCardSubtitle}>Update default settings</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
-              </View>
-          </View>
-          </Card>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           onPress={() => router.push('/(tabs)/contracts')}
           style={styles.actionCard}
         >
@@ -481,11 +500,17 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     marginRight: spacing.md,
     borderWidth: 2,
     borderColor: colors.background.card,
+    overflow: 'hidden',
   },
   avatarText: {
     fontSize: 20,
     fontWeight: '600',
     color: colors.brand.primary,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
   },
   statsContainer: {
     flex: 1,
@@ -504,7 +529,7 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     marginBottom: 4,
   },
   statValueActive: {
-    color: '#34C759',
+    color: colors.status.success,
   },
   statLabel: {
     fontSize: 12,
@@ -523,7 +548,32 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     fontSize: 16,
     fontWeight: '600',
     color: colors.text.inverse,
-    marginRight: 6,
+    marginRight: 8,
+  },
+  verifiedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#1DA1F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#1DA1F2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  unverifiedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.text.tertiary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.6,
   },
   name: {
     fontSize: 14,
@@ -544,43 +594,6 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     fontSize: 14,
     color: colors.brand.primary,
     marginLeft: 6,
-  },
-  verifiedCard: {
-    marginBottom: spacing.md,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderColor: 'rgba(59, 130, 246, 0.2)',
-  },
-  verifiedCardContent: {
-    padding: spacing.md,
-  },
-  verifiedCardHeader: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  verifiedIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.brand.primary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  verifiedTextContainer: {
-    flex: 1,
-  },
-  verifiedTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.inverse,
-    marginBottom: 4,
-  },
-  verifiedSubtitle: {
-    fontSize: 12,
-    color: colors.text.secondary,
-  },
-  verifiedButton: {
-    marginTop: 0,
   },
   actionButtons: {
     flexDirection: 'row',

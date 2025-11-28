@@ -1,12 +1,20 @@
 import { Redirect } from 'expo-router';
-import { useAuth } from './hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { colors, spacing, typography } from './lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
+import { useState, useEffect } from 'react';
 
 export default function Index() {
   const { user, loading } = useAuth();
+  const [isReady, setIsReady] = useState(false);
 
-  if (loading) {
+  // Delay redirect slightly to allow navigation to initialize
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading || !isReady) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>PMY</Text>
@@ -16,7 +24,7 @@ export default function Index() {
   }
 
   if (!user) {
-    return <Redirect href="/auth" />;
+    return <Redirect href="/login" />;
   }
 
   return <Redirect href="/(tabs)/create" />;

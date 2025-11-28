@@ -178,10 +178,10 @@ export default function ContractDetailScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return '#34C759';
-      case 'draft': return '#FF9500';
-      case 'paused': return '#FF3B30';
-      default: return '#999';
+      case 'active': return colors.status.success;
+      case 'draft': return colors.status.warning;
+      case 'paused': return colors.status.error;
+      default: return colors.text.tertiary;
     }
   };
 
@@ -371,14 +371,14 @@ export default function ContractDetailScreen() {
                 </Text>
               </View>
               <View style={[styles.collaboratorBadge, {
-                backgroundColor: collab.status === 'approved' ? '#34C75920' :
-                                 collab.status === 'rejected' ? '#FF3B3020' :
-                                 '#FF950020'
+                backgroundColor: collab.status === 'approved' ? colors.status.success + '20' :
+                                 collab.status === 'rejected' ? colors.status.error + '20' :
+                                 colors.status.warning + '20'
               }]}>
                 <Text style={[styles.collaboratorStatus, {
-                  color: collab.status === 'approved' ? '#34C759' :
-                         collab.status === 'rejected' ? '#FF3B30' :
-                         '#FF9500'
+                  color: collab.status === 'approved' ? colors.status.success :
+                         collab.status === 'rejected' ? colors.status.error :
+                         colors.status.warning
                 }]}>
                   {collab.status.charAt(0).toUpperCase() + collab.status.slice(1)}
                 </Text>

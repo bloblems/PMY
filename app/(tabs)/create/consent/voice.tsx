@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query';
 import { createContract, uploadAudioRecording } from '@/services/api';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
+import HoldToConfirmButton from '@/components/HoldToConfirmButton';
 import { spacing, typography, borderRadius } from '@/lib/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -135,17 +136,17 @@ export default function ConsentVoicePage() {
 
       const contractData = {
         user_id: user!.id,
-        universityId: state.universityId || null,
-        encounterType: state.encounterType,
+        university_id: state.universityId || null,
+        encounter_type: state.encounterType,
         parties: state.parties.filter(p => p.trim()),
-        intimateActs: JSON.stringify(state.intimateActs),
-        contractStartTime: state.contractStartTime || null,
-        contractDuration: state.contractDuration || null,
-        contractEndTime: state.contractEndTime || null,
+        intimate_acts: JSON.stringify(state.intimateActs),
+        contract_start_time: state.contractStartTime || null,
+        contract_duration: state.contractDuration || null,
+        contract_end_time: state.contractEndTime || null,
         method: 'voice' as const,
-        contractText: `Voice consent recording - ${duration} seconds`,
+        contract_text: `Voice consent recording - ${duration} seconds`,
         status: 'active' as const,
-        isCollaborative: 'false' as const,
+        is_collaborative: 'false' as const,
       };
 
       return createContract(contractData);
@@ -235,11 +236,10 @@ export default function ConsentVoicePage() {
         </Card>
 
         {audioUri && (
-          <Button
-            title={saveMutation.isPending ? "Saving..." : "Complete Contract"}
-            onPress={() => saveMutation.mutate()}
+          <HoldToConfirmButton
+            onConfirm={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            style={[styles.completeButton, styles.completeButtonSpacing]}
+            subtitle="Recording ready to submit"
           />
         )}
       </ScrollView>
@@ -247,7 +247,7 @@ export default function ConsentVoicePage() {
   );
 }
 
-const createStyles = (colors: ReturnType<typeof import('../lib/theme').getColors>) => StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.dark,

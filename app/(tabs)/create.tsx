@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useConsentFlow, type ConsentFlowState } from '@/contexts/ConsentFlowContext';
@@ -47,18 +47,18 @@ export default function ConsentFlowPage() {
     queryFn: getAllUniversities,
   });
 
-  // Fetch user contacts
+  // Fetch user contacts (Supabase returns snake_case)
   const { data: contacts = [] } = useQuery({
     queryKey: ['user-contacts', user?.id],
     queryFn: async () => {
       if (!user) return [];
       const apiContacts = await getUserContacts(user.id);
-      return apiContacts.map(contact => ({
+      return apiContacts.map((contact: any) => ({
         id: contact.id,
-        userId: contact.userId,
+        userId: contact.user_id,
         contactUsername: contact.username || contact.name || '',
         nickname: null,
-        createdAt: contact.createdAt,
+        createdAt: contact.created_at,
       }));
     },
     enabled: !!user,
@@ -205,17 +205,20 @@ export default function ConsentFlowPage() {
         .then(draft => {
           if (!draft) return;
           
+          // Supabase returns snake_case column names
+          const draftData = draft as any;
           let parsedIntimateActs = {};
-          if (typeof draft.intimateActs === 'string') {
+          const intimateActsRaw = draftData.intimate_acts;
+          if (typeof intimateActsRaw === 'string') {
             try {
-              parsedIntimateActs = JSON.parse(draft.intimateActs);
+              parsedIntimateActs = JSON.parse(intimateActsRaw);
             } catch (e) {
-              console.error('Failed to parse intimateActs:', e);
+              console.error('Failed to parse intimate_acts:', e);
             }
-          } else if (draft.intimateActs) {
-            parsedIntimateActs = draft.intimateActs;
+          } else if (intimateActsRaw) {
+            parsedIntimateActs = intimateActsRaw;
           }
-          
+
           const normalizedParties = (draft.parties || ["", ""]).map((party: string) => {
             return normalizeUsername(party);
           });
@@ -226,20 +229,20 @@ export default function ConsentFlowPage() {
 
           updateFlowState({
             draftId: draft.id,
-            universityId: (draft as any).universityId || "",
-            universityName: (draft as any).universityName || "",
-            encounterType: draft.encounterType || "",
+            universityId: draftData.university_id || "",
+            universityName: draftData.university_name || "",
+            encounterType: draftData.encounter_type || "",
             parties: normalizedParties,
             intimateActs: parsedIntimateActs,
-            contractStartTime: (draft as any).contractStartTime || undefined,
-            contractDuration: (draft as any).contractDuration || undefined,
-            contractEndTime: (draft as any).contractEndTime || undefined,
-            method: (draft as any).method as ConsentFlowState['method'] || null,
-            isCollaborative: (draft as any).isCollaborative === true,
-            contractText: draft.contractText || undefined,
-            signature1: (draft as any).signature1 || undefined,
-            signature2: (draft as any).signature2 || undefined,
-            photoUrl: (draft as any).photoUrl || undefined,
+            contractStartTime: draftData.contract_start_time || undefined,
+            contractDuration: draftData.contract_duration || undefined,
+            contractEndTime: draftData.contract_end_time || undefined,
+            method: draftData.method as ConsentFlowState['method'] || null,
+            isCollaborative: draftData.is_collaborative === 'true',
+            contractText: draftData.contract_text || undefined,
+            signature1: draftData.signature_1 || undefined,
+            signature2: draftData.signature_2 || undefined,
+            photoUrl: draftData.photo_url || undefined,
           });
         })
         .catch(err => {
@@ -305,24 +308,25 @@ export default function ConsentFlowPage() {
       if (state.isCollaborative) {
         throw new Error("Cannot save changes to a collaborative draft.");
       }
-      
+
+      // Use snake_case column names for Supabase
       const draftData = {
-        contractText: state.contractText || `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
-        universityId: state.universityId || null,
-        encounterType: state.encounterType,
+        contract_text: state.contractText || `Consent Contract\n\nEncounter Type: ${state.encounterType}\nParties: ${state.parties.filter(p => p.trim()).join(", ")}\nIntimate Acts: ${Object.keys(state.intimateActs).join(", ")}\nUniversity: ${state.universityName || "N/A"}\n`,
+        university_id: state.universityId || null,
+        encounter_type: state.encounterType,
         parties: state.parties.filter(p => p.trim()),
-        intimateActs: state.intimateActs,
-        contractStartTime: state.contractStartTime || null,
-        contractDuration: state.contractDuration || null,
-        contractEndTime: state.contractEndTime || null,
+        intimate_acts: JSON.stringify(state.intimateActs),
+        contract_start_time: state.contractStartTime || null,
+        contract_duration: state.contractDuration || null,
+        contract_end_time: state.contractEndTime || null,
         method: state.method,
         status: "draft",
-        isCollaborative: false,
-        signature1: state.signature1 || null,
-        signature2: state.signature2 || null,
-        photoUrl: state.photoUrl || null,
+        is_collaborative: 'false' as const,
+        signature_1: state.signature1 || null,
+        signature_2: state.signature2 || null,
+        photo_url: state.photoUrl || null,
       };
-      
+
       if (state.draftId && !state.isCollaborative) {
         const updated = await updateContract(state.draftId, user!.id, draftData);
         return { id: state.draftId, ...draftData } as any;
@@ -384,21 +388,57 @@ export default function ConsentFlowPage() {
     } else if (step === flowSteps.university) {
       return state.universityId !== "" || state.stateCode !== "" || state.selectionMode === "not-applicable";
     } else if (step === flowSteps.parties) {
-      const hasParties = state.parties.some(p => p.trim() !== "");
+      // Require at least 2 valid parties (both fields filled)
+      const validParties = state.parties.filter(p => p.trim() !== "");
+      const hasEnoughParties = validParties.length >= 2;
       const hasErrors = Object.keys(partyErrors).length > 0;
-      return hasParties && !hasErrors;
+      return hasEnoughParties && !hasErrors;
     } else if (step === flowSteps.intimateActs) {
-      return true;
+      // Require at least one intimate act to be selected
+      const hasSelectedActs = Object.keys(state.intimateActs).length > 0;
+      return hasSelectedActs;
     } else if (step === flowSteps.duration) {
-      return true;
+      return true; // Duration is optional
     } else if (step === flowSteps.recordingMethod) {
       return state.method !== null;
     }
     return false;
   };
 
+  // Get validation message for current step
+  const getValidationMessage = () => {
+    if (step === flowSteps.encounterType && !state.encounterType) {
+      return "Please select an encounter type";
+    } else if (step === flowSteps.university) {
+      if (state.selectionMode !== "not-applicable" && !state.universityId && !state.stateCode) {
+        return "Please select a university, state, or mark as not applicable";
+      }
+    } else if (step === flowSteps.parties) {
+      const validParties = state.parties.filter(p => p.trim() !== "");
+      if (validParties.length < 2) {
+        return "Please enter names for both parties";
+      }
+      if (Object.keys(partyErrors).length > 0) {
+        return "Please fix the errors in party names";
+      }
+    } else if (step === flowSteps.intimateActs) {
+      if (Object.keys(state.intimateActs).length === 0) {
+        return "Please select at least one intimate act";
+      }
+    } else if (step === flowSteps.recordingMethod && !state.method) {
+      return "Please select a recording method";
+    }
+    return null;
+  };
+
   const handleNext = () => {
-    if (!canProceed()) return;
+    if (!canProceed()) {
+      const message = getValidationMessage();
+      if (message) {
+        Alert.alert("Required Information", message);
+      }
+      return;
+    }
 
     if (step === flowSteps.encounterType) {
       const nextStep = flowSteps.university || flowSteps.parties;
@@ -485,24 +525,42 @@ export default function ConsentFlowPage() {
 
   return (
     <View style={styles.container}>
-        <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Progress Indicator */}
-        <View style={styles.progressContainer}>
-          {Array.from({ length: flowSteps.totalSteps }, (_, i) => i + 1).map((s) => (
-            <View
-              key={s}
+      <View style={styles.content}>
+        {/* Header with Progress & Save */}
+        <View style={styles.headerRow}>
+          <View style={styles.progressContainer}>
+            {Array.from({ length: flowSteps.totalSteps }, (_, i) => i + 1).map((s) => (
+              <View
+                key={s}
+                style={[
+                  styles.progressDot,
+                  s > 1 && styles.progressDotSpacing,
+                  s === step && styles.progressDotActive,
+                  s < step && styles.progressDotCompleted,
+                ]}
+              />
+            ))}
+          </View>
+          {step > flowSteps.encounterType && (
+            <TouchableOpacity
+              onPress={() => {
+                if (canSaveDraft(state, step)) {
+                  saveAsDraftMutation.mutate();
+                } else {
+                  Alert.alert("Cannot save yet", "Please select an encounter type before saving");
+                }
+              }}
+              disabled={saveAsDraftMutation.isPending || !canSaveDraft(state, step)}
               style={[
-                styles.progressDot,
-                s > 1 && styles.progressDotSpacing,
-                s === step && styles.progressDotActive,
-                s < step && styles.progressDotCompleted,
+                styles.saveExitButton,
+                (saveAsDraftMutation.isPending || !canSaveDraft(state, step)) && styles.saveExitButtonDisabled
               ]}
-            />
-          ))}
+            >
+              <Text style={styles.saveExitText}>
+                {saveAsDraftMutation.isPending ? "Saving..." : "Save & Exit"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Step Content */}
@@ -620,28 +678,20 @@ export default function ConsentFlowPage() {
           />
         )}
         </View>
+      </View>
+
+      {/* Bottom fixed area */}
+      <View style={styles.bottomArea}>
+        {/* Validation Message */}
+        {!canProceed() && getValidationMessage() && (
+          <View style={styles.validationMessage}>
+            <Ionicons name="information-circle" size={18} color={colors.status.warning} />
+            <Text style={styles.validationMessageText}>{getValidationMessage()}</Text>
+          </View>
+        )}
 
         {/* Action buttons */}
         <View style={styles.actions}>
-          {step > flowSteps.encounterType && (
-            <Button
-              title={saveAsDraftMutation.isPending ? "Saving..." : "Save & Exit"}
-              onPress={() => {
-                if (canSaveDraft(state, step)) {
-                  saveAsDraftMutation.mutate();
-                } else {
-                  Alert.alert("Cannot save yet", "Please select an encounter type before saving");
-                }
-              }}
-              disabled={saveAsDraftMutation.isPending || !canSaveDraft(state, step)}
-              variant="outline"
-              style={styles.saveButton}
-            />
-          )}
-          {(step === flowSteps.recordingMethod || step > flowSteps.encounterType) && (
-            <View style={styles.actionsSpacing} />
-          )}
-
           {step === flowSteps.recordingMethod && (
             <View style={styles.shareRow}>
               <Button
@@ -684,8 +734,11 @@ export default function ConsentFlowPage() {
               <Button
                 title={step === flowSteps.recordingMethod ? "Continue" : "Next"}
                 onPress={handleNext}
-                disabled={!canProceed()}
-                style={[styles.nextButton, styles.nextButtonSpacing]}
+                style={[
+                  styles.nextButton,
+                  styles.nextButtonSpacing,
+                  !canProceed() && styles.buttonDisabledStyle
+                ]}
               />
             </View>
           )}
@@ -693,12 +746,14 @@ export default function ConsentFlowPage() {
             <Button
               title="Next"
               onPress={handleNext}
-              disabled={!canProceed()}
-              style={styles.nextButtonFull}
+              style={[
+                styles.nextButtonFull,
+                !canProceed() && styles.buttonDisabledStyle
+              ]}
             />
           )}
         </View>
-      </ScrollView>
+      </View>
 
       {/* Dialogs */}
       <ShareDialog
@@ -747,21 +802,46 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scrollView: {
-    flex: 1,
-  },
   content: {
-    padding: spacing.lg,
-    paddingBottom: layout.bottomNavHeight + insets.bottom + spacing.lg, // Account for bottom nav + safe area + extra spacing
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   stepContentWrapper: {
-    marginTop: spacing.lg,
+    flex: 1,
+    marginTop: spacing.md,
+  },
+  bottomArea: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: insets.bottom + spacing.sm,
+    backgroundColor: colors.background.dark,
+  },
+  headerRow: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
   progressContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    justifyContent: 'center',
+  },
+  saveExitButton: {
+    position: 'absolute',
+    right: 0,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.background.card,
+  },
+  saveExitButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveExitText: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    fontWeight: typography.weight.medium,
   },
   progressDot: {
     width: 8,
@@ -780,10 +860,7 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     backgroundColor: colors.brand.primary + '80',
   },
   actions: {
-    paddingTop: spacing.lg,
-  },
-  actionsSpacing: {
-    marginTop: spacing.md,
+    paddingTop: spacing.sm,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -802,9 +879,23 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     width: '100%',
     backgroundColor: colors.brand.primary,
   },
-  saveButton: {
-    width: '100%',
+  buttonDisabledStyle: {
+    opacity: 0.5,
+  },
+  validationMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.status.warning + '15',
+    borderRadius: 8,
+    padding: spacing.sm,
     marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  validationMessageText: {
+    flex: 1,
+    fontSize: typography.size.sm,
+    color: colors.status.warning,
+    fontWeight: typography.weight.medium,
   },
   shareRow: {
     flexDirection: 'row',

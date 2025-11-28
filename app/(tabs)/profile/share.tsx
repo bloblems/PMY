@@ -118,7 +118,9 @@ export default function ShareProfileScreen() {
             <Text style={styles.username}>@{username}</Text>
             {profile?.is_verified === 'true' && (
               <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                <View style={styles.verifiedCheckmark}>
+                  <Ionicons name="checkmark" size={10} color="#fff" />
+                </View>
                 <Text style={styles.verifiedText}>Verified</Text>
               </View>
             )}
@@ -157,15 +159,15 @@ export default function ShareProfileScreen() {
             <Ionicons
               name={copied ? "checkmark" : "copy-outline"}
               size={20}
-              color={copied ? "#34C759" : colors.text.secondary}
+              color={copied ? colors.status.success : colors.text.secondary}
             />
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.shareOption} onPress={handleCopyLink}>
           <View style={styles.shareOptionLeft}>
-            <View style={[styles.shareIconContainer, { backgroundColor: '#10B98120' }]}>
-              <Ionicons name="link" size={20} color="#10B981" />
+            <View style={[styles.shareIconContainer, { backgroundColor: colors.brand.primary + '20' }]}>
+              <Ionicons name="link" size={20} color={colors.brand.primary} />
             </View>
             <View style={styles.shareOptionText}>
               <Text style={styles.shareOptionTitle}>Profile Link</Text>
@@ -265,7 +267,15 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    gap: 4,
+    gap: 6,
+  },
+  verifiedCheckmark: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#1DA1F2',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   verifiedText: {
     fontSize: typography.size.xs,

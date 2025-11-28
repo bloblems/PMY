@@ -1,243 +1,421 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getAllUniversities, getUniversity } from '@/services/api';
-import Card from '@/components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, typography, borderRadius, layout } from '@/lib/theme';
+import { formatDate } from '@/lib/utils';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+import TitleIXInfo from '@/components/TitleIXInfo';
+
+// Helper to get university initials for fallback
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .filter(word => !['of', 'the', 'at', 'and', '&'].includes(word.toLowerCase()))
+    .slice(0, 2)
+    .map(word => word[0])
+    .join('')
+    .toUpperCase();
+};
+
+// Get university logo URL - tries custom logoUrl, then Clearbit, then returns null for initials fallback
+const getUniversityLogoUrl = (uni: any) => {
+  if (uni.logoUrl || uni.logo_url) {
+    return uni.logoUrl || uni.logo_url;
+  }
+  if (uni.domain) {
+    return `https://logo.clearbit.com/${uni.domain}`;
+  }
+  return null;
+};
 
 export default function TitleIXScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const [selectedUniversityId, setSelectedUniversityId] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUniversity, setSelectedUniversity] = useState<string | null>(null);
 
   const { data: universities, isLoading } = useQuery({
     queryKey: ['universities'],
     queryFn: getAllUniversities,
   });
 
-  const { data: university, isLoading: universityLoading } = useQuery({
-    queryKey: ['university', selectedUniversity],
-    queryFn: () => selectedUniversity ? getUniversity(selectedUniversity) : null,
-    enabled: !!selectedUniversity,
+  const { data: selectedUniversity, isLoading: universityLoading } = useQuery({
+    queryKey: ['university', selectedUniversityId],
+    queryFn: () => selectedUniversityId ? getUniversity(selectedUniversityId) : null,
+    enabled: !!selectedUniversityId,
   });
 
-  const filteredUniversities = universities?.filter(uni =>
-    uni.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    uni.state?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredUniversities = useMemo(() => {
+    if (!universities) return [];
+    if (!searchQuery) return universities;
+    return universities.filter(uni =>
+      uni.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      uni.state?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [universities, searchQuery]);
 
-  if (selectedUniversity && university) {
+  const styles = createStyles(colors);
+
+  // If a university is selected, show the full Title IX info page
+  if (selectedUniversityId && selectedUniversity) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setSelectedUniversity(null)}
+      <View style={styles.container}>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="chevron-back" size={24} color="#000" />
-          <Text style={styles.backText}>Back to List</Text>
-        </TouchableOpacity>
+          {/* University Selector */}
+          <TouchableOpacity 
+            style={styles.selector}
+            onPress={() => setShowDropdown(!showDropdown)}
+          >
+            <Text style={styles.selectorText} numberOfLines={1}>
+              {selectedUniversity.name}
+            </Text>
+            <Ionicons 
+              name={showDropdown ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color={colors.text.secondary} 
+            />
+          </TouchableOpacity>
 
-        <Text style={styles.title}>{university.name}</Text>
-        {university.state && (
-          <Text style={styles.subtitle}>{university.state}</Text>
-        )}
+          {showDropdown && (
+            <Card style={styles.dropdownCard}>
+              <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+                {filteredUniversities.map((uni: any) => (
+                  <TouchableOpacity
+                    key={uni.id}
+                    style={[
+                      styles.dropdownItem,
+                      uni.id === selectedUniversityId && styles.dropdownItemSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedUniversityId(uni.id);
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <View style={styles.dropdownItemRow}>
+                      {getUniversityLogoUrl(uni) ? (
+                        <Image
+                          source={{ uri: getUniversityLogoUrl(uni)! }}
+                          style={styles.universityLogo}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <View style={[
+                          styles.universityInitials,
+                          uni.id === selectedUniversityId && styles.universityInitialsSelected
+                        ]}>
+                          <Text style={[
+                            styles.initialsText,
+                            uni.id === selectedUniversityId && styles.initialsTextSelected
+                          ]}>{getInitials(uni.name)}</Text>
+                        </View>
+                      )}
+                      <Text style={[
+                        styles.dropdownItemText,
+                        uni.id === selectedUniversityId && styles.dropdownItemTextSelected
+                      ]}>
+                        {uni.name}
+                      </Text>
+                    </View>
+                    {uni.id === selectedUniversityId && (
+                      <Ionicons name="checkmark" size={18} color={colors.brand.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </Card>
+          )}
 
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Title IX Information</Text>
-          <Text style={styles.infoText}>{university.titleIXInfo || 'No Title IX information available.'}</Text>
-        </Card>
+          {/* Continue to Home Button */}
+          <Button
+            title="Continue to Home"
+            onPress={() => router.push('/(tabs)')}
+            style={styles.continueButton}
+            icon={<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+            iconPosition="right"
+          />
 
-        {university.titleIXUrl && (
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Resources</Text>
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => {
-                // Open URL in browser
-                // Linking.openURL(university.titleIXUrl!);
-              }}
-            >
-              <Ionicons name="link-outline" size={20} color={colors.brand.primary} />
-              <Text style={styles.linkText}>View Title IX Office Website</Text>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
-            </TouchableOpacity>
-          </Card>
-        )}
-      </ScrollView>
+          {/* Title IX Info Component */}
+          <TitleIXInfo
+            universityId={selectedUniversity.id}
+            universityName={selectedUniversity.name}
+            titleIXInfo={selectedUniversity.titleIXInfo}
+            titleIXUrl={selectedUniversity.titleIXUrl}
+            lastUpdated={formatDate(selectedUniversity.lastUpdated)}
+            verifiedAt={selectedUniversity.verifiedAt}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
+  // University list view
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Title IX Information</Text>
-      <Text style={styles.subtitle}>Research university Title IX policies</Text>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>Title IX Resources</Text>
+        <Text style={styles.subtitle}>Select a university to view their Title IX policies and resources</Text>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search universities..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#666" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" />
-        </View>
-      ) : filteredUniversities.length > 0 ? (
-        filteredUniversities.map((uni) => (
-          <Card
-            key={uni.id}
-            style={styles.universityCard}
-          >
-            <TouchableOpacity
-              onPress={() => setSelectedUniversity(uni.id)}
-              style={styles.universityItem}
-            >
-              <View style={styles.universityInfo}>
-                <Text style={styles.universityName}>{uni.name}</Text>
-                {uni.state && (
-                  <Text style={styles.universityState}>{uni.state}</Text>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
-            </TouchableOpacity>
-          </Card>
-        ))
-      ) : (
-        <Card style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No universities found</Text>
-          <Text style={styles.emptySubtext}>
-            {searchQuery ? 'Try a different search term' : 'No universities available'}
+        {/* University Selector */}
+        <TouchableOpacity 
+          style={styles.selector}
+          onPress={() => setShowDropdown(!showDropdown)}
+        >
+          <Text style={[styles.selectorText, styles.selectorPlaceholder]}>
+            Select a university...
           </Text>
-        </Card>
-      )}
-    </ScrollView>
+          <Ionicons 
+            name={showDropdown ? "chevron-up" : "chevron-down"} 
+            size={20} 
+            color={colors.text.secondary} 
+          />
+        </TouchableOpacity>
+
+        {showDropdown && (
+          <Card style={styles.dropdownCard}>
+            <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.brand.primary} />
+                  <Text style={styles.loadingText}>Loading universities...</Text>
+                </View>
+              ) : filteredUniversities.length > 0 ? (
+                filteredUniversities.map((uni: any) => (
+                  <TouchableOpacity
+                    key={uni.id}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSelectedUniversityId(uni.id);
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <View style={styles.dropdownItemRow}>
+                      {getUniversityLogoUrl(uni) ? (
+                        <Image
+                          source={{ uri: getUniversityLogoUrl(uni)! }}
+                          style={styles.universityLogo}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <View style={styles.universityInitials}>
+                          <Text style={styles.initialsText}>{getInitials(uni.name)}</Text>
+                        </View>
+                      )}
+                      <View style={styles.dropdownItemContent}>
+                        <Text style={styles.dropdownItemText}>{uni.name}</Text>
+                        <Text style={styles.dropdownItemSubtext}>{uni.state}</Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>No universities found</Text>
+              )}
+            </ScrollView>
+          </Card>
+        )}
+
+        {/* Show TitleIXInfo with static sections even when no university selected */}
+        {!showDropdown && (
+          <>
+            <Card style={styles.infoCard}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="school" size={32} color={colors.brand.primary} />
+              </View>
+              <Text style={styles.infoTitle}>University Title IX Policies</Text>
+              <Text style={styles.infoText}>
+                Title IX protects students from sex discrimination in education. 
+                Select your university above to view their specific policies, 
+                reporting procedures, and support resources.
+              </Text>
+            </Card>
+            
+            {/* Static sections always visible */}
+            <TitleIXInfo />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.dark,
+    backgroundColor: colors.background.primary,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    padding: 20,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  backText: {
-    fontSize: 16,
-    color: colors.brand.primary,
-    marginLeft: 4,
+    padding: spacing.lg,
+    paddingBottom: layout.bottomNavHeight + spacing.xxxl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#000',
+    fontSize: typography.size['2xl'],
+    fontFamily: typography.fontFamily.bold,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
+    fontSize: typography.size.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.text.secondary,
+    marginBottom: spacing.xl,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: '#000',
-  },
-  center: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  universityCard: {
-    marginBottom: 12,
-  },
-  universityItem: {
+  selector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
   },
-  universityInfo: {
+  selectorText: {
+    fontSize: typography.size.md,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.text.primary,
     flex: 1,
   },
-  universityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#fff',
+  selectorPlaceholder: {
+    color: colors.text.tertiary,
   },
-  universityState: {
-    fontSize: 14,
-    color: '#999',
+  dropdownCard: {
+    marginBottom: spacing.md,
+    padding: 0,
+    maxHeight: 300,
   },
-  emptyCard: {
-    alignItems: 'center',
-    padding: 32,
+  dropdownScroll: {
+    maxHeight: 300,
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#fff',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-  },
-  card: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: '#fff',
-  },
-  infoText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#999',
-  },
-  linkButton: {
+  dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ui.border,
   },
-  linkText: {
+  dropdownItemSelected: {
+    backgroundColor: colors.brand.primary + '10',
+  },
+  dropdownItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    fontSize: 16,
+  },
+  dropdownItemContent: {
+    flex: 1,
+  },
+  dropdownItemText: {
+    fontSize: typography.size.md,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.text.primary,
+  },
+  dropdownItemTextSelected: {
     color: colors.brand.primary,
-    marginLeft: 12,
+  },
+  dropdownItemSubtext: {
+    fontSize: typography.size.xs,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  universityLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.md,
+    marginRight: spacing.md,
+    backgroundColor: colors.background.primary,
+  },
+  universityInitials: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.brand.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  universityInitialsSelected: {
+    backgroundColor: colors.brand.primary + '25',
+  },
+  initialsText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.brand.primary,
+  },
+  initialsTextSelected: {
+    color: colors.brand.primary,
+  },
+  continueButton: {
+    marginBottom: spacing.xl,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  loadingText: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  emptyText: {
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    padding: spacing.xl,
+  },
+  infoCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  infoIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.brand.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  infoTitle: {
+    fontSize: typography.size.lg,
+    fontFamily: typography.fontFamily.semibold,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  infoText: {
+    fontSize: typography.size.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
-

@@ -210,7 +210,7 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.lg,
   },
   container: {
     flex: 1,

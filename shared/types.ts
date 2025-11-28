@@ -13,8 +13,10 @@ export interface University {
   id: string;
   name: string;
   state: string;
+  domain: string | null;  // e.g., "stanford.edu" - used for Clearbit logo lookup
   titleIXInfo: string;
   titleIXUrl: string | null;
+  logoUrl: string | null;  // Custom logo URL (takes priority over Clearbit)
   lastUpdated: string;
   verifiedAt: string | null;
 }
@@ -22,8 +24,10 @@ export interface University {
 export interface InsertUniversity {
   name: string;
   state: string;
+  domain?: string | null;
   titleIXInfo: string;
   titleIXUrl?: string | null;
+  logoUrl?: string | null;
 }
 
 // ================================================================

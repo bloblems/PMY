@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { createContract, getUserProfile, updateUserProfile } from '@/services/ap
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import SignatureInput from '@/components/SignatureInput';
+import HoldToConfirmButton from '@/components/HoldToConfirmButton';
 import { format } from 'date-fns';
 import { spacing, typography, borderRadius } from '@/lib/theme';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -22,6 +23,7 @@ export default function ConsentSignaturePage() {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const styles = createStyles(colors);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [party1Name, setParty1Name] = useState('');
   const [party2Name, setParty2Name] = useState('');
@@ -31,6 +33,16 @@ export default function ConsentSignaturePage() {
   const [signature1Type, setSignature1Type] = useState<SignatureType | null>(null);
   const [signature1Text, setSignature1Text] = useState<string | null>(null);
   const [saveSignature, setSaveSignature] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+
+  // Handlers for drawing state
+  const handleDrawingStart = () => {
+    setScrollEnabled(false);
+  };
+
+  const handleDrawingEnd = () => {
+    setScrollEnabled(true);
+  };
 
   // Fetch user profile for saved signature
   const { data: profile } = useQuery({
@@ -121,19 +133,19 @@ The digital signatures below indicate that both parties have read, understood, a
 
       const contractData = {
         user_id: user!.id,
-        universityId: state.universityId || null,
-        encounterType: state.encounterType,
+        university_id: state.universityId || null,
+        encounter_type: state.encounterType,
         parties: state.parties.filter(p => p.trim()),
-        intimateActs: JSON.stringify(state.intimateActs),
-        contractStartTime: state.contractStartTime || null,
-        contractDuration: state.contractDuration || null,
-        contractEndTime: state.contractEndTime || null,
+        intimate_acts: JSON.stringify(state.intimateActs),
+        contract_start_time: state.contractStartTime || null,
+        contract_duration: state.contractDuration || null,
+        contract_end_time: state.contractEndTime || null,
         method: 'signature' as const,
-        contractText: generateContractText(),
-        signature1,
-        signature2,
+        contract_text: generateContractText(),
+        signature_1: signature1,
+        signature_2: signature2,
         status: 'active' as const,
-        isCollaborative: 'false' as const,
+        is_collaborative: 'false' as const,
       };
 
       return createContract(contractData);
@@ -173,7 +185,13 @@ The digital signatures below indicate that both parties have read, understood, a
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        scrollEnabled={scrollEnabled}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color={colors.text.inverse} />
@@ -247,12 +265,16 @@ The digital signatures below indicate that both parties have read, understood, a
               autoPopulate={!!profile?.saved_signature}
               showSaveOption={!profile?.saved_signature}
               onSavePreferenceChange={setSaveSignature}
+              onDrawingStart={handleDrawingStart}
+              onDrawingEnd={handleDrawingEnd}
             />
           ) : (
             <SignatureInput
               onSignatureChange={handleSignature2Change}
               initialSignature={signature2}
               showSaveOption={false}
+              onDrawingStart={handleDrawingStart}
+              onDrawingEnd={handleDrawingEnd}
             />
           )}
 
@@ -277,20 +299,21 @@ The digital signatures below indicate that both parties have read, understood, a
           </View>
         </View>
 
-        {/* Complete Button */}
+        {/* Hold to Confirm Button */}
         {signature1 && signature2 && (
-          <Button
-            title={saveMutation.isPending ? "Creating Contract..." : "Complete & Save Contract"}
-            onPress={() => saveMutation.mutate()}
+          <HoldToConfirmButton
+            onConfirm={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            style={styles.completeButton}
+            subtitle="Both parties have signed"
           />
         )}
 
         {/* Help Text */}
-        <Text style={styles.helpText}>
-          Both parties must sign to complete this consent agreement. Pass the device to each signer when it's their turn.
-        </Text>
+        {(!signature1 || !signature2) && (
+          <Text style={styles.helpText}>
+            Both parties must sign to complete this consent agreement. Pass the device to each signer when it's their turn.
+          </Text>
+        )}
       </ScrollView>
     </View>
   );

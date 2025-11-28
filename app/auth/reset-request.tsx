@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../lib/supabase';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Card from '../components/Card';
+import { supabase } from '@/lib/supabase';
+import Button from '@/components/Button';
+import Input from '@/components/Input';
+import Card from '@/components/Card';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, typography, borderRadius } from '../lib/theme';
-import { useTheme } from '../contexts/ThemeContext';
+import { spacing, typography, borderRadius } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function ResetRequestPage() {
   const router = useRouter();
@@ -73,7 +73,7 @@ export default function ResetRequestPage() {
               </Text>
               <Button
                 title="Back to Sign In"
-                onPress={() => router.replace('/auth')}
+                onPress={() => router.replace('/login')}
                 style={styles.backButton}
               />
             </View>
@@ -139,7 +139,7 @@ export default function ResetRequestPage() {
 
           <Button
             title="Back to Sign In"
-            onPress={() => router.replace('/auth')}
+            onPress={() => router.replace('/login')}
             variant="outline"
             size="small"
             style={styles.cancelButton}
@@ -150,7 +150,7 @@ export default function ResetRequestPage() {
   );
 }
 
-const createStyles = (colors: ReturnType<typeof import('../lib/theme').getColors>) => StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>) => StyleSheet.create({
   container: {
     flex: 1,
   },

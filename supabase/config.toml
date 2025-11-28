@@ -82,6 +82,15 @@ enabled = false
 client_id = ""
 secret = ""
 
-[functions]
-# Verify JWT tokens for function invocation
+[functions.stripe-webhook]
+# Stripe webhooks don't have JWT tokens
+verify_jwt = false
+
+[functions.stripe-identity]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.seed-legal-data]
 verify_jwt = true

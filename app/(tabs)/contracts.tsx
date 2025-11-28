@@ -12,6 +12,36 @@ import Button from '@/components/Button';
 
 type TabType = 'active' | 'amendments' | 'drafts' | 'inbox';
 
+// Apple-style: Single accent color per encounter type
+const encounterColors: Record<string, string> = {
+  intimate: '#FF375F',
+  date: '#AF52DE',
+  conversation: '#30D158',
+  medical: '#0A84FF',
+  professional: '#FF9F0A',
+  default: '#8E8E93',
+};
+
+const getEncounterColor = (encounterType: string | undefined): string => {
+  const type = encounterType?.toLowerCase() || '';
+  if (type.includes('intimate')) return encounterColors.intimate;
+  if (type.includes('date')) return encounterColors.date;
+  if (type.includes('conversation')) return encounterColors.conversation;
+  if (type.includes('medical')) return encounterColors.medical;
+  if (type.includes('professional')) return encounterColors.professional;
+  return encounterColors.default;
+};
+
+const getEncounterIcon = (encounterType: string | undefined): string => {
+  const type = encounterType?.toLowerCase() || '';
+  if (type.includes('intimate')) return 'heart';
+  if (type.includes('date')) return 'cafe';
+  if (type.includes('conversation')) return 'chatbubbles';
+  if (type.includes('medical')) return 'medical';
+  if (type.includes('professional')) return 'briefcase';
+  return 'document-text';
+};
+
 export default function ContractsScreen() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -154,6 +184,21 @@ export default function ContractsScreen() {
     resumeMutation.mutate({ id: contractId });
   };
 
+  const handleDeleteDraft = (draftId: string) => {
+    Alert.alert(
+      'Delete Draft',
+      'Are you sure you want to delete this draft? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteMutation.mutate({ id: draftId }),
+        },
+      ]
+    );
+  };
+
   const styles = createStyles(colors);
 
   if (authLoading) {
@@ -206,15 +251,8 @@ export default function ContractsScreen() {
     const parties = contract.parties || [];
     const status = contract.status || 'draft';
     const method = contract.method;
-
-    const getEncounterIcon = () => {
-      const type = encounterType?.toLowerCase() || '';
-      if (type.includes('intimate')) return 'heart';
-      if (type.includes('date')) return 'cafe';
-      if (type.includes('medical')) return 'medical';
-      if (type.includes('professional')) return 'briefcase';
-      return 'document-text';
-    };
+    const accentColor = getEncounterColor(encounterType);
+    const icon = getEncounterIcon(encounterType);
 
     const getMethodBadge = () => {
       if (!method) return null;
@@ -235,36 +273,43 @@ export default function ContractsScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.cardContent}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardInfo}>
-              <Text style={styles.contractTitle} numberOfLines={1}>
-                {encounterType || 'Consent Contract'}
-              </Text>
-              <Text style={styles.contractDate}>
-                {format(new Date(createdAt), 'MMM d, yyyy')}
-              </Text>
+          {/* Icon with colored background - Apple style */}
+          <View style={[styles.cardIconContainer, { backgroundColor: accentColor + '18' }]}>
+            <Ionicons name={icon as any} size={20} color={accentColor} />
+          </View>
+          
+          <View style={styles.cardMainContent}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardInfo}>
+                <Text style={styles.contractTitle} numberOfLines={1}>
+                  {encounterType || 'Consent Contract'}
+                </Text>
+                <Text style={styles.contractDate}>
+                  {format(new Date(createdAt), 'MMM d, yyyy')}
+                </Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) + '18' }]}>
+                <Text style={[styles.statusText, { color: getStatusColor(status) }]}>
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+              </View>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) + '20' }]}>
-              <Text style={[styles.statusText, { color: getStatusColor(status) }]}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
+            
+            <View style={styles.cardFooter}>
+              {parties.length > 0 && (
+                <Text style={styles.metaText}>{parties.length} {parties.length === 1 ? 'party' : 'parties'}</Text>
+              )}
+              {getMethodBadge() && (
+                <Text style={styles.metaText}>• {getMethodBadge()}</Text>
+              )}
             </View>
           </View>
           
-          <View style={styles.cardFooter}>
-            {parties.length > 0 && (
-              <Text style={styles.metaText}>{parties.length} {parties.length === 1 ? 'party' : 'parties'}</Text>
-            )}
-            {getMethodBadge() && (
-              <Text style={styles.metaText}>{getMethodBadge()}</Text>
-            )}
-            <Ionicons 
-              name="chevron-forward" 
-              size={20} 
-              color={colors.text.tertiary} 
-              style={styles.chevron}
-            />
-          </View>
+          <Ionicons 
+            name="chevron-forward" 
+            size={18} 
+            color={colors.text.tertiary} 
+          />
         </View>
       </TouchableOpacity>
     );
@@ -360,11 +405,100 @@ export default function ContractsScreen() {
                 
                 {activeContracts.length === 0 && pausedContracts.length === 0 && completedContracts.length === 0 && (
                   renderEmptyState(
-                    'document-text-outline', 
+                    'document-text-outline',
                     'No contracts yet',
                     'Create your first consent contract to get started'
                   )
                 )}
+
+                {/* Audio Recordings Section */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Audio Recordings</Text>
+                  {!recordings || recordings.length === 0 ? (
+                    <View style={styles.emptyCard}>
+                      <Ionicons name="mic-outline" size={32} color={colors.text.tertiary} />
+                      <Text style={styles.emptyCardText}>No recordings yet</Text>
+                    </View>
+                  ) : (
+                    recordings.map((recording: any) => (
+                      <TouchableOpacity
+                        key={recording.id}
+                        style={styles.recordingCard}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.recordingIcon, { backgroundColor: colors.status.error + '15' }]}>
+                          <Ionicons name="mic" size={20} color={colors.status.error} />
+                        </View>
+                        <View style={styles.recordingInfo}>
+                          <Text style={styles.recordingTitle} numberOfLines={1}>
+                            {recording.filename || 'Audio Recording'}
+                          </Text>
+                          <Text style={styles.recordingMeta}>
+                            {recording.duration || '0:00'} • {format(new Date(recording.created_at || recording.createdAt), 'MMM d, yyyy')}
+                          </Text>
+                        </View>
+                        <Ionicons name="play-circle" size={28} color={colors.brand.primary} />
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+
+                {/* Template Contract Types Section */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Quick Start Templates</Text>
+                  <Text style={styles.sectionSubtitle}>Choose a template to create a new contract</Text>
+
+                  <TouchableOpacity
+                    style={styles.templateCard}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/(tabs)/create?encounter=Intimate%20Encounter')}
+                  >
+                    <View style={[styles.templateIcon, { backgroundColor: '#EC489915' }]}>
+                      <Ionicons name="heart" size={22} color="#EC4899" />
+                    </View>
+                    <View style={styles.templateContent}>
+                      <Text style={styles.templateTitle}>Intimate Encounter</Text>
+                      <Text style={styles.templateDescription}>
+                        Comprehensive consent documentation for intimate activities
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.templateCard}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/(tabs)/create?encounter=Date')}
+                  >
+                    <View style={[styles.templateIcon, { backgroundColor: '#8B5CF615' }]}>
+                      <Ionicons name="cafe" size={22} color="#8B5CF6" />
+                    </View>
+                    <View style={styles.templateContent}>
+                      <Text style={styles.templateTitle}>Date</Text>
+                      <Text style={styles.templateDescription}>
+                        Clear consent agreement for romantic encounters and social dates
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.templateCard}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/(tabs)/create?encounter=Medical%20Consultation')}
+                  >
+                    <View style={[styles.templateIcon, { backgroundColor: '#3B82F615' }]}>
+                      <Ionicons name="medkit" size={22} color="#3B82F6" />
+                    </View>
+                    <View style={styles.templateContent}>
+                      <Text style={styles.templateTitle}>Medical Consultation</Text>
+                      <Text style={styles.templateDescription}>
+                        Professional consent for medical examinations and consultations
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </View>
@@ -386,38 +520,57 @@ export default function ContractsScreen() {
               </View>
             ) : !drafts || drafts.length === 0 ? (
               renderEmptyState(
-                'document-outline', 
+                'document-outline',
                 'No drafts',
                 'Start creating a contract to save drafts'
               )
             ) : (
               <View style={styles.section}>
-                {drafts.map((draft: any) => (
-                  <TouchableOpacity
-                    key={draft.id}
-                    style={styles.contractCard}
-                    onPress={() => router.push(`/(tabs)/create?resumeDraftId=${draft.id}` as `/${string}`)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.cardContent}>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.cardInfo}>
-                          <Text style={styles.contractTitle} numberOfLines={1}>
-                            {draft.encounter_type || 'Draft Contract'}
-                          </Text>
-                          <Text style={styles.contractDate}>
-                            Created {format(new Date(draft.created_at || draft.createdAt), 'MMM d, yyyy')}
-                          </Text>
+                {drafts.map((draft: any) => {
+                  const accentColor = getEncounterColor(draft.encounter_type);
+                  const icon = getEncounterIcon(draft.encounter_type);
+                  return (
+                    <View key={draft.id} style={styles.contractCard}>
+                      <TouchableOpacity
+                        style={styles.cardContent}
+                        onPress={() => router.push(`/(tabs)/create?resumeDraftId=${draft.id}` as `/${string}`)}
+                        activeOpacity={0.7}
+                      >
+                        {/* Icon with colored background */}
+                        <View style={[styles.cardIconContainer, { backgroundColor: accentColor + '18' }]}>
+                          <Ionicons name={icon as any} size={20} color={accentColor} />
                         </View>
-                        <Ionicons 
-                          name="chevron-forward" 
-                          size={20} 
-                          color={colors.text.tertiary} 
+                        
+                        <View style={styles.cardMainContent}>
+                          <View style={styles.cardInfo}>
+                            <Text style={styles.contractTitle} numberOfLines={1}>
+                              {draft.encounter_type || 'Draft Contract'}
+                            </Text>
+                            <Text style={styles.contractDate}>
+                              Created {format(new Date(draft.created_at || draft.createdAt), 'MMM d, yyyy')}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={colors.text.tertiary}
                         />
+                      </TouchableOpacity>
+                      <View style={styles.draftActions}>
+                        <TouchableOpacity
+                          style={styles.draftDeleteButton}
+                          onPress={() => handleDeleteDraft(draft.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="trash-outline" size={18} color={colors.status.error} />
+                          <Text style={styles.draftDeleteText}>Delete</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                  </TouchableOpacity>
-                ))}
+                  );
+                })}
               </View>
             )}
           </>
@@ -442,46 +595,54 @@ export default function ContractsScreen() {
                   const contractData = collab.consent_contracts;
                   const encounterType = contractData?.encounter_type || contractData?.encounterType || 'Consent Contract';
                   const createdAt = collab.created_at || collab.createdAt;
+                  const accentColor = getEncounterColor(encounterType);
+                  const icon = getEncounterIcon(encounterType);
 
                   return (
                     <View key={collab.id} style={styles.inboxCard}>
-                      <View style={styles.inboxCardHeader}>
-                        <View style={styles.inboxCardInfo}>
-                          <Text style={styles.inboxCardTitle} numberOfLines={1}>
-                            {encounterType}
-                          </Text>
-                          <Text style={styles.inboxCardDate}>
-                            Invited {format(new Date(createdAt), 'MMM d, yyyy')}
-                          </Text>
+                      <View style={styles.inboxCardContent}>
+                        <View style={styles.inboxCardHeader}>
+                          {/* Icon with colored background */}
+                          <View style={[styles.inboxIconContainer, { backgroundColor: accentColor + '18' }]}>
+                            <Ionicons name={icon as any} size={22} color={accentColor} />
+                          </View>
+                          <View style={styles.inboxCardInfo}>
+                            <Text style={styles.inboxCardTitle} numberOfLines={1}>
+                              {encounterType}
+                            </Text>
+                            <Text style={styles.inboxCardDate}>
+                              Invited {format(new Date(createdAt), 'MMM d, yyyy')}
+                            </Text>
+                          </View>
+                          <View style={styles.inboxBadge}>
+                            <Text style={styles.inboxBadgeText}>Review</Text>
+                          </View>
                         </View>
-                        <View style={styles.inboxBadge}>
-                          <Text style={styles.inboxBadgeText}>Review</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.inboxCardDescription}>
-                        You've been invited to review and approve this consent contract.
-                      </Text>
-                      <View style={styles.inboxActions}>
-                        <TouchableOpacity
-                          style={styles.viewContractButton}
-                          onPress={() => router.push(`/(tabs)/contracts/${contractData?.id}`)}
-                        >
-                          <Text style={styles.viewContractText}>View Details</Text>
-                        </TouchableOpacity>
-                        <View style={styles.inboxButtonGroup}>
-                          <Button
-                            title="Reject"
-                            onPress={() => handleReject(collab.id)}
-                            variant="outline"
-                            size="small"
-                            style={styles.rejectButton}
-                          />
-                          <Button
-                            title="Approve"
-                            onPress={() => handleApprove(collab.id)}
-                            size="small"
-                            style={styles.approveButton}
-                          />
+                        <Text style={styles.inboxCardDescription}>
+                          You've been invited to review and approve this consent contract.
+                        </Text>
+                        <View style={styles.inboxActions}>
+                          <TouchableOpacity
+                            style={styles.viewContractButton}
+                            onPress={() => router.push(`/(tabs)/contracts/${contractData?.id}`)}
+                          >
+                            <Text style={styles.viewContractText}>View Details</Text>
+                          </TouchableOpacity>
+                          <View style={styles.inboxButtonGroup}>
+                            <Button
+                              title="Reject"
+                              onPress={() => handleReject(collab.id)}
+                              variant="outline"
+                              size="small"
+                              style={styles.rejectButton}
+                            />
+                            <Button
+                              title="Approve"
+                              onPress={() => handleApprove(collab.id)}
+                              size="small"
+                              style={styles.approveButton}
+                            />
+                          </View>
                         </View>
                       </View>
                     </View>
@@ -593,35 +754,42 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
   },
   contractCard: {
     backgroundColor: colors.background.card,
-    borderRadius: borderRadius.xl,
-    marginBottom: spacing.md,
-    ...shadows.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.sm,
   },
   cardContent: {
-    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  cardIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardMainContent: {
+    flex: 1,
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   cardInfo: {
     flex: 1,
   },
   contractTitle: {
     fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
+    fontWeight: '600',
     color: colors.text.inverse,
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   contractDate: {
-    fontSize: typography.size.sm,
+    fontSize: typography.size.xs,
     color: colors.text.secondary,
   },
   statusBadge: {
@@ -640,12 +808,12 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.md,
+    marginTop: spacing.xs,
+    gap: spacing.xs,
   },
   metaText: {
-    fontSize: typography.size.sm,
-    color: colors.text.secondary,
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
   },
   chevron: {
     marginLeft: 'auto',
@@ -680,21 +848,24 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
   },
   inboxCard: {
     backgroundColor: colors.background.card,
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    ...shadows.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.sm,
+  },
+  inboxCardContent: {
+    padding: spacing.md,
+  },
+  inboxIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inboxCardHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.md,
   },
   inboxCardInfo: {
     flex: 1,
@@ -748,6 +919,109 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
   },
   approveButton: {
     minWidth: 80,
-    backgroundColor: '#34C759',
+    backgroundColor: colors.status.success,
+  },
+  draftActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    paddingTop: 0,
+    borderTopWidth: 1,
+    borderTopColor: colors.ui.borderDark,
+    marginTop: -spacing.xs,
+  },
+  draftDeleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  draftDeleteText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    color: colors.status.error,
+  },
+  // Audio Recordings styles
+  emptyCard: {
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  emptyCardText: {
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+  },
+  recordingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  recordingIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recordingInfo: {
+    flex: 1,
+    marginLeft: spacing.md,
+    marginRight: spacing.sm,
+  },
+  recordingTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.inverse,
+    marginBottom: spacing.xs,
+  },
+  recordingMeta: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+  },
+  // Template styles
+  sectionSubtitle: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.lg,
+    marginTop: -spacing.sm,
+  },
+  templateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  templateIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  templateContent: {
+    flex: 1,
+    marginLeft: spacing.md,
+    marginRight: spacing.sm,
+  },
+  templateTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.inverse,
+    marginBottom: spacing.xs,
+  },
+  templateDescription: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    lineHeight: 18,
   },
 });

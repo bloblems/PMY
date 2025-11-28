@@ -1,304 +1,413 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getAllStateLaws, getStateLaw } from '@/services/api';
-import Card from '@/components/Card';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, typography, borderRadius, layout } from '@/lib/theme';
+import { formatDate } from '@/lib/utils';
 import { US_STATES } from '@/lib/constants';
-import { colors } from '@/lib/theme';
+import Card from '@/components/Card';
+import Button from '@/components/Button';
+import StateLawInfo from '@/components/StateLawInfo';
+
+// State flag URLs from Flagpedia (high quality, free to use)
+const getStateFlagUrl = (stateCode: string) => {
+  return `https://flagcdn.com/w80/us-${stateCode.toLowerCase()}.png`;
+};
 
 export default function StateLawsScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+  const { colors } = useTheme();
   const [selectedStateCode, setSelectedStateCode] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: stateLaws, isLoading } = useQuery({
     queryKey: ['state-laws'],
     queryFn: getAllStateLaws,
   });
 
-  const { data: stateLaw, isLoading: stateLawLoading } = useQuery({
+  const { data: selectedStateLaw, isLoading: stateLawLoading } = useQuery({
     queryKey: ['state-law', selectedStateCode],
     queryFn: () => selectedStateCode ? getStateLaw(selectedStateCode) : null,
     enabled: !!selectedStateCode,
   });
 
-  const filteredStates = US_STATES.filter((state: { code: string; name: string }) =>
-    state.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    state.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStates = useMemo(() => {
+    if (!searchQuery) return US_STATES;
+    return US_STATES.filter((state: { code: string; name: string }) =>
+      state.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      state.code.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
 
-  if (selectedStateCode && stateLaw) {
+  const selectedStateName = US_STATES.find(s => s.code === selectedStateCode)?.name;
+
+  const styles = createStyles(colors);
+
+  // If a state is selected and we have data, show the full state law info page
+  if (selectedStateCode && selectedStateLaw) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setSelectedStateCode(null)}
+      <View style={styles.container}>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="chevron-back" size={24} color="#000" />
-          <Text style={styles.backText}>Back to List</Text>
-        </TouchableOpacity>
+          {/* State Selector */}
+          <TouchableOpacity 
+            style={styles.selector}
+            onPress={() => setShowDropdown(!showDropdown)}
+          >
+            <Text style={styles.selectorText} numberOfLines={1}>
+              {selectedStateLaw.stateName}
+            </Text>
+            <Ionicons 
+              name={showDropdown ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color={colors.text.secondary} 
+            />
+          </TouchableOpacity>
 
-        <Text style={styles.title}>{stateLaw.stateName}</Text>
-        <Text style={styles.subtitle}>Consent Law Information</Text>
-
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Consent Law Overview</Text>
-          <Text style={styles.infoText}>{stateLaw.consentLawInfo || 'No information available.'}</Text>
-        </Card>
-
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Key Information</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Age of Consent:</Text>
-            <Text style={styles.infoValue}>{stateLaw.ageOfConsent} years</Text>
-          </View>
-          {stateLaw.affirmativeConsentRequired && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Affirmative Consent:</Text>
-              <Text style={styles.infoValue}>{stateLaw.affirmativeConsentRequired}</Text>
-            </View>
+          {showDropdown && (
+            <Card style={styles.dropdownCard}>
+              <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+                {filteredStates.map((state: { code: string; name: string }) => {
+                  const hasData = stateLaws?.some(sl => sl.stateCode === state.code);
+                  return (
+                    <TouchableOpacity
+                      key={state.code}
+                      style={[
+                        styles.dropdownItem,
+                        state.code === selectedStateCode && styles.dropdownItemSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedStateCode(state.code);
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <View style={styles.dropdownItemRow}>
+                        <Image
+                          source={{ uri: getStateFlagUrl(state.code) }}
+                          style={styles.stateFlag}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.dropdownItemContent}>
+                          <Text style={[
+                            styles.dropdownItemText,
+                            state.code === selectedStateCode && styles.dropdownItemTextSelected
+                          ]}>
+                            {state.name}
+                          </Text>
+                          <Text style={styles.dropdownItemSubtext}>{state.code}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.dropdownItemRight}>
+                        {hasData && (
+                          <View style={styles.availableBadge}>
+                            <Text style={styles.availableText}>Available</Text>
+                          </View>
+                        )}
+                        {state.code === selectedStateCode && (
+                          <Ionicons name="checkmark" size={18} color={colors.brand.primary} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </Card>
           )}
-          {stateLaw.romeoJulietLaw && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Romeo & Juliet Law:</Text>
-              <Text style={styles.infoValue}>{stateLaw.romeoJulietLaw}</Text>
-            </View>
-          )}
-        </Card>
 
-        {stateLaw.reportingRequirements && (
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Reporting Requirements</Text>
-            <Text style={styles.infoText}>{stateLaw.reportingRequirements}</Text>
-          </Card>
-        )}
+          {/* Continue to Home Button */}
+          <Button
+            title="Continue to Home"
+            onPress={() => router.push('/(tabs)')}
+            style={styles.continueButton}
+            icon={<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+            iconPosition="right"
+          />
 
-        {stateLaw.sourceUrl && (
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Resources</Text>
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => {
-                // Open URL in browser
-                // Linking.openURL(stateLaw.sourceUrl!);
-              }}
-            >
-              <Ionicons name="link-outline" size={20} color={colors.brand.primary} />
-              <Text style={styles.linkText}>View Source</Text>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
-            </TouchableOpacity>
-          </Card>
-        )}
-      </ScrollView>
+          {/* State Law Info Component */}
+          <StateLawInfo
+            stateCode={selectedStateLaw.stateCode}
+            stateName={selectedStateLaw.stateName}
+            ageOfConsent={selectedStateLaw.ageOfConsent}
+            affirmativeConsentRequired={selectedStateLaw.affirmativeConsentRequired}
+            romeoJulietLaw={selectedStateLaw.romeoJulietLaw}
+            consentLawInfo={selectedStateLaw.consentLawInfo}
+            reportingRequirements={selectedStateLaw.reportingRequirements}
+            sourceUrl={selectedStateLaw.sourceUrl}
+            lastUpdated={formatDate(selectedStateLaw.lastUpdated)}
+            verifiedAt={selectedStateLaw.verifiedAt}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
+  // State list view
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>State Consent Laws</Text>
-      <Text style={styles.subtitle}>Research consent laws by state</Text>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>State Consent Laws</Text>
+        <Text style={styles.subtitle}>Select a state to view consent laws and legal requirements</Text>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search states..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#666" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" />
-        </View>
-      ) : filteredStates.length > 0 ? (
-        filteredStates.map((state: { code: string; name: string }) => {
-          const stateLawData = stateLaws?.find(sl => sl.stateCode === state.code);
-          return (
-            <Card
-              key={state.code}
-              style={styles.stateCard}
-            >
-              <TouchableOpacity
-                onPress={() => setSelectedStateCode(state.code)}
-                style={styles.stateItem}
-              >
-                <View style={styles.stateInfo}>
-                  <Text style={styles.stateName}>{state.name}</Text>
-                  <Text style={styles.stateCode}>{state.code}</Text>
-                </View>
-                {stateLawData && (
-                  <View style={styles.stateBadge}>
-                    <Text style={styles.badgeText}>Available</Text>
-                  </View>
-                )}
-                <Ionicons name="chevron-forward" size={20} color="#999" />
-              </TouchableOpacity>
-            </Card>
-          );
-        })
-      ) : (
-        <Card style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No states found</Text>
-          <Text style={styles.emptySubtext}>
-            {searchQuery ? 'Try a different search term' : 'No states available'}
+        {/* State Selector */}
+        <TouchableOpacity 
+          style={styles.selector}
+          onPress={() => setShowDropdown(!showDropdown)}
+        >
+          <Text style={[styles.selectorText, styles.selectorPlaceholder]}>
+            Select a state...
           </Text>
-        </Card>
-      )}
-    </ScrollView>
+          <Ionicons 
+            name={showDropdown ? "chevron-up" : "chevron-down"} 
+            size={20} 
+            color={colors.text.secondary} 
+          />
+        </TouchableOpacity>
+
+        {showDropdown && (
+          <Card style={styles.dropdownCard}>
+            <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.brand.primary} />
+                  <Text style={styles.loadingText}>Loading state laws...</Text>
+                </View>
+              ) : filteredStates.length > 0 ? (
+                filteredStates.map((state: { code: string; name: string }) => {
+                  const hasData = stateLaws?.some(sl => sl.stateCode === state.code);
+                  return (
+                    <TouchableOpacity
+                      key={state.code}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setSelectedStateCode(state.code);
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <View style={styles.dropdownItemRow}>
+                        <Image
+                          source={{ uri: getStateFlagUrl(state.code) }}
+                          style={styles.stateFlag}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.dropdownItemContent}>
+                          <Text style={styles.dropdownItemText}>{state.name}</Text>
+                          <Text style={styles.dropdownItemSubtext}>{state.code}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.dropdownItemRight}>
+                        {hasData && (
+                          <View style={styles.availableBadge}>
+                            <Text style={styles.availableText}>Available</Text>
+                          </View>
+                        )}
+                        <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <Text style={styles.emptyText}>No states found</Text>
+              )}
+            </ScrollView>
+          </Card>
+        )}
+
+        {/* Show StateLawInfo with static sections even when no state selected */}
+        {!showDropdown && (
+          <>
+            <Card style={styles.infoCard}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="scale" size={32} color={colors.brand.primary} />
+              </View>
+              <Text style={styles.infoTitle}>State Consent Laws</Text>
+              <Text style={styles.infoText}>
+                Consent laws vary by state. Select your state above to view the 
+                age of consent, affirmative consent requirements, close-in-age 
+                exemptions, and mandatory reporting requirements.
+              </Text>
+            </Card>
+            
+            {/* Static sections always visible */}
+            <StateLawInfo />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.dark,
+    backgroundColor: colors.background.primary,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
-    padding: 20,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  backText: {
-    fontSize: 16,
-    color: colors.brand.primary,
-    marginLeft: 4,
+    padding: spacing.lg,
+    paddingBottom: layout.bottomNavHeight + spacing.xxxl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#000',
+    fontSize: typography.size['2xl'],
+    fontFamily: typography.fontFamily.bold,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
+    fontSize: typography.size.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.text.secondary,
+    marginBottom: spacing.xl,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    fontSize: 16,
-    color: '#000',
-  },
-  center: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  stateCard: {
-    marginBottom: 12,
-  },
-  stateItem: {
+  selector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
   },
-  stateInfo: {
+  selectorText: {
+    fontSize: typography.size.md,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.text.primary,
     flex: 1,
   },
-  stateName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#fff',
+  selectorPlaceholder: {
+    color: colors.text.tertiary,
   },
-  stateCode: {
-    fontSize: 14,
-    color: '#999',
+  dropdownCard: {
+    marginBottom: spacing.md,
+    padding: 0,
+    maxHeight: 300,
   },
-  stateBadge: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginRight: 8,
+  dropdownScroll: {
+    maxHeight: 300,
   },
-  badgeText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  emptyCard: {
+  dropdownItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 32,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.ui.border,
+  },
+  dropdownItemSelected: {
+    backgroundColor: colors.brand.primary + '10',
+  },
+  dropdownItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  dropdownItemContent: {
+    flex: 1,
+  },
+  dropdownItemText: {
+    fontSize: typography.size.md,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.text.primary,
+  },
+  dropdownItemTextSelected: {
+    color: colors.brand.primary,
+  },
+  dropdownItemSubtext: {
+    fontSize: typography.size.xs,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  dropdownItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  stateFlag: {
+    width: 36,
+    height: 24,
+    borderRadius: borderRadius.xs,
+    marginRight: spacing.md,
+    backgroundColor: colors.background.card,
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+  },
+  availableBadge: {
+    backgroundColor: colors.status.success,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  availableText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: '#FFFFFF',
+  },
+  continueButton: {
+    marginBottom: spacing.xl,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  loadingText: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#fff',
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    padding: spacing.xl,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
+  infoCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  infoIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.brand.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  infoTitle: {
+    fontSize: typography.size.lg,
+    fontFamily: typography.fontFamily.semibold,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
-  card: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: '#fff',
-  },
   infoText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#999',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
-  },
-  infoLabel: {
-    fontSize: 16,
-    color: '#999',
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    flex: 1,
-    textAlign: 'right',
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  linkText: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.brand.primary,
-    marginLeft: 12,
+    fontSize: typography.size.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
-

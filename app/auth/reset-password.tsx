@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../lib/supabase';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Card from '../components/Card';
+import { supabase } from '@/lib/supabase';
+import Button from '@/components/Button';
+import Input from '@/components/Input';
+import Card from '@/components/Card';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, typography, borderRadius } from '../lib/theme';
-import { useTheme } from '../contexts/ThemeContext';
+import { spacing, typography, borderRadius } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -128,7 +128,7 @@ export default function ResetPasswordPage() {
               </Text>
               <Button
                 title="Sign In"
-                onPress={() => router.replace('/auth')}
+                onPress={() => router.replace('/login')}
                 style={styles.signInButton}
               />
             </View>
@@ -207,7 +207,7 @@ export default function ResetPasswordPage() {
 
           <Button
             title="Back to Sign In"
-            onPress={() => router.replace('/auth')}
+            onPress={() => router.replace('/login')}
             variant="outline"
             size="small"
             style={styles.cancelButton}
@@ -218,7 +218,7 @@ export default function ResetPasswordPage() {
   );
 }
 
-const createStyles = (colors: ReturnType<typeof import('../lib/theme').getColors>) => StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>) => StyleSheet.create({
   container: {
     flex: 1,
   },

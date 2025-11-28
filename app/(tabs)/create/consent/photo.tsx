@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query';
 import { createContract, uploadPhoto } from '@/services/api';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
+import HoldToConfirmButton from '@/components/HoldToConfirmButton';
 import { spacing, typography, borderRadius } from '@/lib/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -79,18 +80,18 @@ export default function ConsentPhotoPage() {
 
       const contractData = {
         user_id: user!.id,
-        universityId: state.universityId || null,
-        encounterType: state.encounterType,
+        university_id: state.universityId || null,
+        encounter_type: state.encounterType,
         parties: state.parties.filter(p => p.trim()),
-        intimateActs: JSON.stringify(state.intimateActs),
-        contractStartTime: state.contractStartTime || null,
-        contractDuration: state.contractDuration || null,
-        contractEndTime: state.contractEndTime || null,
+        intimate_acts: JSON.stringify(state.intimateActs),
+        contract_start_time: state.contractStartTime || null,
+        contract_duration: state.contractDuration || null,
+        contract_end_time: state.contractEndTime || null,
         method: 'photo' as const,
-        contractText: `Photo consent documentation`,
-        photoUrl,
+        contract_text: `Photo consent documentation`,
+        photo_url: photoUrl,
         status: 'active' as const,
-        isCollaborative: 'false' as const,
+        is_collaborative: 'false' as const,
       };
 
       return createContract(contractData);
@@ -123,23 +124,23 @@ export default function ConsentPhotoPage() {
         </Card>
 
         {photoUri ? (
-          <Card style={[styles.photoCard, styles.photoCardSpacing]}>
-            <Image source={{ uri: photoUri }} style={styles.photo} />
-            <View style={[styles.photoActions, styles.photoActionsSpacing]}>
-              <Button
-                title="Retake"
+          <>
+            <Card style={[styles.photoCard, styles.photoCardSpacing]}>
+              <Image source={{ uri: photoUri }} style={styles.photo} />
+              <TouchableOpacity
+                style={styles.retakeOverlay}
                 onPress={() => setPhotoUri(null)}
-                variant="outline"
-                style={styles.retakeButton}
-              />
-              <Button
-                title={saveMutation.isPending ? "Saving..." : "Use This Photo"}
-                onPress={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                style={[styles.useButton, styles.useButtonSpacing]}
-              />
-            </View>
-          </Card>
+              >
+                <Ionicons name="refresh" size={20} color={colors.text.inverse} />
+                <Text style={styles.retakeText}>Retake</Text>
+              </TouchableOpacity>
+            </Card>
+            <HoldToConfirmButton
+              onConfirm={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              subtitle="Photo ready to submit"
+            />
+          </>
         ) : (
           <Card style={[styles.cameraCard, styles.cameraCardSpacing]}>
             <View style={styles.cameraOptions}>
@@ -165,7 +166,7 @@ export default function ConsentPhotoPage() {
   );
 }
 
-const createStyles = (colors: ReturnType<typeof import('../lib/theme').getColors>) => StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.dark,
@@ -240,25 +241,26 @@ const createStyles = (colors: ReturnType<typeof import('../lib/theme').getColors
   },
   photo: {
     width: '100%',
-    height: 400,
+    height: 300,
     borderRadius: borderRadius.md,
     backgroundColor: colors.background.card,
   },
-  photoActions: {
+  retakeOverlay: {
+    position: 'absolute',
+    bottom: spacing.md,
+    right: spacing.md,
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
   },
-  photoActionsSpacing: {
-    marginTop: spacing.md,
-  },
-  useButtonSpacing: {
-    marginLeft: spacing.md,
-  },
-  retakeButton: {
-    flex: 1,
-  },
-  useButton: {
-    flex: 1,
-    backgroundColor: colors.brand.primary,
+  retakeText: {
+    color: colors.text.inverse,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
   },
 });
 

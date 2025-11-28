@@ -1,57 +1,83 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { Redirect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, layout, typography, borderRadius, shadows } from '@/lib/theme';
+import { spacing, layout, typography, borderRadius } from '@/lib/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 interface ToolItem {
   id: string;
   title: string;
   description: string;
-  icon: string;
-  iconColor: string;
-  gradientColors: string[];
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  bgColor: string;
   path: string;
 }
 
-const tools: ToolItem[] = [
+const quickActions: ToolItem[] = [
   {
-    id: 'partner-verify',
-    title: 'Partner Verify',
-    description: 'Verify identity and age',
-    icon: 'shield-checkmark',
-    iconColor: '#EC4899',
-    gradientColors: ['#EC4899', '#F43F5E'],
-    path: '/settings/integrations',
+    id: 'create',
+    title: 'New Contract',
+    description: 'Create a consent contract',
+    icon: 'add-circle',
+    color: '#10B981',
+    bgColor: '#10B98115',
+    path: '/(tabs)/create',
   },
   {
-    id: 'contract-verify',
-    title: 'Contracts',
-    description: 'View and manage contracts',
-    icon: 'document-text',
-    iconColor: '#10B981',
-    gradientColors: ['#10B981', '#059669'],
+    id: 'contracts',
+    title: 'My Contracts',
+    description: 'View all contracts',
+    icon: 'folder-open',
+    color: '#3B82F6',
+    bgColor: '#3B82F615',
     path: '/(tabs)/contracts',
   },
+];
+
+const resources: ToolItem[] = [
   {
     id: 'title-ix',
-    title: 'Title IX',
-    description: 'University policies',
+    title: 'Title IX Resources',
+    description: 'University sexual misconduct policies and reporting procedures',
     icon: 'school',
-    iconColor: '#3B82F6',
-    gradientColors: ['#3B82F6', '#2563EB'],
+    color: '#8B5CF6',
+    bgColor: '#8B5CF615',
     path: '/(tabs)/tools/titleix',
   },
   {
     id: 'state-law',
-    title: 'State Laws',
-    description: 'Consent laws by state',
+    title: 'State Consent Laws',
+    description: 'Legal consent requirements and age of consent by state',
     icon: 'scale',
-    iconColor: '#F59E0B',
-    gradientColors: ['#F59E0B', '#F97316'],
+    color: '#F59E0B',
+    bgColor: '#F59E0B15',
     path: '/(tabs)/tools/state-laws',
+  },
+];
+
+const comingSoon: ToolItem[] = [
+  {
+    id: 'partner-verify',
+    title: 'Partner Verify',
+    description: 'Verify identity and age of partners',
+    icon: 'shield-checkmark',
+    color: '#EC4899',
+    bgColor: '#EC489915',
+    path: '',
+  },
+  {
+    id: 'emergency',
+    title: 'Emergency Resources',
+    description: 'Crisis hotlines and support services',
+    icon: 'call',
+    color: '#EF4444',
+    bgColor: '#EF444415',
+    path: '',
   },
 ];
 
@@ -64,9 +90,8 @@ export default function ToolsScreen() {
 
   if (authLoading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background.dark }]}>
+      <View style={[styles.center, { backgroundColor: colors.background.primary }]}>
         <ActivityIndicator size="large" color={colors.brand.primary} />
-        <Text style={{ marginTop: spacing.lg, color: colors.text.inverse }}>Loading...</Text>
       </View>
     );
   }
@@ -76,62 +101,110 @@ export default function ToolsScreen() {
   }
 
   const handleToolPress = (tool: ToolItem) => {
-    if (tool.path === '/settings/integrations') {
-      // TODO: Implement integrations page
-      return;
-    }
+    if (!tool.path) return;
     router.push(tool.path as `/${string}`);
   };
 
   return (
-    <ScrollView 
-      style={styles.container} 
+    <ScrollView
+      style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>Tools</Text>
-        <Text style={styles.subtitle}>
-          Quick access to essential features
-        </Text>
+      {/* Hero Section */}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => router.push('/(tabs)/create')}
+      >
+        <LinearGradient
+          colors={['#10B981', '#059669']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroCard}
+        >
+          <View style={styles.heroContent}>
+            <View style={styles.heroIconContainer}>
+              <Ionicons name="shield-checkmark" size={32} color="#FFFFFF" />
+            </View>
+            <View style={styles.heroText}>
+              <Text style={styles.heroTitle}>Create Consent Contract</Text>
+              <Text style={styles.heroDescription}>
+                Document mutual consent with legally-backed digital signatures
+              </Text>
+            </View>
+            <View style={styles.heroArrow}>
+              <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
+            </View>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* Quick Actions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.quickActionsGrid}>
+          {quickActions.map((tool) => (
+            <TouchableOpacity
+              key={tool.id}
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={() => handleToolPress(tool)}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: tool.bgColor }]}>
+                <Ionicons name={tool.icon} size={24} color={tool.color} />
+              </View>
+              <Text style={styles.quickActionTitle}>{tool.title}</Text>
+              <Text style={styles.quickActionDescription}>{tool.description}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.grid}>
-        {tools.map((tool) => (
-          <TouchableOpacity
-            key={tool.id}
-            onPress={() => handleToolPress(tool)}
-            activeOpacity={0.8}
-            style={styles.toolCard}
-          >
-            <LinearGradient
-              colors={tool.gradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradient}
+      {/* Resources */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Legal Resources</Text>
+        <View style={styles.resourcesList}>
+          {resources.map((tool) => (
+            <TouchableOpacity
+              key={tool.id}
+              style={styles.resourceCard}
+              activeOpacity={0.7}
+              onPress={() => handleToolPress(tool)}
             >
-              <View style={styles.toolContent}>
-                <View style={styles.iconWrapper}>
-                  <Ionicons 
-                    name={tool.icon as any} 
-                    size={32} 
-                    color={colors.text.inverse} 
-                  />
-                </View>
-                <View style={styles.toolTextContainer}>
-                  <Text style={styles.toolTitle}>{tool.title}</Text>
-                  <Text style={styles.toolDescription}>{tool.description}</Text>
-                </View>
-                <Ionicons 
-                  name="chevron-forward" 
-                  size={20} 
-                  color={colors.text.inverse + '80'} 
-                  style={styles.chevron}
-                />
+              <View style={[styles.resourceIcon, { backgroundColor: tool.bgColor }]}>
+                <Ionicons name={tool.icon} size={22} color={tool.color} />
               </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
+              <View style={styles.resourceContent}>
+                <Text style={styles.resourceTitle}>{tool.title}</Text>
+                <Text style={styles.resourceDescription}>{tool.description}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Coming Soon */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Coming Soon</Text>
+        <View style={styles.resourcesList}>
+          {comingSoon.map((tool) => (
+            <View key={tool.id} style={[styles.resourceCard, styles.disabledCard]}>
+              <View style={[styles.resourceIcon, { backgroundColor: tool.bgColor }]}>
+                <Ionicons name={tool.icon} size={22} color={tool.color} />
+              </View>
+              <View style={styles.resourceContent}>
+                <View style={styles.comingSoonHeader}>
+                  <Text style={[styles.resourceTitle, styles.disabledText]}>{tool.title}</Text>
+                  <View style={styles.comingSoonBadge}>
+                    <Text style={styles.comingSoonText}>Soon</Text>
+                  </View>
+                </View>
+                <Text style={[styles.resourceDescription, styles.disabledText]}>{tool.description}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     </ScrollView>
   );
@@ -142,81 +215,159 @@ const createStyles = (colors: ReturnType<typeof import('@/lib/theme').getColors>
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.background.dark,
+    backgroundColor: colors.background.primary,
   },
   content: {
     padding: spacing.lg,
-    paddingBottom: layout.bottomNavHeight + spacing.xl,
+    paddingBottom: layout.bottomNavHeight + spacing.xxxl,
   },
-  header: {
+  heroCard: {
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     marginBottom: spacing.xl,
   },
-  title: {
-    fontSize: typography.size['3xl'],
-    fontWeight: typography.weight.bold,
-    marginBottom: spacing.xs,
-    color: colors.text.inverse,
-  },
-  subtitle: {
-    fontSize: typography.size.base,
-    color: colors.text.secondary,
-    lineHeight: 20,
-  },
-  grid: {
+  heroContent: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -spacing.xs,
+    alignItems: 'center',
   },
-  toolCard: {
-    width: '50%',
-    padding: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  gradient: {
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    minHeight: 140,
-    ...shadows.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  toolContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  iconWrapper: {
+  heroIconContainer: {
     width: 56,
     height: 56,
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  heroText: {
+    flex: 1,
+    marginLeft: spacing.lg,
+    marginRight: spacing.md,
+  },
+  heroTitle: {
+    fontSize: typography.size.lg,
+    fontFamily: typography.fontFamily.bold,
+    fontWeight: typography.weight.bold,
+    color: '#FFFFFF',
+    marginBottom: spacing.xs,
+  },
+  heroDescription: {
+    fontSize: typography.size.sm,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 18,
+  },
+  heroArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  section: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: typography.size.md,
+    fontFamily: typography.fontFamily.semibold,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: spacing.md,
   },
-  toolTextContainer: {
-    flex: 1,
-    justifyContent: 'flex-start',
-  },
-  toolTitle: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
+  quickActionTitle: {
+    fontSize: typography.size.md,
+    fontFamily: typography.fontFamily.semibold,
+    fontWeight: typography.weight.semibold,
     color: colors.text.inverse,
     marginBottom: spacing.xs,
   },
-  toolDescription: {
+  quickActionDescription: {
     fontSize: typography.size.sm,
-    color: colors.text.inverse + 'CC',
+    color: colors.text.secondary,
+    lineHeight: 16,
+  },
+  resourcesList: {
+    gap: spacing.md,
+  },
+  resourceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+  },
+  disabledCard: {
+    opacity: 0.6,
+  },
+  resourceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resourceContent: {
+    flex: 1,
+    marginLeft: spacing.md,
+    marginRight: spacing.sm,
+  },
+  resourceTitle: {
+    fontSize: typography.size.md,
+    fontFamily: typography.fontFamily.semibold,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.inverse,
+    marginBottom: spacing.xs,
+  },
+  resourceDescription: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
     lineHeight: 18,
   },
-  chevron: {
-    alignSelf: 'flex-end',
-    marginTop: spacing.sm,
+  disabledText: {
+    color: colors.text.tertiary,
+  },
+  comingSoonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  comingSoonBadge: {
+    backgroundColor: colors.brand.primary + '20',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  comingSoonText: {
+    fontSize: typography.size.xs,
+    fontFamily: typography.fontFamily.semibold,
+    fontWeight: typography.weight.semibold,
+    color: colors.brand.primary,
   },
 });
